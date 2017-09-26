@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS apex_scan (
   apex_exam_id INT UNSIGNED NOT NULL,
   apex_host_id INT UNSIGNED NULL DEFAULT NULL,
   compare_apex_exam_id INT UNSIGNED NULL DEFAULT NULL,
-  type ENUM('hip', 'iva', 'forearm', 'spine', 'wholebody') NOT NULL,
+  type ENUM('hip', 'iva', 'forearm', 'spine', 'wholebody','bodycomp') NOT NULL,
   side ENUM('left', 'right', 'none') NOT NULL DEFAULT 'none',
   availability INT UNSIGNED NOT NULL DEFAULT 0,
   code_list VARCHAR(128) NULL DEFAULT NULL,
