@@ -56,6 +56,7 @@ class ui extends \cenozo\ui\ui
     $this->remove_listitem( 'Consent Types' );
     $this->remove_listitem( 'Event Types' );
     $this->remove_listitem( 'Languages' );
+    $this->remove_listitem( 'Participants' );
     $this->remove_listitem( 'States' );
   }
 
