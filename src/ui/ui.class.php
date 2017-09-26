@@ -68,6 +68,8 @@ class ui extends \cenozo\ui\ui
     // remove export
     $list = parent::get_utility_items();
     if( array_key_exists( 'Participant Export', $list ) ) unset( $list['Participant Export'] );
+    if( array_key_exists( 'Participant Multiedit', $list ) ) unset( $list['Participant Multiedit'] );
+    if( array_key_exists( 'Participant Search', $list ) ) unset( $list['Participant Search'] );
     return $list;
   }
 }
