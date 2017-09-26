@@ -52,6 +52,18 @@ define( function() {
   } );
 
   module.addInputGroup( '', {
+    participant: {
+      column: 'participant.uid',
+      title: 'Participant',
+      type: 'string',
+      constant: true
+    },
+    rank: {
+      column: 'apex_exam.rank',
+      title: 'Wave Rank',
+      type: 'string',
+      constant: true
+    },
     host: {
       column: 'apex_host.name',
       title: 'Apex Workstation',
