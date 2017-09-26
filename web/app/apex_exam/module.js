@@ -27,7 +27,7 @@ define( function() {
       site: {
         title: 'Site'
       },
-      wave_rank: {
+      rank: {
         title: 'Wave Rank',
         type: 'rank'
       }
@@ -59,7 +59,7 @@ define( function() {
       title: 'Site',
       type: 'string'
     },
-    wave_rank: {
+    rank: {
       title: 'Wave Rank',
       type: 'rank'
     },

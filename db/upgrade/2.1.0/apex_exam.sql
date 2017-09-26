@@ -10,11 +10,11 @@ CREATE TABLE IF NOT EXISTS apex_exam (
   age FLOAT NULL DEFAULT NULL,
   barcode VARCHAR(10) NOT NULL,
   site VARCHAR(45) NOT NULL,
-  wave_rank INT UNSIGNED NOT NULL,
+  rank INT UNSIGNED NOT NULL,
   technician VARCHAR(128) NULL DEFAULT NULL,
   PRIMARY KEY (id),
   INDEX fk_apex_baseline_id (apex_baseline_id ASC),
-  UNIQUE INDEX uq_barcode_site_wave_rank (barcode ASC, site ASC, wave_rank ASC),
+  UNIQUE INDEX uq_barcode_site_rank (barcode ASC, site ASC, rank ASC),
   CONSTRAINT fk_apex_exam_apex_baseline_id
     FOREIGN KEY (apex_baseline_id)
     REFERENCES apex_baseline (id)
