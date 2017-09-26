@@ -38,7 +38,8 @@ define( function() {
         type: 'boolean'
       },
       priority: {
-        title: 'Priority'
+        title: 'Priority',
+        type: 'boolean'
       },
       analysis_datetime: {
         title: 'Analysis Date & Time',
