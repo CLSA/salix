@@ -20,30 +20,11 @@ define( function() {
         column: 'participant.uid',
         title: 'Participant'
       },
-      host: {
-        column: 'apex_host.name',
-        title: 'Workstation'
-      },
       type: {
         title: 'Type'
       },
       side: {
         title: 'Side'
-      },
-      status: {
-        title: 'Status'
-      },
-      pass: {
-        title: 'Pass',
-        type: 'boolean'
-      },
-      priority: {
-        title: 'Priority',
-        type: 'boolean'
-      },
-      analysis_datetime: {
-        title: 'Analysis Date & Time',
-        type: 'datetime'
       }
     },
     defaultOrder: {
@@ -65,12 +46,6 @@ define( function() {
       type: 'string',
       constant: true
     },
-    host: {
-      column: 'apex_host.name',
-      title: 'Apex Workstation',
-      type: 'string',
-      constant: true
-    },
     type: {
       title: 'Type',
       type: 'string',
@@ -87,30 +62,6 @@ define( function() {
       constant: true,
       help: '0: no files are available, 1: left scan only, 2: right scan only, 3: left and right scans available'
     },
-    status: {
-      title: 'Status',
-      type: 'string',
-      constant: true
-    },
-    pass: {
-      title: 'QC Pass',
-      type: 'boolean',
-      constant: true
-    },
-    merged: {
-      title: 'Merged',
-      type: 'boolean',
-      constant: true
-    },
-    priority: {
-      title: 'Priority',
-      type: 'boolean'
-    },
-    analysis_datetime: {
-      title: 'Analysis Date & Time',
-      type: 'datetime',
-      constant: true
-    },
     scan_datetime: {
       title: 'Scan Date & Time',
       type: 'datetime',
@@ -120,14 +71,6 @@ define( function() {
       title: 'Serial Number',
       type: 'string',
       constant: true
-    },
-    code_list: {
-      title: 'Code List',
-      type: 'string'
-    },
-    note: {
-      title: 'Note',
-      type: 'text'
     }
   } );
 
