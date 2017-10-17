@@ -2437,6 +2437,8 @@ CREATE TABLE IF NOT EXISTS `salix`.`apex_scan` (
   `availability` INT UNSIGNED NOT NULL DEFAULT 0,
   `scan_datetime` DATETIME NULL DEFAULT NULL,
   `serial_number` INT UNSIGNED NULL DEFAULT NULL,
+  `scanid` VARCHAR(13) NULL DEFAULT NULL,
+  `patient_key` VARCHAR(24) NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   INDEX `fk_apex_exam_id` (`apex_exam_id` ASC),
   UNIQUE INDEX `uq_apex_exam_id_type_side` (`apex_exam_id` ASC, `type` ASC, `side` ASC),
@@ -2628,7 +2630,7 @@ BEGIN
   REPLACE INTO participant_site( application_id, participant_id, site_id, default_site_id )
   SELECT application.id,
          participant.id,
-         IF( 
+         IF(
            ISNULL( application_has_participant.preferred_site_id ),
            jurisdiction.site_id,
            application_has_participant.preferred_site_id
@@ -3519,7 +3521,7 @@ BEGIN
   REPLACE INTO search_result( create_timestamp, search_id, participant_id, record_id, subject, column_name, value )
 
   SELECT NULL, NEW.id, participant.id, participant.id, "participant", "honorific", participant.honorific
-  FROM participant 
+  FROM participant
   WHERE honorific LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, participant.id, participant.id, "participant", "first_name", participant.first_name
@@ -3547,106 +3549,106 @@ BEGIN
   FROM alternate WHERE association LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, consent.participant_id, consent.id, "consent", "note",
-    IF( CHAR_LENGTH( note ) > 255, CONCAT( SUBSTRING( note, 1, 252 ), "..." ), note ) 
+    IF( CHAR_LENGTH( note ) > 255, CONCAT( SUBSTRING( note, 1, 252 ), "..." ), note )
   FROM consent WHERE note LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, hin.participant_id, hin.id, "hin", "code", hin.code
   FROM hin WHERE code LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, address.participant_id, address.id, "address", "address1",
-    IF( CHAR_LENGTH( address1 ) > 255, CONCAT( SUBSTRING( address1, 1, 252 ), "..." ), address1 ) 
+    IF( CHAR_LENGTH( address1 ) > 255, CONCAT( SUBSTRING( address1, 1, 252 ), "..." ), address1 )
   FROM address WHERE address1 LIKE NEW.word AND participant_id IS NOT NULL
 
   UNION SELECT NULL, NEW.id, alternate.participant_id, address.id, "address", "address1",
-    IF( CHAR_LENGTH( address1 ) > 255, CONCAT( SUBSTRING( address1, 1, 252 ), "..." ), address1 ) 
-  FROM address 
-  JOIN alternate ON address.alternate_id = alternate.id 
+    IF( CHAR_LENGTH( address1 ) > 255, CONCAT( SUBSTRING( address1, 1, 252 ), "..." ), address1 )
+  FROM address
+  JOIN alternate ON address.alternate_id = alternate.id
   WHERE address1 LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, address.participant_id, address.id, "address", "address2",
-    IF( CHAR_LENGTH( address2 ) > 255, CONCAT( SUBSTRING( address2, 1, 252 ), "..." ), address2 ) 
+    IF( CHAR_LENGTH( address2 ) > 255, CONCAT( SUBSTRING( address2, 1, 252 ), "..." ), address2 )
   FROM address WHERE address2 LIKE NEW.word AND participant_id IS NOT NULL
 
   UNION SELECT NULL, NEW.id, alternate.participant_id, address.id, "address", "address2",
-    IF( CHAR_LENGTH( address2 ) > 255, CONCAT( SUBSTRING( address2, 1, 252 ), "..." ), address2 ) 
-  FROM address 
-  JOIN alternate ON address.alternate_id = alternate.id 
+    IF( CHAR_LENGTH( address2 ) > 255, CONCAT( SUBSTRING( address2, 1, 252 ), "..." ), address2 )
+  FROM address
+  JOIN alternate ON address.alternate_id = alternate.id
   WHERE address2 LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, address.participant_id, address.id, "address", "city", address.city
   FROM address WHERE city LIKE NEW.word AND participant_id IS NOT NULL
 
   UNION SELECT NULL, NEW.id, alternate.participant_id, address.id, "address", "city", address.city
-  FROM address 
-  JOIN alternate ON address.alternate_id = alternate.id 
+  FROM address
+  JOIN alternate ON address.alternate_id = alternate.id
   WHERE city LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, address.participant_id, address.id, "address", "postcode", address.postcode
   FROM address WHERE postcode LIKE NEW.word AND participant_id IS NOT NULL
 
   UNION SELECT NULL, NEW.id, alternate.participant_id, address.id, "address", "postcode", address.postcode
-  FROM address 
-  JOIN alternate ON address.alternate_id = alternate.id 
+  FROM address
+  JOIN alternate ON address.alternate_id = alternate.id
   WHERE postcode LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, address.participant_id, address.id, "address", "note",
-    IF( CHAR_LENGTH( note ) > 255, CONCAT( SUBSTRING( note, 1, 252 ), "..." ), note ) 
+    IF( CHAR_LENGTH( note ) > 255, CONCAT( SUBSTRING( note, 1, 252 ), "..." ), note )
   FROM address WHERE note LIKE NEW.word AND participant_id IS NOT NULL
 
   UNION SELECT NULL, NEW.id, alternate.participant_id, address.id, "address", "note",
-    IF( CHAR_LENGTH( note ) > 255, CONCAT( SUBSTRING( note, 1, 252 ), "..." ), note ) 
-  FROM address 
-  JOIN alternate ON address.alternate_id = alternate.id 
+    IF( CHAR_LENGTH( note ) > 255, CONCAT( SUBSTRING( note, 1, 252 ), "..." ), note )
+  FROM address
+  JOIN alternate ON address.alternate_id = alternate.id
   WHERE note LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, phone.participant_id, phone.id, "phone", "number", phone.number
   FROM phone WHERE number LIKE NEW.word AND participant_id IS NOT NULL
 
   UNION SELECT NULL, NEW.id, alternate.participant_id, phone.id, "phone", "number", phone.number
-  FROM phone 
-  JOIN alternate ON phone.alternate_id = alternate.id 
+  FROM phone
+  JOIN alternate ON phone.alternate_id = alternate.id
   WHERE number LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, phone.participant_id, phone.id, "phone", "note",
-    IF( CHAR_LENGTH( note ) > 255, CONCAT( SUBSTRING( note, 1, 252 ), "..." ), note ) 
+    IF( CHAR_LENGTH( note ) > 255, CONCAT( SUBSTRING( note, 1, 252 ), "..." ), note )
   FROM phone WHERE note LIKE NEW.word AND participant_id IS NOT NULL
 
   UNION SELECT NULL, NEW.id, alternate.participant_id, phone.id, "phone", "note",
-    IF( CHAR_LENGTH( note ) > 255, CONCAT( SUBSTRING( note, 1, 252 ), "..." ), note ) 
-  FROM phone 
-  JOIN alternate ON phone.alternate_id = alternate.id 
+    IF( CHAR_LENGTH( note ) > 255, CONCAT( SUBSTRING( note, 1, 252 ), "..." ), note )
+  FROM phone
+  JOIN alternate ON phone.alternate_id = alternate.id
   WHERE note LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, note.participant_id, note.id, "note", "note",
-    IF( CHAR_LENGTH( note ) > 255, CONCAT( SUBSTRING( note, 1, 252 ), "..." ), note ) 
+    IF( CHAR_LENGTH( note ) > 255, CONCAT( SUBSTRING( note, 1, 252 ), "..." ), note )
   FROM note WHERE note LIKE NEW.word AND participant_id IS NOT NULL
 
   UNION SELECT NULL, NEW.id, alternate.participant_id, note.id, "note", "note",
-    IF( CHAR_LENGTH( note ) > 255, CONCAT( SUBSTRING( note, 1, 252 ), "..." ), note ) 
-  FROM note 
-  JOIN alternate ON note.alternate_id = alternate.id 
+    IF( CHAR_LENGTH( note ) > 255, CONCAT( SUBSTRING( note, 1, 252 ), "..." ), note )
+  FROM note
+  JOIN alternate ON note.alternate_id = alternate.id
   WHERE note LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, event.participant_id, event_address.id, "event_address", "address1",
-    IF( CHAR_LENGTH( address1 ) > 255, CONCAT( SUBSTRING( address1, 1, 252 ), "..." ), address1 ) 
-  FROM event_address 
-  JOIN event ON event_address.event_id = event.id 
+    IF( CHAR_LENGTH( address1 ) > 255, CONCAT( SUBSTRING( address1, 1, 252 ), "..." ), address1 )
+  FROM event_address
+  JOIN event ON event_address.event_id = event.id
   WHERE address1 LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, event.participant_id, event_address.id, "event_address", "address2",
-    IF( CHAR_LENGTH( address2 ) > 255, CONCAT( SUBSTRING( address2, 1, 252 ), "..." ), address2 ) 
-  FROM event_address 
-  JOIN event ON event_address.event_id = event.id 
+    IF( CHAR_LENGTH( address2 ) > 255, CONCAT( SUBSTRING( address2, 1, 252 ), "..." ), address2 )
+  FROM event_address
+  JOIN event ON event_address.event_id = event.id
   WHERE address2 LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, event.participant_id, event_address.id, "event_address", "city", event_address.city
-  FROM event_address 
-  JOIN event ON event_address.event_id = event.id 
+  FROM event_address
+  JOIN event ON event_address.event_id = event.id
   WHERE city LIKE NEW.word
 
   UNION SELECT NULL, NEW.id, event.participant_id, event_address.id, "event_address", "postcode", event_address.postcode
-  FROM event_address 
-  JOIN event ON event_address.event_id = event.id 
+  FROM event_address
+  JOIN event ON event_address.event_id = event.id
   WHERE postcode LIKE NEW.word;
 
 END;$$
