@@ -33,10 +33,16 @@ class ui extends \cenozo\ui\ui
       $module->add_child( 'apex_scan' );
     }
 
+    $module = $this->get_module( 'apex_scan' );
+    if( !is_null( $module ) )
+    {
+      $module->add_child( 'apex_host' );
+    }
+
     $module = $this->get_module( 'apex_host' );
     if( !is_null( $module ) )
     {
-      $module->add_choose( 'apex_scan' );
+      $module->add_child( 'apex_scan' );
     }
   }
 
