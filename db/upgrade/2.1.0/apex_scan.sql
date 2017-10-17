@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS apex_scan (
   availability INT UNSIGNED NOT NULL DEFAULT 0,
   scan_datetime DATETIME NULL DEFAULT NULL,
   serial_number INT UNSIGNED NULL DEFAULT NULL,
+  scanid VARCHAR(13) NULL DEFAULT NULL,
+  patient_key VARCHAR(24) NULL DEFAULT NULL,
   PRIMARY KEY (id),
   INDEX fk_apex_exam_id (apex_exam_id ASC),
   UNIQUE INDEX uq_apex_exam_id_type_side (apex_exam_id ASC, type ASC, side ASC),
