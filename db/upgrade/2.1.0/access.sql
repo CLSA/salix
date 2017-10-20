@@ -5,6 +5,7 @@ CREATE PROCEDURE patch_access()
 
     -- determine the @cenozo database name
     SET @cenozo = ( SELECT REPLACE( DATABASE(), "salix", "cenozo" ) );
+    SET @mastodon = ( SELECT REPLACE( DATABASE(), "salix", "mastodon" ) );
 
     SELECT "Creating new access table" AS "";
 
@@ -43,6 +44,25 @@ CREATE PROCEDURE patch_access()
     PREPARE statement FROM @sql;
     EXECUTE statement;
     DEALLOCATE PREPARE statement;
+
+    SET @test = ( SELECT COUNT(*) FROM access );
+    IF @test = 0 THEN
+      SELECT "Adding default administrator access based on Mastodon" AS "";
+
+      SET @sql = CONCAT(
+        "INSERT IGNORE INTO access ",
+        "( user_id, role_id, site_id ) ",
+        "SELECT access.user_id, access.role_id, site.id ",
+        "FROM ", @cenozo, ".site, ", @mastodon, ".access ",
+        "JOIN ", @cenozo, ".role ON access.role_id = role.id ",
+        "JOIN ", @cenozo, ".site AS asite ON access.site_id = asite.id ",
+        "WHERE site.name = 'McMaster SCAN' ",
+        "AND role.name = 'administrator' ",
+        "AND asite.name = 'Sherbrooke CATI'" );
+      PREPARE statement FROM @sql;
+      EXECUTE statement;
+      DEALLOCATE PREPARE statement;
+    END IF;
 
   END //
 DELIMITER ;

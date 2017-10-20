@@ -6,7 +6,7 @@ define( function() {
     identifier: {
       parent: {
         subject: 'apex_baseline',
-        column: 'apex_baseline.id'
+        column: 'participant.uid'
       }
     },
     name: {
@@ -27,7 +27,7 @@ define( function() {
       site: {
         title: 'Site'
       },
-      wave_rank: {
+      rank: {
         title: 'Wave Rank',
         type: 'rank'
       }
@@ -39,6 +39,12 @@ define( function() {
   } );
 
   module.addInputGroup( '', {
+    participant: {
+      column: 'participant.uid',
+      title: 'Participant',
+      type: 'string',
+      constant: true
+    },
     height: {
       title: 'Height',
       type: 'string'
@@ -59,7 +65,7 @@ define( function() {
       title: 'Site',
       type: 'string'
     },
-    wave_rank: {
+    rank: {
       title: 'Wave Rank',
       type: 'rank'
     },

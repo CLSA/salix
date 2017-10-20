@@ -33,6 +33,12 @@ class ui extends \cenozo\ui\ui
       $module->add_child( 'apex_scan' );
     }
 
+    $module = $this->get_module( 'apex_scan' );
+    if( !is_null( $module ) )
+    {
+      $module->add_child( 'apex_host' );
+    }
+
     $module = $this->get_module( 'apex_host' );
     if( !is_null( $module ) )
     {
@@ -56,6 +62,7 @@ class ui extends \cenozo\ui\ui
     $this->remove_listitem( 'Consent Types' );
     $this->remove_listitem( 'Event Types' );
     $this->remove_listitem( 'Languages' );
+    $this->remove_listitem( 'Participants' );
     $this->remove_listitem( 'States' );
   }
 
@@ -67,6 +74,8 @@ class ui extends \cenozo\ui\ui
     // remove export
     $list = parent::get_utility_items();
     if( array_key_exists( 'Participant Export', $list ) ) unset( $list['Participant Export'] );
+    if( array_key_exists( 'Participant Multiedit', $list ) ) unset( $list['Participant Multiedit'] );
+    if( array_key_exists( 'Participant Search', $list ) ) unset( $list['Participant Search'] );
     return $list;
   }
 }

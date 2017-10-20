@@ -4,7 +4,11 @@ SET AUTOCOMMIT=0;
 
 SOURCE event_type.sql
 SOURCE application_type.sql
+SOURCE application_type_has_role.sql
 SOURCE application.sql
+SOURCE application_has_cohort.sql
+SOURCE application_has_site.sql
+SOURCE site.sql
 
 SOURCE access.sql
 SOURCE service.sql
@@ -16,6 +20,7 @@ SOURCE apex_host.sql
 SOURCE apex_baseline.sql
 SOURCE apex_exam.sql
 SOURCE apex_scan.sql
+SOURCE apex_host_has_apex_scan.sql
 
 SOURCE update_version_number.sql
 
