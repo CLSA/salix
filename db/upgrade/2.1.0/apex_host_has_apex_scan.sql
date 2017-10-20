@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS apex_host_has_apex_scan (
   code_list VARCHAR(128) NULL DEFAULT NULL,
   pass TINYINT(1) NULL DEFAULT NULL,
   analysis_datetime DATETIME NULL DEFAULT NULL,
+  import_datetime DATETIME NULL DEFAULT NULL COMMENT 'send to APEX host datetime',
+  export_datetime DATETIME NULL DEFAULT NULL COMMENT 'receive from APEX host datetime',
   note TEXT NULL DEFAULT NULL,
   PRIMARY KEY (apex_host_id, apex_scan_id),
   INDEX fk_apex_scan_id (apex_scan_id ASC),
