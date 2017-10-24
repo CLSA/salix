@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS apex_exam (
   site VARCHAR(45) NOT NULL,
   rank INT UNSIGNED NOT NULL,
   technician VARCHAR(128) NULL DEFAULT NULL,
+  serial_number INT UNSIGNED NULL DEFAULT NULL,
+  patient_key VARCHAR(24) NULL DEFAULT NULL,
   PRIMARY KEY (id),
   INDEX fk_apex_baseline_id (apex_baseline_id ASC),
   UNIQUE INDEX uq_barcode_site_rank (barcode ASC, site ASC, rank ASC),
