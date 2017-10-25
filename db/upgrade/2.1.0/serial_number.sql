@@ -19,7 +19,7 @@ CREATE PROCEDURE patch_serial_number()
         "INDEX fk_site_id (site_id ASC), ",
         "CONSTRAINT fk_serial_number_site_id ",
           "FOREIGN KEY (site_id) ",
-          "REFERENCES", @cenozo, ".site (id) ",
+          "REFERENCES ", @cenozo, ".site (id) ",
           "ON DELETE NO ACTION ",
           "ON UPDATE NO ACTION) ",
       "ENGINE = InnoDB" );
