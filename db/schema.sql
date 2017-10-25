@@ -2417,7 +2417,7 @@ CREATE TABLE IF NOT EXISTS `salix`.`apex_exam` (
   `technician` VARCHAR(128) NULL DEFAULT NULL,
   PRIMARY KEY (`id`) ,
   INDEX `fk_apex_baseline_id` (`apex_baseline_id` ASC) ,
-  UNIQUE INDEX `uq_barcode_site_rank` (`barcode` ASC, `rank` ASC) ,
+  UNIQUE INDEX `uq_site_id_barcode_rank` (`site_id` ASC, `barcode` ASC, `rank` ASC) ,
   INDEX `fk_site_id` (`site_id` ASC) ,
   INDEX `fk_serial_number_id` (`serial_number_id` ASC) ,
   CONSTRAINT `fk_apex_exam_apex_baseline_id`
