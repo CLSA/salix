@@ -9,7 +9,6 @@ CREATE TABLE IF NOT EXISTS apex_scan (
   side ENUM('left', 'right', 'none') NOT NULL DEFAULT 'none',
   availability INT UNSIGNED NOT NULL DEFAULT 0,
   scan_datetime DATETIME NULL DEFAULT NULL,
-  serial_number INT UNSIGNED NULL DEFAULT NULL,
   scanid VARCHAR(13) NULL DEFAULT NULL,
   patient_key VARCHAR(24) NULL DEFAULT NULL,
   PRIMARY KEY (id),

@@ -18,6 +18,7 @@ SOURCE writelog.sql
 
 SOURCE apex_host.sql
 SOURCE apex_baseline.sql
+SOURCE serial_number.sql
 SOURCE apex_exam.sql
 SOURCE apex_scan.sql
 SOURCE apex_host_has_apex_scan.sql
