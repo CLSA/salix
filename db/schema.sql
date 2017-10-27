@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`user` (
   PRIMARY KEY (`id`),
   UNIQUE INDEX `uq_name` (`name` ASC),
   INDEX `dk_active` (`active` ASC),
-  UNIQUE INDEX `uq_email` (`email` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_email` (`email` ASC) )
 ENGINE = InnoDB;
 
 
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`role` (
   `all_sites` TINYINT(1) NOT NULL DEFAULT 0,
   `special` TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `uq_name` (`name` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_name` (`name` ASC) )
 ENGINE = InnoDB;
 
 
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`region` (
   `country` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `uq_name` (`name` ASC),
-  UNIQUE INDEX `uq_abbreviation` (`abbreviation` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_abbreviation` (`abbreviation` ASC) )
 ENGINE = InnoDB;
 
 
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`cohort` (
   `create_timestamp` TIMESTAMP NOT NULL,
   `name` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `uq_name` (`name` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_name` (`name` ASC) )
 ENGINE = InnoDB;
 
 
@@ -116,7 +116,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`event_type` (
   `record_address` TINYINT(1) NOT NULL DEFAULT 0,
   `description` TEXT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `uq_name` (`name` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_name` (`name` ASC) )
 ENGINE = InnoDB;
 
 
@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`application_type` (
   `create_timestamp` TIMESTAMP NOT NULL,
   `name` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `uq_name` (`name` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_name` (`name` ASC) )
 ENGINE = InnoDB;
 
 
@@ -241,7 +241,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`age_group` (
   `upper` INT NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `uq_lower` (`lower` ASC),
-  UNIQUE INDEX `uq_upper` (`upper` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_upper` (`upper` ASC) )
 ENGINE = InnoDB;
 
 
@@ -258,7 +258,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`source` (
   `override_quota` TINYINT(1) NOT NULL DEFAULT 0,
   `description` TEXT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `uq_name` (`name` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_name` (`name` ASC) )
 ENGINE = InnoDB;
 
 
@@ -276,7 +276,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`state` (
   `description` VARCHAR(512) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `uq_name` (`name` ASC),
-  UNIQUE INDEX `uq_rank` (`rank` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_rank` (`rank` ASC) )
 ENGINE = InnoDB;
 
 
@@ -294,7 +294,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`language` (
   `code` CHAR(2) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `uq_name` (`name` ASC),
-  UNIQUE INDEX `uq_code` (`code` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_code` (`code` ASC) )
 ENGINE = InnoDB;
 
 
@@ -309,7 +309,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`availability_type` (
   `create_timestamp` TIMESTAMP NOT NULL,
   `name` VARCHAR(25) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `uq_name` (`name` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_name` (`name` ASC) )
 ENGINE = InnoDB;
 
 
@@ -498,7 +498,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`consent_type` (
   `name` VARCHAR(100) NOT NULL,
   `description` TEXT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `uq_name` (`name` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_name` (`name` ASC) )
 ENGINE = InnoDB;
 
 
@@ -764,7 +764,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`unique_identifier_pool` (
   `create_timestamp` TIMESTAMP NOT NULL,
   `uid` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `uq_uid` (`uid` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_uid` (`uid` ASC) )
 ENGINE = InnoDB;
 
 
@@ -951,7 +951,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`collection` (
   `locked` TINYINT(1) NOT NULL DEFAULT 0,
   `description` TEXT NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `uq_name` (`name` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_name` (`name` ASC) )
 ENGINE = InnoDB;
 
 
@@ -1459,7 +1459,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`search` (
   `word` VARCHAR(255) NOT NULL,
   `datetime` DATETIME NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `uq_word` (`word` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_word` (`word` ASC) )
 ENGINE = InnoDB;
 
 
@@ -1539,7 +1539,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`report_type` (
   `description` TEXT NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `uq_name` (`name` ASC),
-  UNIQUE INDEX `uq_title` (`title` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_title` (`title` ASC) )
 ENGINE = InnoDB;
 
 
@@ -1861,7 +1861,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`form_type` (
   `title` VARCHAR(100) NOT NULL,
   `description` TEXT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `uq_name` (`name` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_name` (`name` ASC) )
 ENGINE = InnoDB;
 
 
@@ -1931,7 +1931,7 @@ CREATE TABLE IF NOT EXISTS `cenozo`.`overview` (
   `title` VARCHAR(255) NOT NULL,
   `description` TEXT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `uq_name` (`name` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_name` (`name` ASC) )
 ENGINE = InnoDB;
 
 
@@ -2225,7 +2225,7 @@ CREATE TABLE IF NOT EXISTS `salix`.`service` (
   `resource` TINYINT(1) NOT NULL DEFAULT 0,
   `restricted` TINYINT(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
-  INDEX `uq_method_subject_resource` (`method` ASC, `subject` ASC, `resource` ASC)  COMMENT '')
+  INDEX `uq_method_subject_resource` (`method` ASC, `subject` ASC, `resource` ASC) )
 ENGINE = InnoDB;
 
 
@@ -2452,7 +2452,7 @@ CREATE TABLE IF NOT EXISTS `salix`.`apex_host` (
   `sql_user` VARCHAR(45) NOT NULL,
   `sql_pass` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `uq_name` (`name` ASC)  COMMENT '')
+  UNIQUE INDEX `uq_name` (`name` ASC) )
 ENGINE = InnoDB;
 
 
