@@ -17,6 +17,8 @@ CREATE PROCEDURE patch_serial_number()
         "serial_number INT UNSIGNED NOT NULL, ",
         "PRIMARY KEY (id), ",
         "INDEX fk_site_id (site_id ASC), ",
+        "UNIQUE INDEX `uq_site_id` (`site_id` ASC), ",
+        "UNIQUE INDEX `uq_serial_number` (`serial_number` ASC), ",
         "CONSTRAINT fk_serial_number_site_id ",
           "FOREIGN KEY (site_id) ",
           "REFERENCES ", @cenozo, ".site (id) ",
