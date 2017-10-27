@@ -71,6 +71,16 @@ define( function() {
       title: 'Serial Number',
       type: 'string',
       constant: true
+    },
+    scanid: {
+      title: 'Scan ID',
+      type: 'string',
+      constant: true
+    },
+    patient_key: {
+      title: 'Patient Key',
+      type: 'string',
+      constant: true
     }
   } );
 
