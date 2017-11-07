@@ -13,7 +13,7 @@ CREATE PROCEDURE patch_application()
       "( name, title, application_type_id, url, ",
         "version, cenozo, release_based, release_event_type_id, country, timezone ) ",
       "SELECT 'salix', 'Salix', application_type.id, REPLACE( app.url, 'mastodon', 'salix' ), ",
-             "'2.1.0', app.cenozo, 0, event_type.id, 'Canada', 'Canada/Eastern' ",
+             "'2.2', app.cenozo, 0, event_type.id, 'Canada', 'Canada/Eastern' ",
       "FROM ", @cenozo, ".application_type, ",
                @cenozo, ".event_type,",
                @cenozo, ".application AS app ",
