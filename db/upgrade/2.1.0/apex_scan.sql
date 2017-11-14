@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS apex_scan (
   update_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   create_timestamp TIMESTAMP NOT NULL,
   apex_exam_id INT UNSIGNED NOT NULL,
-  type ENUM('hip', 'iva', 'forearm', 'spine', 'wholebody', 'bodycomp') NOT NULL,
+  type ENUM('hip', 'lateral', 'forearm', 'spine', 'wbody', 'wbodycomposition') NOT NULL,
   side ENUM('left', 'right', 'none') NOT NULL DEFAULT 'none',
   availability INT UNSIGNED NOT NULL DEFAULT 0,
   scan_datetime DATETIME NULL DEFAULT NULL,
