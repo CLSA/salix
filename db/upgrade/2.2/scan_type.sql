@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS scan_type (
   create_timestamp TIMESTAMP NOT NULL,
   type ENUM('hip', 'lateral', 'forearm', 'spine', 'wbody') NOT NULL,
   side ENUM('left', 'right', 'none') NOT NULL DEFAULT 'none',
-  PRIMARY KEY (id)
+  PRIMARY KEY (id),
+  UNIQUE INDEX `uq_type_side` (`type` ASC, `side` ASC))
 ENGINE = InnoDB;
 
 
@@ -21,10 +22,10 @@ END$$
 DELIMITER ;
 
 INSERT IGNORE INTO scan_type ( id, type, side ) VALUES
-(1, 'spine', 'none'),
-(2, 'hip', 'left'),
-(3, 'hip', 'right'),
-(5, 'wbody', 'none'),
-(6, 'forearm', 'left'),
-(7, 'forearm', 'right'),
-(29, 'lateral'; 'none');
+( 1, 'spine', 'none' ),
+( 2, 'hip', 'left' ),
+( 3, 'hip', 'right' ),
+( 5, 'wbody', 'none' ),
+( 6, 'forearm', 'left' ),
+( 7, 'forearm', 'right' ),
+( 29, 'lateral'; 'none' );
