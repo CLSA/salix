@@ -1,4 +1,4 @@
-SELECT "Creating new apex_scan table" AS "";
+SELECT "Creating new apex_host_has_apex_scan table" AS "";
 
 CREATE TABLE IF NOT EXISTS apex_host_has_apex_scan (
   apex_host_id INT UNSIGNED NOT NULL,
