@@ -5,18 +5,23 @@ CREATE TABLE IF NOT EXISTS apex_scan (
   update_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   create_timestamp TIMESTAMP NOT NULL,
   apex_exam_id INT UNSIGNED NOT NULL,
-  type ENUM('hip', 'lateral', 'forearm', 'spine', 'wbody', 'wbodycomposition') NOT NULL,
-  side ENUM('left', 'right', 'none') NOT NULL DEFAULT 'none',
+  scan_type_id INT UNSIGNED NOT NULL,
   availability INT UNSIGNED NOT NULL DEFAULT 0,
   scan_datetime DATETIME NULL DEFAULT NULL,
   scanid VARCHAR(13) NULL DEFAULT NULL,
   patient_key VARCHAR(24) NULL DEFAULT NULL,
   PRIMARY KEY (id),
   INDEX fk_apex_exam_id (apex_exam_id ASC),
-  UNIQUE INDEX uq_apex_exam_id_type_side (apex_exam_id ASC, type ASC, side ASC),
+  UNIQUE INDEX uq_apex_exam_id_scan_type_id (apex_exam_id ASC, scan_type_id ASC),
+  INDEX fk_scan_type_id (scan_type_id ASC),
   CONSTRAINT fk_apex_scan_apex_exam_id
     FOREIGN KEY (apex_exam_id)
     REFERENCES apex_exam (id)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT fk_apex_scan_scan_type_id
+    FOREIGN KEY (scan_type_id)
+    REFERENCES scan_type (id)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
