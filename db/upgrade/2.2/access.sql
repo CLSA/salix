@@ -56,7 +56,7 @@ CREATE PROCEDURE patch_access()
         "FROM ", @cenozo, ".site, ", @mastodon, ".access ",
         "JOIN ", @cenozo, ".role ON access.role_id = role.id ",
         "JOIN ", @cenozo, ".site AS asite ON access.site_id = asite.id ",
-        "WHERE site.name = 'McMaster SCAN' ",
+        "WHERE site.name = 'NCC' ",
         "AND role.name = 'administrator' ",
         "AND asite.name = 'Sherbrooke CATI'" );
       PREPARE statement FROM @sql;

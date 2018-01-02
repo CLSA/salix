@@ -76,6 +76,7 @@ class ui extends \cenozo\ui\ui
     if( array_key_exists( 'Participant Export', $list ) ) unset( $list['Participant Export'] );
     if( array_key_exists( 'Participant Multiedit', $list ) ) unset( $list['Participant Multiedit'] );
     if( array_key_exists( 'Participant Search', $list ) ) unset( $list['Participant Search'] );
+    if( array_key_exists( 'Tracing', $list ) ) unset( $list['Tracing'] );
     return $list;
   }
 }

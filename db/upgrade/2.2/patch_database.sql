@@ -2,13 +2,11 @@
 
 SET AUTOCOMMIT=0;
 
-SOURCE event_type.sql
 SOURCE application_type.sql
 SOURCE application_type_has_role.sql
 SOURCE application.sql
 SOURCE application_has_cohort.sql
 SOURCE application_has_site.sql
-SOURCE site.sql
 
 SOURCE access.sql
 SOURCE service.sql

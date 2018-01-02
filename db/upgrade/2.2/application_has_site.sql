@@ -24,7 +24,7 @@ CREATE PROCEDURE patch_application_has_site()
         "SELECT application.id, site.id ",
         "FROM ", @cenozo, ".application, ", @cenozo, ".site ",
         "WHERE application.name = 'salix' ",
-        "AND site.name = 'McMaster SCAN'" );
+        "AND site.name = 'NCC'" );
       PREPARE statement FROM @sql;
       EXECUTE statement;
       DEALLOCATE PREPARE statement;
