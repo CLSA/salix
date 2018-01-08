@@ -21,6 +21,9 @@ SOURCE scan_type.sql
 SOURCE apex_exam.sql
 SOURCE apex_scan.sql
 SOURCE apex_host_has_apex_scan.sql
+SOURCE code_type.sql
+SOURCE scan_type_has_code_type.sql
+SOURCE code.sql
 
 SOURCE update_version_number.sql
 

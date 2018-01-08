@@ -30,3 +30,15 @@ SET NEW.create_timestamp = NOW();
 END$$
 
 DELIMITER ;
+
+SET @scan_type_id:=(SELECT id FROM scan_type WHERE type='hip' AND side='left');
+INSERT IGNORE INTO scan_type_has_code_type (scan_type_id, code_type_id)
+SELECT @scan_type_id, id
+FROM
+code_type;
+
+SET @scan_type_id:=(SELECT id FROM scan_type WHERE type='hip' AND side='right');
+INSERT IGNORE INTO scan_type_has_code_type (scan_type_id, code_type_id)
+SELECT @scan_type_id, id
+FROM
+code_type;
