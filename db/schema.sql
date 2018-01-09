@@ -2816,7 +2816,6 @@ CREATE TABLE IF NOT EXISTS `salix`.`apex_host_has_apex_scan` (
   `merged` TINYINT(1) NOT NULL DEFAULT 0,
   `priority` TINYINT(1) NOT NULL DEFAULT 0,
   `status` ENUM('pending', 'completed', 'exported') NULL DEFAULT NULL,
-  `code_list` VARCHAR(128) NULL DEFAULT NULL,
   `pass` TINYINT(1) NULL DEFAULT NULL,
   `comp_scanid` VARCHAR(13) NULL DEFAULT NULL,
   `analysis_datetime` DATETIME NULL DEFAULT NULL,
