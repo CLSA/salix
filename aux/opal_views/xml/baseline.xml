@@ -1,0 +1,84 @@
+<org.obiba.magma.views.View>
+  <name>baseline</name>
+  <from class="org.obiba.magma.views.JoinTable">
+    <list>
+      <table inner="false" class="org.obiba.magma.support.ValueTableReference">
+        <reference>clsa-sac-releases.InHome_Id</reference>
+      </table>
+      <table inner="false" class="org.obiba.magma.support.ValueTableReference">
+        <reference>clsa-sac-releases.60minQv1_CoP_Baseline</reference>
+      </table>
+    </list>
+  </from>
+  <select class="org.obiba.magma.views.support.NoneClause"/>
+  <where class="org.obiba.magma.views.support.AllClause"/>
+  <variables class="org.obiba.magma.js.views.VariablesClause">
+    <variables class="linked-hash-set">
+      <variable name="dob" valueType="date" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/clsa-sac-releases/table/InHome_Id/variable/AGE_DOB_AGE_COM</attribute>
+          <attribute name="script" valueType="text">$(&apos;AGE_DOB_AGE_COM&apos;)</attribute>
+        </attributes>
+      </variable>
+      <variable name="sex" valueType="text" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/clsa-sac-releases/table/InHome_Id/variable/SEX_ASK_COM</attribute>
+          <attribute name="script" valueType="text">$(&apos;SEX_ASK_COM&apos;)</attribute>
+        </attributes>
+      </variable>
+      <variable name="ethnicity" valueType="text" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="39">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/baseline/variable/ethnicity</attribute>
+          <attribute name="script" valueType="text">var w=false;
+var b=false;
+var h=false;
+var o=false;
+
+if($(&apos;SDC_CULT_WH_COM&apos;).any(&apos;1&apos;)
+ .or($(&apos;SDC_CULT_AI_COM&apos;).any(&apos;1&apos;))
+ .or($(&apos;SDC_CULT_OT_COM&apos;).any(&apos;1&apos;))
+ .or($(&apos;SDC_CULT_DK_NA_COM&apos;).any(&apos;1&apos;))
+ .or($(&apos;SDC_CULT_IU_COM&apos;).any(&apos;1&apos;))
+ .or($(&apos;SDC_CULT_REFUSED_COM&apos;).any(&apos;1&apos;))
+ .or($(&apos;SDC_CULT_ME_COM&apos;).any(&apos;1&apos;))
+ .or($(&apos;SDC_CULT_OTSP_COM&apos;).isNull().not()).value()) {
+  w=true;
+}
+
+if($(&apos;SDC_CULT_ZH_COM&apos;).any(&apos;1&apos;)
+  .or($(&apos;SDC_CULT_SA_COM&apos;).any(&apos;1&apos;))
+  .or($(&apos;SDC_CULT_FP_COM&apos;).any(&apos;1&apos;))
+  .or($(&apos;SDC_CULT_SE_COM&apos;).any(&apos;1&apos;))
+  .or($(&apos;SDC_CULT_AR_COM&apos;).any(&apos;1&apos;))
+  .or($(&apos;SDC_CULT_WA_COM&apos;).any(&apos;1&apos;))
+  .or($(&apos;SDC_CULT_JA_COM&apos;).any(&apos;1&apos;))
+  .or($(&apos;SDC_CULT_KO_COM&apos;).any(&apos;1&apos;)).value()) {
+  o=true;
+}
+
+if($(&apos;SDC_CULT_LA_COM&apos;).any(&apos;1&apos;).value()) {
+  h=true;
+}
+
+if($(&apos;SDC_CULT_BL_COM&apos;).any(&apos;1&apos;).value()) {
+  b=true;
+}
+
+if(w) {
+  &apos;W&apos;;
+} else if(b &amp;&amp; !(w || h || o)) {
+  &apos;B&apos;;
+} else if(h &amp;&amp; !(w || b || o)) {
+  &apos;H&apos;;
+} else if(o &amp;&amp; !(w || b || h)) {
+  &apos;O&apos;;
+} else {
+  &apos;W&apos;;
+}</attribute>
+        </attributes>
+      </variable>
+    </variables>
+  </variables>
+  <created valueType="datetime">2017-12-14T15:24:48.737-05</created>
+  <updated valueType="datetime">2017-12-14T15:24:48.737-05</updated>
+</org.obiba.magma.views.View>
