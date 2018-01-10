@@ -33,7 +33,7 @@ define( function() {
   } );
 
   module.addInputGroup( '', {
-    Code: {
+    code: {
       title: 'Code',
       type: 'string'
     },

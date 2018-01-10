@@ -25,34 +25,6 @@ define( function() {
     }
   } );
 
-  module.addInputGroup( '', {
-    site: {
-      title: 'Site',
-      column: 'site.name',
-      type: 'string',
-      constant: true
-    },
-    serial_number: {
-      title: 'Number',
-      type: 'string'
-    }
-  } );
-
-  /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnSerialNumberAdd', [
-    'CnSerialNumberModelFactory',
-    function( CnSerialNumberModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'add.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnSerialNumberModelFactory.root;
-        }
-      };
-    }
-  ] );
-
   /* ######################################################################################################## */
   cenozo.providers.directive( 'cnSerialNumberList', [
     'CnSerialNumberModelFactory',
@@ -69,30 +41,6 @@ define( function() {
   ] );
 
   /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnSerialNumberView', [
-    'CnSerialNumberModelFactory',
-    function( CnSerialNumberModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'view.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnSerialNumberModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnSerialNumberAddFactory', [
-    'CnBaseAddFactory',
-    function( CnBaseAddFactory ) {
-      var object = function( parentModel ) { CnBaseAddFactory.construct( this, parentModel ); };
-      return { instance: function( parentModel ) { return new object( parentModel ); } };
-    }
-  ] );
-
-  /* ######################################################################################################## */
   cenozo.providers.factory( 'CnSerialNumberListFactory', [
     'CnBaseListFactory',
     function( CnBaseListFactory ) {
@@ -102,26 +50,14 @@ define( function() {
   ] );
 
   /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnSerialNumberViewFactory', [
-    'CnBaseViewFactory',
-    function( CnBaseViewFactory ) {
-      var object = function( parentModel, root ) { CnBaseViewFactory.construct( this, parentModel, root ); };
-      return { instance: function( parentModel, root ) { return new object( parentModel, root ); } };
-    }
-  ] );
-
-  /* ######################################################################################################## */
   cenozo.providers.factory( 'CnSerialNumberModelFactory', [
-    'CnBaseModelFactory',
-    'CnSerialNumberAddFactory', 'CnSerialNumberListFactory', 'CnSerialNumberViewFactory',
-    function( CnBaseModelFactory,
-              CnSerialNumberAddFactory, CnSerialNumberListFactory, CnSerialNumberViewFactory ) {
+    'CnBaseModelFactory', 'CnSerialNumberListFactory',
+    function( CnBaseModelFactory, CnSerialNumberListFactory ) {
       var object = function( root ) {
         var self = this;
         CnBaseModelFactory.construct( this, module );
-        this.addModel = CnSerialNumberAddFactory.instance( this );
         this.listModel = CnSerialNumberListFactory.instance( this );
-        this.viewModel = CnSerialNumberViewFactory.instance( this, root );
+        this.getViewEnabled = function() { return false; };
       };
 
       return {

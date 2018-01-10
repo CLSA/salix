@@ -98,8 +98,5 @@ INSERT INTO service ( subject, method, resource, restricted ) VALUES
 ( 'scan_type', 'GET', 1, 0 ),
 ( 'scan_type', 'PATCH', 1, 1 ),
 ( 'scan_type', 'POST', 0, 1 ),
-( 'serial_number', 'DELETE', 1, 1 ),
 ( 'serial_number', 'GET', 0, 0 ),
-( 'serial_number', 'GET', 1, 0 ),
-( 'serial_number', 'PATCH', 1, 1 ),
-( 'serial_number', 'POST', 0, 1 );
+( 'serial_number', 'GET', 1, 0 );
