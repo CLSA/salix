@@ -1,21 +1,21 @@
 define( function() {
   'use strict';
 
-  try { var module = cenozoApp.module( 'apex_host', true ); } catch( err ) { console.warn( err ); return; }
+  try { var module = cenozoApp.module( 'scan_type', true ); } catch( err ) { console.warn( err ); return; }
   angular.extend( module, {
-    identifier: {},
+    identifier: { column: [ 'type', 'side' ] },
     name: {
-      singular: 'apex host',
-      plural: 'apex hosts',
-      possessive: 'apex host\'s',
-      pluralPossessive: 'apex hosts\''
+      singular: 'scan type',
+      plural: 'scan types',
+      possessive: 'scan type\'s',
+      pluralPossessive: 'scan types\''
     },
     columnList: {
-      name: {
-        title: 'Name'
+      type: {
+        title: 'Type'
       },
-      host: {
-        title: 'Hostname'
+      side: {
+        title: 'Side'
       },
       apex_scan_count: {
         title: 'Apex Scans',
@@ -27,18 +27,18 @@ define( function() {
       }
     },
     defaultOrder: {
-      column: 'apex_host.name',
+      column: 'scan_type.type',
       reverse: false
     }
   } );
 
   module.addInputGroup( '', {
-    name: {
-      title: 'Name',
+    type: {
+      title: 'Type',
       type: 'string'
     },
-    host: {
-      title: 'Hostname',
+    side: {
+      title: 'Side',
       type: 'string'
     },
     apex_scan_count: {
@@ -54,37 +54,61 @@ define( function() {
   } );
 
   /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnApexHostList', [
-    'CnApexHostModelFactory',
-    function( CnApexHostModelFactory ) {
+  cenozo.providers.directive( 'cnScanTypeAdd', [
+    'CnScanTypeModelFactory',
+    function( CnScanTypeModelFactory ) {
+      return {
+        templateUrl: module.getFileUrl( 'add.tpl.html' ),
+        restrict: 'E',
+        scope: { model: '=?' },
+        controller: function( $scope ) {
+          if( angular.isUndefined( $scope.model ) ) $scope.model = CnScanTypeModelFactory.root;
+        }
+      };
+    }
+  ] );
+
+  /* ######################################################################################################## */
+  cenozo.providers.directive( 'cnScanTypeList', [
+    'CnScanTypeModelFactory',
+    function( CnScanTypeModelFactory ) {
       return {
         templateUrl: module.getFileUrl( 'list.tpl.html' ),
         restrict: 'E',
         scope: { model: '=?' },
         controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexHostModelFactory.root;
+          if( angular.isUndefined( $scope.model ) ) $scope.model = CnScanTypeModelFactory.root;
         }
       };
     }
   ] );
 
   /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnApexHostView', [
-    'CnApexHostModelFactory',
-    function( CnApexHostModelFactory ) {
+  cenozo.providers.directive( 'cnScanTypeView', [
+    'CnScanTypeModelFactory',
+    function( CnScanTypeModelFactory ) {
       return {
         templateUrl: module.getFileUrl( 'view.tpl.html' ),
         restrict: 'E',
         scope: { model: '=?' },
         controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexHostModelFactory.root;
+          if( angular.isUndefined( $scope.model ) ) $scope.model = CnScanTypeModelFactory.root;
         }
       };
     }
   ] );
 
   /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexHostListFactory', [
+  cenozo.providers.factory( 'CnScanTypeAddFactory', [
+    'CnBaseAddFactory',
+    function( CnBaseAddFactory ) {
+      var object = function( parentModel ) { CnBaseAddFactory.construct( this, parentModel ); };
+      return { instance: function( parentModel ) { return new object( parentModel ); } };
+    }
+  ] );
+
+  /* ######################################################################################################## */
+  cenozo.providers.factory( 'CnScanTypeListFactory', [
     'CnBaseListFactory',
     function( CnBaseListFactory ) {
       var object = function( parentModel ) { CnBaseListFactory.construct( this, parentModel ); };
@@ -93,7 +117,7 @@ define( function() {
   ] );
 
   /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexHostViewFactory', [
+  cenozo.providers.factory( 'CnScanTypeViewFactory', [
     'CnBaseViewFactory',
     function( CnBaseViewFactory ) {
       var object = function( parentModel, root ) { CnBaseViewFactory.construct( this, parentModel, root ); };
@@ -102,16 +126,17 @@ define( function() {
   ] );
 
   /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexHostModelFactory', [
+  cenozo.providers.factory( 'CnScanTypeModelFactory', [
     'CnBaseModelFactory',
-    'CnApexHostListFactory', 'CnApexHostViewFactory',
+    'CnScanTypeAddFactory', 'CnScanTypeListFactory', 'CnScanTypeViewFactory',
     function( CnBaseModelFactory,
-              CnApexHostListFactory, CnApexHostViewFactory ) {
+              CnScanTypeAddFactory, CnScanTypeListFactory, CnScanTypeViewFactory ) {
       var object = function( root ) {
         var self = this;
         CnBaseModelFactory.construct( this, module );
-        this.listModel = CnApexHostListFactory.instance( this );
-        this.viewModel = CnApexHostViewFactory.instance( this, root );
+        this.addModel = CnScanTypeAddFactory.instance( this );
+        this.listModel = CnScanTypeListFactory.instance( this );
+        this.viewModel = CnScanTypeViewFactory.instance( this, root );
       };
 
       return {

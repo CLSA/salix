@@ -37,9 +37,16 @@ class ui extends \cenozo\ui\ui
     if( !is_null( $module ) )
     {
       $module->add_child( 'apex_host' );
+      $module->add_child( 'code' );
     }
 
     $module = $this->get_module( 'apex_host' );
+    if( !is_null( $module ) )
+    {
+      $module->add_child( 'apex_scan' );
+    }
+
+    $module = $this->get_module( 'scan_type' );
     if( !is_null( $module ) )
     {
       $module->add_child( 'apex_scan' );
@@ -57,6 +64,9 @@ class ui extends \cenozo\ui\ui
     $this->add_listitem( 'Apex Exams', 'apex_exam' );
     $this->add_listitem( 'Apex Hosts', 'apex_host' );
     $this->add_listitem( 'Apex Scans', 'apex_scan' );
+    $this->add_listitem( 'Code Types', 'code_type' );
+    $this->add_listitem( 'Scan Types', 'scan_type' );
+    $this->add_listitem( 'Serial Numbers', 'serial_number' );
 
     $this->remove_listitem( 'Availability Types' );
     $this->remove_listitem( 'Consent Types' );

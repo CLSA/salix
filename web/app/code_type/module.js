@@ -1,21 +1,18 @@
 define( function() {
   'use strict';
 
-  try { var module = cenozoApp.module( 'apex_host', true ); } catch( err ) { console.warn( err ); return; }
+  try { var module = cenozoApp.module( 'code_type', true ); } catch( err ) { console.warn( err ); return; }
   angular.extend( module, {
     identifier: {},
     name: {
-      singular: 'apex host',
-      plural: 'apex hosts',
-      possessive: 'apex host\'s',
-      pluralPossessive: 'apex hosts\''
+      singular: 'code type',
+      plural: 'code types',
+      possessive: 'code type\'s',
+      pluralPossessive: 'code types\''
     },
     columnList: {
-      name: {
-        title: 'Name'
-      },
-      host: {
-        title: 'Hostname'
+      code: {
+        title: 'Code'
       },
       apex_scan_count: {
         title: 'Apex Scans',
@@ -24,21 +21,20 @@ define( function() {
       participant_count: {
         title: 'Participants',
         type: 'number'
+      },
+      description: {
+        title: 'Description'
       }
     },
     defaultOrder: {
-      column: 'apex_host.name',
+      column: 'code_type.code',
       reverse: false
     }
   } );
 
   module.addInputGroup( '', {
-    name: {
-      title: 'Name',
-      type: 'string'
-    },
-    host: {
-      title: 'Hostname',
+    Code: {
+      title: 'Code',
       type: 'string'
     },
     apex_scan_count: {
@@ -50,41 +46,69 @@ define( function() {
       title: 'Participants',
       type: 'string',
       constant: true
+    },
+    description: {
+      title: 'Description',
+      type: 'text'
     }
   } );
 
   /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnApexHostList', [
-    'CnApexHostModelFactory',
-    function( CnApexHostModelFactory ) {
+  cenozo.providers.directive( 'cnCodeTypeAdd', [
+    'CnCodeTypeModelFactory',
+    function( CnCodeTypeModelFactory ) {
+      return {
+        templateUrl: module.getFileUrl( 'add.tpl.html' ),
+        restrict: 'E',
+        scope: { model: '=?' },
+        controller: function( $scope ) {
+          if( angular.isUndefined( $scope.model ) ) $scope.model = CnCodeTypeModelFactory.root;
+        }
+      };
+    }
+  ] );
+
+  /* ######################################################################################################## */
+  cenozo.providers.directive( 'cnCodeTypeList', [
+    'CnCodeTypeModelFactory',
+    function( CnCodeTypeModelFactory ) {
       return {
         templateUrl: module.getFileUrl( 'list.tpl.html' ),
         restrict: 'E',
         scope: { model: '=?' },
         controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexHostModelFactory.root;
+          if( angular.isUndefined( $scope.model ) ) $scope.model = CnCodeTypeModelFactory.root;
         }
       };
     }
   ] );
 
   /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnApexHostView', [
-    'CnApexHostModelFactory',
-    function( CnApexHostModelFactory ) {
+  cenozo.providers.directive( 'cnCodeTypeView', [
+    'CnCodeTypeModelFactory',
+    function( CnCodeTypeModelFactory ) {
       return {
         templateUrl: module.getFileUrl( 'view.tpl.html' ),
         restrict: 'E',
         scope: { model: '=?' },
         controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexHostModelFactory.root;
+          if( angular.isUndefined( $scope.model ) ) $scope.model = CnCodeTypeModelFactory.root;
         }
       };
     }
   ] );
 
   /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexHostListFactory', [
+  cenozo.providers.factory( 'CnCodeTypeAddFactory', [
+    'CnBaseAddFactory',
+    function( CnBaseAddFactory ) {
+      var object = function( parentModel ) { CnBaseAddFactory.construct( this, parentModel ); };
+      return { instance: function( parentModel ) { return new object( parentModel ); } };
+    }
+  ] );
+
+  /* ######################################################################################################## */
+  cenozo.providers.factory( 'CnCodeTypeListFactory', [
     'CnBaseListFactory',
     function( CnBaseListFactory ) {
       var object = function( parentModel ) { CnBaseListFactory.construct( this, parentModel ); };
@@ -93,7 +117,7 @@ define( function() {
   ] );
 
   /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexHostViewFactory', [
+  cenozo.providers.factory( 'CnCodeTypeViewFactory', [
     'CnBaseViewFactory',
     function( CnBaseViewFactory ) {
       var object = function( parentModel, root ) { CnBaseViewFactory.construct( this, parentModel, root ); };
@@ -102,16 +126,17 @@ define( function() {
   ] );
 
   /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexHostModelFactory', [
+  cenozo.providers.factory( 'CnCodeTypeModelFactory', [
     'CnBaseModelFactory',
-    'CnApexHostListFactory', 'CnApexHostViewFactory',
+    'CnCodeTypeAddFactory', 'CnCodeTypeListFactory', 'CnCodeTypeViewFactory',
     function( CnBaseModelFactory,
-              CnApexHostListFactory, CnApexHostViewFactory ) {
+              CnCodeTypeAddFactory, CnCodeTypeListFactory, CnCodeTypeViewFactory ) {
       var object = function( root ) {
         var self = this;
         CnBaseModelFactory.construct( this, module );
-        this.listModel = CnApexHostListFactory.instance( this );
-        this.viewModel = CnApexHostViewFactory.instance( this, root );
+        this.addModel = CnCodeTypeAddFactory.instance( this );
+        this.listModel = CnCodeTypeListFactory.instance( this );
+        this.viewModel = CnCodeTypeViewFactory.instance( this, root );
       };
 
       return {

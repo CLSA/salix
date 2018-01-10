@@ -21,15 +21,20 @@ define( function() {
         column: 'participant.uid',
         title: 'Participant'
       },
+      site: {
+        column: 'site.name',
+        title: 'Site'
+      },
       barcode: {
         title: 'Barcode'
-      },
-      site: {
-        title: 'Site'
       },
       rank: {
         title: 'Wave Rank',
         type: 'rank'
+      },
+      technician: {
+        title: 'Technician',
+        type: 'string'
       }
     },
     defaultOrder: {
@@ -45,6 +50,23 @@ define( function() {
       type: 'string',
       constant: true
     },
+    site: {
+      column: 'site.name',
+      title: 'Site',
+      type: 'string'
+    },
+    barcode: {
+      title: 'Barcode',
+      type: 'string'
+    },
+    rank: {
+      title: 'Wave Rank',
+      type: 'rank'
+    },
+    technician: {
+      title: 'Technician',
+      type: 'string'
+    },
     height: {
       title: 'Height',
       type: 'string'
@@ -55,22 +77,6 @@ define( function() {
     },
     age: {
       title: 'Age',
-      type: 'string'
-    },
-    barcode: {
-      title: 'Barcode',
-      type: 'string'
-    },
-    site: {
-      title: 'Site',
-      type: 'string'
-    },
-    rank: {
-      title: 'Wave Rank',
-      type: 'rank'
-    },
-    technician: {
-      title: 'Technician',
       type: 'string'
     }
   } );

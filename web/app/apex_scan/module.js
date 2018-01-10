@@ -20,10 +20,12 @@ define( function() {
         column: 'participant.uid',
         title: 'Participant'
       },
-      type: {
+      scan_type_type: {
+        column: 'scan_type.type',
         title: 'Type'
       },
-      side: {
+      scan_type_side: {
+        column: 'scan_type.side',
         title: 'Side'
       }
     },
@@ -46,12 +48,14 @@ define( function() {
       type: 'string',
       constant: true
     },
-    type: {
+    scan_type_type: {
+      column: 'scan_type.type',
       title: 'Type',
       type: 'string',
       constant: true
     },
-    side: {
+    scan_type_side: {
+      column: 'scan_type.side',
       title: 'Side',
       type: 'string',
       constant: true
@@ -65,11 +69,6 @@ define( function() {
     scan_datetime: {
       title: 'Scan Date & Time',
       type: 'datetime',
-      constant: true
-    },
-    serial_number: {
-      title: 'Serial Number',
-      type: 'string',
       constant: true
     },
     scanid: {
