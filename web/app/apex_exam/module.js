@@ -25,6 +25,9 @@ define( function() {
         column: 'site.name',
         title: 'Site'
       },
+      serial_number_id: {
+        title: 'Serial Number'
+      },
       barcode: {
         title: 'Barcode'
       },
@@ -53,6 +56,10 @@ define( function() {
     site: {
       column: 'site.name',
       title: 'Site',
+      type: 'string'
+    },
+    serial_number_id: {
+      title: 'Serial Number',
       type: 'string'
     },
     barcode: {

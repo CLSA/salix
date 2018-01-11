@@ -3,7 +3,7 @@ define( function() {
 
   try { var module = cenozoApp.module( 'serial_number', true ); } catch( err ) { console.warn( err ); return; }
   angular.extend( module, {
-    identifier: { column: 'serial_number' },
+    identifier: {},
     name: {
       singular: 'serial number',
       plural: 'serial numbers',
@@ -11,12 +11,12 @@ define( function() {
       pluralPossessive: 'serial numbers\''
     },
     columnList: {
+      id: {
+        title: 'Serial Number'
+      },
       site: {
         column: 'site.name',
         title: 'Site'
-      },
-      serial_number: {
-        title: 'Number'
       }
     },
     defaultOrder: {

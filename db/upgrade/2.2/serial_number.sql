@@ -10,15 +10,12 @@ CREATE PROCEDURE patch_serial_number()
 
     SET @sql = CONCAT(
       "CREATE TABLE IF NOT EXISTS serial_number ( ",
-        "id INT UNSIGNED NOT NULL AUTO_INCREMENT, ",
+        "id INT UNSIGNED NOT NULL, ",
         "update_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, ",
         "create_timestamp TIMESTAMP NOT NULL, ",
         "site_id INT UNSIGNED NOT NULL, ",
-        "serial_number INT UNSIGNED NOT NULL, ",
         "PRIMARY KEY (id), ",
         "INDEX fk_site_id (site_id ASC), ",
-        "UNIQUE INDEX `uq_site_id` (`site_id` ASC), ",
-        "UNIQUE INDEX `uq_serial_number` (`serial_number` ASC), ",
         "CONSTRAINT fk_serial_number_site_id ",
           "FOREIGN KEY (site_id) ",
           "REFERENCES ", @cenozo, ".site (id) ",

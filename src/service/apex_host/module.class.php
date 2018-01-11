@@ -26,7 +26,7 @@ class module extends \cenozo\service\module
     {
       // to accomplish this we need to create two sub-joins, so start by creating the inner join
       $inner_join_sel = lib::create( 'database\select' );
-      $inner_join_sel->from( 'apex_host_has_apex_scan' );
+      $inner_join_sel->from( 'apex_deployment' );
       $inner_join_sel->add_column( 'apex_host_id' );
       $inner_join_sel->add_column( 'COUNT(*)', 'apex_scan_count', false );
 
@@ -65,13 +65,13 @@ class module extends \cenozo\service\module
       // to accomplish this we need to create two sub-joins, so start by creating the inner join
       $inner_join_sel = lib::create( 'database\select' );
       $inner_join_sel->from( 'apex_baseline' );
-      $inner_join_sel->add_table_column( 'apex_host_has_apex_scan', 'apex_host_id' );
+      $inner_join_sel->add_table_column( 'apex_deployment', 'apex_host_id' );
       $inner_join_sel->add_column( 'COUNT( DISTINCT apex_baseline.participant_id )', 'participant_count', false );
 
       $inner_join_mod = lib::create( 'database\modifier' );
       $inner_join_mod->join( 'apex_exam', 'apex_baseline.id', 'apex_exam.apex_baseline_id' );
       $inner_join_mod->join( 'apex_scan', 'apex_exam.id', 'apex_scan.apex_exam_id' );
-      $inner_join_mod->join( 'apex_host_has_apex_scan', 'apex_scan.id', 'apex_host_has_apex_scan.apex_scan_id' );
+      $inner_join_mod->join( 'apex_deployment', 'apex_scan.id', 'apex_deployment.apex_scan_id' );
       $inner_join_mod->group( 'apex_host_id' );
       $inner_join_mod->where( 'apex_host_id', '!=', NULL );
 

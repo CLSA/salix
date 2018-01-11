@@ -6,7 +6,7 @@
  * @filesource
  */
 
-namespace salix\service\apex_scan;
+namespace salix\service\apex_deployment;
 use cenozo\lib, cenozo\log, salix\util;
 
 /**
@@ -21,8 +21,8 @@ class module extends \cenozo\service\module
   {
     parent::prepare_read( $select, $modifier );
 
-    $modifier->join( 'apex_exam', 'apex_scan.apex_exam_id', 'apex_exam.id' );
-    $modifier->join( 'apex_baseline', 'apex_exam.apex_baseline_id', 'apex_baseline.id' );
-    $modifier->join( 'participant', 'apex_baseline.participant_id', 'participant.id' );
+    $modifier->join( 'apex_scan', 'apex_deployment.apex_scan_id', 'apex_scan.id' );
+    $modifier->join( 'apex_host', 'apex_deployment.apex_host_id', 'apex_host.id' );
+    $modifier->join( 'site', 'apex_host.site_id', 'site.id' );
   }
 }

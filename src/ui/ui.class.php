@@ -30,7 +30,7 @@ class ui extends \cenozo\ui\ui
     $module = $this->get_module( 'apex_exam' );
     if( !is_null( $module ) )
     {
-      $module->add_child( 'apex_scan' );
+      $module->add_child( 'apex_deployment' );
     }
 
     $module = $this->get_module( 'apex_scan' );
@@ -73,7 +73,7 @@ class ui extends \cenozo\ui\ui
     $this->remove_listitem( 'Event Types' );
     $this->remove_listitem( 'Languages' );
     $this->remove_listitem( 'Participants' );
-    $this->remove_listitem( 'States' );
+    $this->remove_listitem( 'Settings' );
   }
 
   /**
