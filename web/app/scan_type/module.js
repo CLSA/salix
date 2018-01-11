@@ -44,11 +44,13 @@ define( function() {
     apex_scan_count: {
       title: 'Apex Scans',
       type: 'string',
+      exclude: 'add',
       constant: true
     },
     participant_count: {
       title: 'Participants',
       type: 'string',
+      exclude: 'add',
       constant: true
     }
   } );
