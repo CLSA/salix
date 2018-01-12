@@ -50,6 +50,13 @@ class ui extends \cenozo\ui\ui
     if( !is_null( $module ) )
     {
       $module->add_child( 'apex_scan' );
+      $module->add_choose( 'code_type' );
+    }
+
+    $module = $this->get_module( 'code_type' );
+    if( !is_null( $module ) )
+    {
+      $module->add_choose( 'scan_type' );
     }
   }
 
