@@ -25,7 +25,7 @@ CREATE PROCEDURE patch_apex_exam()
         "INDEX fk_apex_baseline_id (apex_baseline_id ASC), ",
         "INDEX fk_serial_number_id (serial_number_id ASC), ",
         "UNIQUE INDEX uq_serial_number_id_barcode (serial_number_id ASC, barcode ASC), ",
-        "UNIQUE INDEX uq_serial_number_id_rank (serial_number_id ASC, rank ASC), ",
+        "UNIQUE INDEX uq_barcode_rank (barcode ASC, rank ASC), ",
         "UNIQUE INDEX uq_apex_baseline_id_rank (apex_baseline_id ASC, rank ASC), ",
         "CONSTRAINT fk_apex_exam_apex_baseline_id ",
           "FOREIGN KEY (apex_baseline_id) ",
