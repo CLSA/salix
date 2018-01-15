@@ -1,7 +1,7 @@
 #!/usr/bin/php
 <?php
 /**
- * salix_load_opal_meta.php
+ * receive_opal_meta.php
  *
  * A script which will download salix meta data for the apex_exam and
  * apex_scan db tables from Opal.
