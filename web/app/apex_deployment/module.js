@@ -3,7 +3,12 @@ define( function() {
 
   try { var module = cenozoApp.module( 'apex_deployment', true ); } catch( err ) { console.warn( err ); return; }
   angular.extend( module, {
-    identifier: {},
+    identifier: {
+      parent: {
+        subject: 'apex_scan',
+        column: 'apex_scan.id'
+      }
+    },
     name: {
       singular: 'apex deployment',
       plural: 'apex deployments',
@@ -11,13 +16,26 @@ define( function() {
       pluralPossessive: 'apex deployments\''
     },
     columnList: {
+      uid: {
+        column: 'participant.uid',
+        title: 'Participant'
+      },
+      rank: {
+        column: 'apex_exam.rank',
+        title: 'Wave Rank',
+        type: 'rank'
+      },
+      scan_type_type: {
+        column: 'scan_type.type',
+        title: 'Scan Type'
+      },
+      scan_type_side: {
+        column: 'scan_type.side',
+        title: 'Scan Side'
+      },
       apex_host: {
         column: 'apex_host.id',
-        title: 'Serial Number'
-      },
-      site: {
-        column: 'site.name',
-        title: 'Site'
+        title: 'Apex Host'
       },
       merged: {
         title: 'Merged',
@@ -36,21 +54,15 @@ define( function() {
       }
     },
     defaultOrder: {
-      column: 'site.name',
+      column: 'apex_host.id',
       reverse: false
     }
   } );
 
   module.addInputGroup( '', {
     apex_host_id: {
-      title: 'Serial Number',
+      title: 'Apex Host',
       type: 'enum'
-    },
-    site: {
-      column: 'site.name',
-      title: 'Site',
-      exclude: 'add',
-      constant: true
     },
     merged: {
       title: 'Merged',
@@ -64,6 +76,7 @@ define( function() {
     },
     status: {
       title: 'Status',
+      type: 'string',
       exclude: 'add',
       constant: true
     },
@@ -76,6 +89,7 @@ define( function() {
     comp_scanid: {
       title: 'Scan ID',
       exclude: 'add',
+      type: 'string',
       constant: true
     },
     analysis_datetime: {
@@ -97,43 +111,67 @@ define( function() {
       constant: true
     },
     note: {
-      title: '',
+      title: 'Note',
       type: 'text'
     },
   } );
 
   /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnApexHostList', [
-    'CnApexHostModelFactory',
-    function( CnApexHostModelFactory ) {
+  cenozo.providers.directive( 'cnApexDeploymentAdd', [
+    'CnApexDeploymentModelFactory',
+    function( CnApexDeploymentModelFactory ) {
+      return {
+        templateUrl: module.getFileUrl( 'add.tpl.html' ),
+        restrict: 'E',
+        scope: { model: '=?' },
+        controller: function( $scope ) {
+          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexDeploymentModelFactory.root;
+        }
+      };
+    }
+  ] );
+
+  /* ######################################################################################################## */
+  cenozo.providers.directive( 'cnApexDeploymentList', [
+    'CnApexDeploymentModelFactory',
+    function( CnApexDeploymentModelFactory ) {
       return {
         templateUrl: module.getFileUrl( 'list.tpl.html' ),
         restrict: 'E',
         scope: { model: '=?' },
         controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexHostModelFactory.root;
+          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexDeploymentModelFactory.root;
         }
       };
     }
   ] );
 
   /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnApexHostView', [
-    'CnApexHostModelFactory',
-    function( CnApexHostModelFactory ) {
+  cenozo.providers.directive( 'cnApexDeploymentView', [
+    'CnApexDeploymentModelFactory',
+    function( CnApexDeploymentModelFactory ) {
       return {
         templateUrl: module.getFileUrl( 'view.tpl.html' ),
         restrict: 'E',
         scope: { model: '=?' },
         controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexHostModelFactory.root;
+          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexDeploymentModelFactory.root;
         }
       };
     }
   ] );
 
   /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexHostListFactory', [
+  cenozo.providers.factory( 'CnApexDeploymentAddFactory', [
+    'CnBaseAddFactory',
+    function( CnBaseAddFactory ) {
+      var object = function( parentModel ) { CnBaseAddFactory.construct( this, parentModel ); };
+      return { instance: function( parentModel ) { return new object( parentModel ); } };
+    }
+  ] );
+
+  /* ######################################################################################################## */
+  cenozo.providers.factory( 'CnApexDeploymentListFactory', [
     'CnBaseListFactory',
     function( CnBaseListFactory ) {
       var object = function( parentModel ) { CnBaseListFactory.construct( this, parentModel ); };
@@ -142,7 +180,7 @@ define( function() {
   ] );
 
   /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexHostViewFactory', [
+  cenozo.providers.factory( 'CnApexDeploymentViewFactory', [
     'CnBaseViewFactory',
     function( CnBaseViewFactory ) {
       var object = function( parentModel, root ) { CnBaseViewFactory.construct( this, parentModel, root ); };
@@ -151,16 +189,40 @@ define( function() {
   ] );
 
   /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexHostModelFactory', [
+  cenozo.providers.factory( 'CnApexDeploymentModelFactory', [
     'CnBaseModelFactory',
-    'CnApexHostListFactory', 'CnApexHostViewFactory',
+    'CnApexDeploymentAddFactory', 'CnApexDeploymentListFactory', 'CnApexDeploymentViewFactory',
+    'CnHttpFactory',
     function( CnBaseModelFactory,
-              CnApexHostListFactory, CnApexHostViewFactory ) {
+              CnApexDeploymentAddFactory, CnApexDeploymentListFactory, CnApexDeploymentViewFactory,
+              CnHttpFactory ) {
       var object = function( root ) {
         var self = this;
         CnBaseModelFactory.construct( this, module );
-        this.listModel = CnApexHostListFactory.instance( this );
-        this.viewModel = CnApexHostViewFactory.instance( this, root );
+        this.addModel = CnApexDeploymentAddFactory.instance( this );
+        this.listModel = CnApexDeploymentListFactory.instance( this );
+        this.viewModel = CnApexDeploymentViewFactory.instance( this, root );
+
+        // extend getMetadata
+        this.getMetadata = function() {
+          return this.$$getMetadata().then( function() {
+            return CnHttpFactory.instance( {
+              path: 'apex_host',
+              data: {
+                select: { column: [ 'id', 'name' ] },
+                modifier: { order: { name: false } }
+              }
+            } ).query().then( function success( response ) { 
+              self.metadata.columnList.apex_host_id.enumList = []; 
+              response.data.forEach( function( item ) { 
+                self.metadata.columnList.apex_host_id.enumList.push( {
+                  value: item.id,
+                  name: item.name
+                } );
+              } );
+            } );
+          } );
+        };
       };
 
       return {

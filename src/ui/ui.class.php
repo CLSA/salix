@@ -36,14 +36,14 @@ class ui extends \cenozo\ui\ui
     $module = $this->get_module( 'apex_scan' );
     if( !is_null( $module ) )
     {
-      $module->add_child( 'apex_host' );
+      $module->add_child( 'apex_deployment' );
       $module->add_child( 'code' );
     }
 
     $module = $this->get_module( 'apex_host' );
     if( !is_null( $module ) )
     {
-      $module->add_child( 'apex_scan' );
+      $module->add_child( 'apex_deployment' );
     }
 
     $module = $this->get_module( 'scan_type' );

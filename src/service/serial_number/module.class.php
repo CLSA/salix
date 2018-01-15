@@ -20,5 +20,7 @@ class module extends \cenozo\service\module
   public function prepare_read( $select, $modifier )
   {
     parent::prepare_read( $select, $modifier );
+
+    $modifier->join( 'site', 'serial_number.site_id', 'site.id' );
   }
 }

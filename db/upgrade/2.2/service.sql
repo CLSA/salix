@@ -78,6 +78,10 @@ INSERT INTO service ( subject, method, resource, restricted ) VALUES
 -- application services
 ( 'apex_baseline', 'GET', 0, 0 ),
 ( 'apex_baseline', 'GET', 1, 0 ),
+( 'apex_deployment', 'DELETE', 1, 1 ),
+( 'apex_deployment', 'GET', 0, 0 ),
+( 'apex_deployment', 'GET', 1, 0 ),
+( 'apex_deployment', 'POST', 0, 1 ),
 ( 'apex_exam', 'GET', 0, 0 ),
 ( 'apex_exam', 'GET', 1, 0 ),
 ( 'apex_host', 'GET', 0, 0 ),
