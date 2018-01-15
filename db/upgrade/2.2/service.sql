@@ -86,6 +86,7 @@ INSERT INTO service ( subject, method, resource, restricted ) VALUES
 ( 'apex_exam', 'GET', 1, 0 ),
 ( 'apex_host', 'GET', 0, 0 ),
 ( 'apex_host', 'GET', 1, 0 ),
+( 'apex_host', 'PATCH', 1, 1 ),
 ( 'apex_scan', 'GET', 0, 0 ),
 ( 'apex_scan', 'GET', 1, 0 ),
 ( 'apex_scan', 'PATCH', 1, 1 ),
