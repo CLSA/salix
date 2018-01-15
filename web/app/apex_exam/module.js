@@ -6,7 +6,7 @@ define( function() {
     identifier: {
       parent: {
         subject: 'apex_baseline',
-        column: 'apex_baseline.id'
+        column: 'participant.uid'
       }
     },
     name: {
@@ -21,15 +21,23 @@ define( function() {
         column: 'participant.uid',
         title: 'Participant'
       },
+      site: {
+        column: 'site.name',
+        title: 'Site'
+      },
+      serial_number_id: {
+        title: 'Serial Number'
+      },
       barcode: {
         title: 'Barcode'
       },
-      site: {
-        title: 'Site'
-      },
-      wave_rank: {
+      rank: {
         title: 'Wave Rank',
         type: 'rank'
+      },
+      technician: {
+        title: 'Technician',
+        type: 'string'
       }
     },
     defaultOrder: {
@@ -39,6 +47,33 @@ define( function() {
   } );
 
   module.addInputGroup( '', {
+    participant: {
+      column: 'participant.uid',
+      title: 'Participant',
+      type: 'string',
+      constant: true
+    },
+    site: {
+      column: 'site.name',
+      title: 'Site',
+      type: 'string'
+    },
+    serial_number_id: {
+      title: 'Serial Number',
+      type: 'string'
+    },
+    barcode: {
+      title: 'Barcode',
+      type: 'string'
+    },
+    rank: {
+      title: 'Wave Rank',
+      type: 'rank'
+    },
+    technician: {
+      title: 'Technician',
+      type: 'string'
+    },
     height: {
       title: 'Height',
       type: 'string'
@@ -49,22 +84,6 @@ define( function() {
     },
     age: {
       title: 'Age',
-      type: 'string'
-    },
-    barcode: {
-      title: 'Barcode',
-      type: 'string'
-    },
-    site: {
-      title: 'Site',
-      type: 'string'
-    },
-    wave_rank: {
-      title: 'Wave Rank',
-      type: 'rank'
-    },
-    technician: {
-      title: 'Technician',
       type: 'string'
     }
   } );

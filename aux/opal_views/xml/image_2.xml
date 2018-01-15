@@ -1,0 +1,86 @@
+<org.obiba.magma.views.View>
+  <name>image_2</name>
+  <from class="org.obiba.magma.views.JoinTable">
+    <list>
+      <table inner="false" class="org.obiba.magma.support.ValueTableReference">
+        <reference>clsa-dcs-images-f1.DualHipBoneDensity</reference>
+      </table>
+      <table inner="false" class="org.obiba.magma.support.ValueTableReference">
+        <reference>clsa-dcs-images-f1.ForearmBoneDensity</reference>
+      </table>
+      <table inner="false" class="org.obiba.magma.support.ValueTableReference">
+        <reference>clsa-dcs-images-f1.LateralBoneDensity</reference>
+      </table>
+      <table inner="false" class="org.obiba.magma.support.ValueTableReference">
+        <reference>clsa-dcs-images-f1.SpineBoneDensity</reference>
+      </table>
+      <table inner="false" class="org.obiba.magma.support.ValueTableReference">
+        <reference>clsa-dcs-images-f1.WholeBodyBoneDensity</reference>
+      </table>
+    </list>
+  </from>
+  <select class="org.obiba.magma.views.support.NoneClause"/>
+  <where class="org.obiba.magma.views.support.AllClause"/>
+  <variables class="org.obiba.magma.js.views.VariablesClause">
+    <variables class="linked-hash-set">
+      <variable name="hip_left_image" valueType="binary" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/image_2/variable/hip_left_image</attribute>
+          <attribute name="script" valueType="text">$group(&apos;Measure.OUTPUT_HIP_SIDE&apos;,&apos;LEFT&apos;,&apos;Measure.RES_HIP_DICOM&apos;).asSequence().last()</attribute>
+        </attributes>
+      </variable>
+      <variable name="hip_right_image" valueType="binary" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/image_2/variable/hip_right_image</attribute>
+          <attribute name="script" valueType="text">$group(&apos;Measure.OUTPUT_HIP_SIDE&apos;,&apos;RIGHT&apos;,&apos;Measure.RES_HIP_DICOM&apos;).asSequence().last()</attribute>
+        </attributes>
+      </variable>
+      <variable name="forearm_left_image" valueType="binary" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/image_2/variable/forearm_left_image</attribute>
+          <attribute name="script" valueType="text">var res=null
+var s=$(&apos;OUTPUT_FA_SIDE&apos;)
+if(s.isNull().not().value()) {
+  if(s.compareNoCase(newValue(&apos;left&apos;)).eq(0).value()) {
+    res=$(&apos;RES_FA_DICOM&apos;)
+  }
+}
+res</attribute>
+        </attributes>
+      </variable>
+      <variable name="forearm_right_image" valueType="binary" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/image_2/variable/forearm_right_image</attribute>
+          <attribute name="script" valueType="text">var res=null
+var s=$(&apos;OUTPUT_FA_SIDE&apos;)
+if(s.isNull().not().value()) {
+  if(s.compareNoCase(newValue(&apos;right&apos;)).eq(0).value()) {
+    res=$(&apos;RES_FA_DICOM&apos;)
+  }
+}
+res</attribute>
+        </attributes>
+      </variable>
+      <variable name="spine_image" valueType="binary" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/clsa-dcs-images-f1/table/SpineBoneDensity/variable/RES_SP_DICOM</attribute>
+          <attribute name="script" valueType="text">$(&apos;RES_SP_DICOM&apos;)</attribute>
+        </attributes>
+      </variable>
+      <variable name="lateral_image" valueType="binary" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/clsa-dcs-images-f1/table/LateralBoneDensity/variable/RES_SEL_DICOM_MEASURE</attribute>
+          <attribute name="script" valueType="text">$(&apos;RES_SEL_DICOM_MEASURE&apos;)</attribute>
+        </attributes>
+      </variable>
+      <variable name="wbody_image" valueType="binary" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/clsa-dcs-images-f1/table/WholeBodyBoneDensity/variable/RES_WB_DICOM_1</attribute>
+          <attribute name="script" valueType="text">$(&apos;RES_WB_DICOM_1&apos;)</attribute>
+        </attributes>
+      </variable>
+    </variables>
+  </variables>
+  <created valueType="datetime">2017-12-14T15:24:50.134-05</created>
+  <updated valueType="datetime">2017-12-14T15:24:50.134-05</updated>
+</org.obiba.magma.views.View>

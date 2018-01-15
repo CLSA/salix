@@ -14,7 +14,7 @@ use cenozo\lib, cenozo\log, salix\util;
  */
 class module extends \cenozo\service\module
 {
-  /** 
+  /**
    * Extend parent method
    */
   public function prepare_read( $select, $modifier )

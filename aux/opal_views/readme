@@ -1,0 +1,23 @@
+Opal stores variables and values in tables.  Views are used to:
+- define a subset of a table, both in terms of variables and values,
+- define a subset of many tables in terms of variables and values,
+- define derived Variables that are to be resolved against 'real' ones (stored in tables
+or other views)
+Views are defined in xml or json format and can be save to file for archive or
+for transfer between opal instances.
+
+Salix requires the following views, one patient identifier per row:
+- baseline: defines baseline dob, sex, ethnicity values (ie. patient attributes that are
+  constant over the course of a longitudinal image capture process) required for
+  apex_baseline db table.
+
+- meta_*: defines meta data pertaining to dexa images including interview barcode,
+  technician, availability, interview site, patient age, height and weight at time of interview
+  (* represents the rank of the wave for longitudinal data capture studies).  These values
+  are required for apex_exam and apex_scan db tables.
+
+- image_*: links to dexa images in dicom file format, each variable specifies a unique
+  image type and laterality (eg. hip_left_image, hip_right_image, spine_image etc.).
+
+Salix also req requires view definitions in json format when such views are updated as
+part of ongoing data capture.
