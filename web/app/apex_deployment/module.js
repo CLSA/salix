@@ -34,7 +34,7 @@ define( function() {
         title: 'Scan Side'
       },
       apex_host: {
-        column: 'apex_host.id',
+        column: 'apex_host.name',
         title: 'Apex Host'
       },
       merged: {

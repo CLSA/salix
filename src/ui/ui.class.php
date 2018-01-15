@@ -30,7 +30,7 @@ class ui extends \cenozo\ui\ui
     $module = $this->get_module( 'apex_exam' );
     if( !is_null( $module ) )
     {
-      $module->add_child( 'apex_deployment' );
+      $module->add_child( 'apex_scan' );
     }
 
     $module = $this->get_module( 'apex_scan' );
