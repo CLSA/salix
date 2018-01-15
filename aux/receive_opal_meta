@@ -1,0 +1,246 @@
+#!/usr/bin/php
+<?php
+/**
+ * receive_opal_meta.php
+ *
+ * A script which will download salix meta data for the apex_exam and
+ * apex_scan db tables from Opal.
+ * The Opal meta_* views must have an Entities Filter script set, for example:
+ * $lastupdate().after(newValue('2017-11-05', 'date'))
+ *
+ * @author Dean Inglis <inglisd@mcmaster.ca>
+ * @date 2017-09-28
+ */
+
+/**
+ * Make sure to fill in the following
+ */
+
+define( 'URL', 'https://localhost/release/salix/api/' );
+
+/**
+ * Do not edit any of the following lines
+ */
+
+chdir( dirname( __FILE__ ).'/../' );
+require_once 'settings.ini.php';
+require_once 'settings.local.ini.php';
+require_once $SETTINGS['path']['CENOZO'].'/src/initial.class.php';
+$initial = new \cenozo\initial();
+$settings = $initial->get_settings();
+
+define( 'OPAL_SERVER', $settings['opal']['server'] );
+define( 'OPAL_PORT', $settings['opal']['port'] );
+define( 'OPAL_USERNAME', $settings['opal']['username']  );
+define( 'OPAL_PASSWORD', $settings['opal']['password'] );
+
+define( 'DB_SERVER', $settings['db']['server'] );
+define( 'DB_PREFIX', $settings['db']['database_prefix'] );
+define( 'DB_USERNAME', $settings['db']['username'] );
+define( 'DB_PASSWORD', $settings['db']['password'] );
+
+define( 'UTIL_PATH', $settings['path']['CUSTOM_UTIL'] );
+define( 'JSON_VIEW_PATH', $settings['path']['OPAL_VIEWS'] );
+
+define( 'USER', $settings['utility']['username'] );
+
+require_once( UTIL_PATH . 'database.class.php' );  // a lite mysqli wrapper
+require_once( UTIL_PATH . 'opalcurl.class.php' );  // a lite curl wrapper
+
+// function for writing to the log
+function write_log( $message )
+{
+  file_put_contents(
+    LOG_FILE_PATH,
+    sprintf( "%s  [cron] <%s> %s\n\n", date( 'Y-m-d (D) H:i:s' ), USER, $message ),
+    FILE_APPEND
+  );
+}
+
+// The main program follows
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+$last_completed_rank = 1;  // consider making a setting in the application ini file
+$rank = $last_completed_rank;
+$date = null;
+if( 2 == $argc )
+{
+  $rank = $argv[1];
+}
+else if( 3 == $argc )
+{
+  $rank = $argv[1];
+  $date = $argv[2];
+}
+else
+{
+  write_log( 'incorrect arguments: ' . implode( $argv ) );
+  return 0;
+}
+
+$meta_view = 'meta_' . $rank;
+
+$opal_curl = new opalcurl(
+  OPAL_SERVER, OPAL_PORT, OPAL_USERNAME, OPAL_PASSWORD, 'salix', $meta_view, JSON_VIEW_PATH );
+
+if( $last_completed_rank < $rank )
+{
+  if( null === $date )
+  {
+    // use yesterday's date
+    $date_obj = new DateTime();
+    $date_obj->sub( new DateInterval( 'P1D' ) );
+    $date = $date_obj->format( 'Y-m-d' );
+  }
+  $opal_curl->set_date( $date );
+}
+
+$identifier_list = $opal_curl->get_identifiers();
+$list = $opal_curl->get_complete_list();
+$total = count( $list );
+
+if( $total != count( $identifier_list ) )
+{
+  write_log( 'identifier list incomplete' );
+  return 0;
+}
+
+write_log( 'updating with ' . count( $identifier_list ) . ' identifiers' );
+
+$db_salix = new database(
+  DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+
+$columns = array(
+  'apex_baseline_id',
+  'serial_number_id',
+  'barcode',
+  'rank',
+  'height',
+  'weight',
+  'age',
+  'technician' );
+
+$quotable = array( 'barcode', 'technician' );
+
+$sql_col = 'INSERT INTO apex_exam (' . implode( ',', $columns );
+
+// convenience lookup for scan_type information
+$sql =
+  'SELECT id AS scan_type_id, type, side '.
+  'FROM scan_type';
+
+$res = $db_salix->get_all( $sql );
+$types = array();
+foreach( $res as $value )
+{
+  $types[$value['scan_type_id']] =
+    array( 'type' => $value['type'],
+           'side' => $value['side'] );
+}
+
+// every Apex system has a unique serial number and runs at a specific site...
+// create a convenience lookup between site names and the serial number and site ids
+//
+$sql =
+  'SELECT name AS site, n.id AS serial_number_id, s.id AS site_id '.
+  'FROM serial_number n '.
+  'JOIN ' . DB_PREFIX . 'cenozo.site s ON s.id=n.site_id';
+
+$res = $db_salix->get_all( $sql );
+$site_lookup = array();
+foreach( $res as $values )
+{
+  $site_lookup[$values['site']] = array(
+    'serial_number_id' => $values['serial_number_id'],
+    'site_id' => $values['site_id'] );
+}
+
+foreach( $list as $uid => $row )
+{
+  if( '' == $row['barcode'] || '' == $row['site'] ) continue;
+
+  $sql_p =
+    'SELECT DISTINCT b.id '.
+    'FROM apex_baseline b '.
+    'JOIN ' . DB_PREFIX . 'cenozo.participant p ON p.id=b.participant_id '.
+    'WHERE uid="' . $uid . '"';
+  $res = $db_salix->get_one( $sql_p );
+  if( false === $res || '' == $res ) continue;
+  $apex_baseline_id = $res;
+
+  // site names stored in opal are filtered via magmascript to match
+  // DCS site names defined in cenozo
+  //
+  if( !array_key_exists( $row['site'], $site_lookup ) ) continue;
+
+  $item = $site_lookup[$row['site']];
+  $serial_number_id = $item['serial_number_id'];
+
+  $data = array(
+    $apex_baseline_id,
+    $serial_number_id,
+    '"' . $row['barcode'] . '"',
+    $rank,
+    '' == $row['height'] ? 'NULL' : $row['height'],
+    '' == $row['weight'] ? 'NULL' : $row['weight'],
+    '' == $row['age'] ? 'NULL' : $row['age'],
+    '' == $row['technician'] ? 'NULL' : '"' . $row['technician'] . '"' );
+
+  $sql_val =
+    ') VALUES (' . implode( ',', $data ) . ') ';
+  $sql_dup =
+    'ON DUPLICATE KEY UPDATE '.
+    'apex_baseline_id = VALUES( apex_baseline_id ), '.
+    'serial_number_id = VALUES( serial_number_id )';
+
+  $sql = $sql_col . $sql_val . $sql_dup;
+  $db_salix->execute( $sql );
+
+  $sql = sprintf(
+    'SELECT id FROM apex_exam '.
+    'WHERE apex_baseline_id=%d '.
+    'AND serial_number_id=%d '.
+    'AND rank=%d '.
+    'AND barcode="%s"', $apex_baseline_id, $serial_number_id, $rank, $row['barcode'] );
+  $apex_exam_id = $db_salix->get_one( $sql );
+  if( false === $apex_exam_id || 0 == $apex_exam_id )
+  {
+    $dup_val = array_combine( $columns, $data );
+    $sql = sprintf(
+      'SELECT id FROM apex_exam WHERE '.
+      'apex_baseline_id=%d AND '.
+      'serial_number_id=%d AND '.
+      'barcode=%s AND '.
+      'rank=%d',
+      $apex_baseline_id, $serial_number_id, $dup_val['barcode'], $dup_val['rank'] );
+
+    $apex_exam_id = $db_salix->get_one( $sql );
+  }
+  if( false === $apex_exam_id || '' == $apex_exam_id ) continue;
+
+  foreach( $types as $scan_type_id => $type_data )
+  {
+    $sql =
+      'INSERT INTO apex_scan ('.
+      'apex_exam_id, scan_type_id, availability) VALUES (';
+
+    $type = $type_data['type'];
+    $side = $type_data['side'];
+    $type_qualified = 'none' == $side ? $type : $type . '_' . $side;
+    $key = $type_qualified . '_availability';
+    $availability = '';
+    if( array_key_exists( $key, $row ) )
+      $availability = $row[$key];
+    $availability = '' == $availability ? 0 : $availability;
+
+    $sql .= sprintf( ' %d, %d, %d )', $apex_exam_id, $scan_type_id, $availability );
+    $sql .=
+      'ON DUPLICATE KEY UPDATE ' .
+      'apex_exam_id = VALUES( apex_exam_id ), '.
+      'scan_type_id = VALUES( scan_type_id )';
+
+    $db_salix->execute( $sql );
+  }
+}
+
+return 1;
