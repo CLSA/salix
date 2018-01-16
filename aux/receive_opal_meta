@@ -39,13 +39,14 @@ define( 'DB_PREFIX', $settings['db']['database_prefix'] );
 define( 'DB_USERNAME', $settings['db']['username'] );
 define( 'DB_PASSWORD', $settings['db']['password'] );
 
-define( 'UTIL_PATH', $settings['path']['CUSTOM_UTIL'] );
-define( 'JSON_VIEW_PATH', $settings['path']['OPAL_VIEWS'] );
+define( 'JSON_VIEW_PATH', $settings['path']['APPLICATION'].'/aux/opal_views/json' );
 
 define( 'USER', $settings['utility']['username'] );
 
-require_once( UTIL_PATH . 'database.class.php' );  // a lite mysqli wrapper
-require_once( UTIL_PATH . 'opalcurl.class.php' );  // a lite curl wrapper
+// a lite mysqli wrapper
+require_once( $settings['path']['APPLICATION'].'/../php_util/database.class.php' );
+// a lite curl wrapper
+require_once( $settings['path']['APPLICATION'].'/../php_util/opalcurl.class.php' );
 
 // function for writing to the log
 function write_log( $message )
@@ -104,8 +105,6 @@ if( $total != count( $identifier_list ) )
   write_log( 'identifier list incomplete' );
   return 0;
 }
-
-write_log( 'updating with ' . count( $identifier_list ) . ' identifiers' );
 
 $db_salix = new database(
   DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
@@ -242,5 +241,7 @@ foreach( $list as $uid => $row )
     $db_salix->execute( $sql );
   }
 }
+
+write_log( 'done updating with ' . $total . ' identifiers' );
 
 return 1;
