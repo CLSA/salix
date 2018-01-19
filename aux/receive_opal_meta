@@ -8,8 +8,6 @@
  * The Opal meta_* views must have an Entities Filter script set, for example:
  * $lastupdate().after(newValue('2017-11-05', 'date'))
  *
- * @author Dean Inglis <inglisd@mcmaster.ca>
- * @date 2017-09-28
  */
 
 /**
@@ -242,6 +240,6 @@ foreach( $list as $uid => $row )
   }
 }
 
-write_log( 'done updating with ' . $total . ' identifiers' );
+write_log( 'done updating exam and scan tables with ' . $total . ' identifiers' );
 
 return 1;
