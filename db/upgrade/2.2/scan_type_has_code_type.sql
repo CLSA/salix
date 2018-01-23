@@ -11,13 +11,13 @@ CREATE TABLE IF NOT EXISTS scan_type_has_code_type (
   CONSTRAINT fk_scan_type_has_code_type_code_type_id
     FOREIGN KEY (code_type_id)
     REFERENCES code_type (id)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
   CONSTRAINT fk_scan_type_has_code_type_scan_type_id
     FOREIGN KEY (scan_type_id)
     REFERENCES scan_type (id)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
 
