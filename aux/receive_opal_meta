@@ -56,9 +56,6 @@ function write_log( $message )
   );
 }
 
-// The main program follows
-//////////////////////////////////////////////////////////////////////////////////////////////
-
 $last_completed_rank = 1;  // consider making a setting in the application ini file
 $rank = $last_completed_rank;
 $date = null;
@@ -73,7 +70,7 @@ else if( 3 == $argc )
 }
 else
 {
-  write_log( 'incorrect arguments: ' . implode( $argv ) );
+  write_log( 'incorrect arguments: ' . implode( ',', $argv ) );
   return 0;
 }
 
