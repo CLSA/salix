@@ -1,0 +1,312 @@
+#!/usr/bin/php
+<?php
+/**
+ * push_salix_meta.php
+ *
+ * A script which will push meta data from salix to an APEX host database.
+ * Images imported from Opal into APEX cause the embedded proprietary patient
+ * biography to be created in the APEX PATIENT and ScanAnalysis db tables.
+ * Images may contain erroneous biographical and identifying information
+ * whereas salix db tables contain "cleaned" data.  This script updates
+ * the APEX db tables with cleaned data and de-identifies all biographical
+ * information.
+ *
+ */
+
+/**
+ * Make sure to fill in the following
+ */
+
+define( 'URL', 'https://localhost/release/salix/api/' );
+
+/**
+ * Do not edit any of the following lines
+ */
+
+chdir( dirname( __FILE__ ).'/../' );
+require_once 'settings.ini.php';
+require_once 'settings.local.ini.php';
+require_once $SETTINGS['path']['CENOZO'].'/src/initial.class.php';
+$initial = new \cenozo\initial();
+$settings = $initial->get_settings();
+
+define( 'USER', $settings['utility']['username'] );
+
+define( 'DB_SERVER', $settings['db']['server'] );
+define( 'DB_PREFIX', $settings['db']['database_prefix'] );
+define( 'DB_USERNAME', $settings['db']['username'] );
+define( 'DB_PASSWORD', $settings['db']['password'] );
+
+// lite wrapper for mysqli
+require_once( $settings['path']['APPLICATION'].'/../php_util/database.class.php' );
+// lite wrapper for MS SQL
+require_once( $settings['path']['APPLICATION'].'/../php_util/odbc.class.php' );
+
+// function for writing to the log
+function write_log( $message )
+{
+  file_put_contents(
+    LOG_FILE_PATH,
+    sprintf( "%s  [cron] <%s> %s\n\n", date( 'Y-m-d (D) H:i:s' ), USER, $message ),
+    FILE_APPEND
+  );
+}
+
+if( 2 != $argc )
+{
+  write_log( 'incorrect arguments: ' .  implode( ',', $argv ) );
+  return 0;
+}
+
+$dexa_host = $argv[1];
+
+$db_salix = new database(
+  DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+
+$sql = 'SELECT name FROM apex_host';
+$host_names = $db_salix->get_all( $sql );
+if( false === $host_names || !is_array( $host_names ) )
+{
+  write_log( 'ERROR: failed to retrieve host names' );
+  return 0;
+}
+array_walk( $host_names, function( &$item ) { $item = $item['name']; } );
+
+if( !in_array( $dexa_host, $host_names) )
+{
+  write_log( 'ERROR: invalid dexa host ' . $host );
+  return 0;
+}
+
+$sql = 'SELECT * FROM apex_host WHERE name="' . $dexa_host .'"';
+$res = $db_salix->get_row( $sql );
+
+$db_apex_server = strtoupper( $res['name'] );
+$db_apex_username = $res['sql_user'];
+$db_apex_password  = $res['sql_pass'];
+$apex_host_id = $res['id'];
+
+$db_apex = new odbc( $db_apex_server, $db_apex_username, $db_apex_password );
+
+// Anonymize all patient biography data populated from the dicom image import
+//
+$sql =
+  'SELECT COUNT(*) '.
+  'FROM PatScan.dbo.PATIENT '.
+  'WHERE DATALENGTH(LAST_NAME)>0 '.
+  'OR DATALENGTH(FIRST_NAME)>0 '.
+  'OR DATALENGTH(MID_INITIAL)>0 '.
+  'OR DATALENGTH(PAT_COMMENT)>0 '.
+  'OR DATALENGTH(REF_PHYSICIAN)>0 '.
+  'OR DATALENGTH(STUDY)>0 '.
+  'OR DATALENGTH(ADDRESS1)>0 '.
+  'OR DATALENGTH(ADDRESS2)>0 '.
+  'OR DATALENGTH(CITY)>0 '.
+  'OR DATALENGTH(STATE)>0 '.
+  'OR DATALENGTH(POSTAL)>0 '.
+  'OR DATALENGTH(COUNTRY)>0';
+
+$res = $db_apex->get_one( $sql );
+if( false !== $res && 0 < $res )
+{
+  $sql =
+    'UPDATE PatScan.dbo.PATIENT '.
+    'SET FIRST_NAME=null, LAST_NAME=null, '.
+    'MID_INITIAL=null, PAT_COMMENT=null, REF_PHYSICIAN=null, '.
+    'STUDY=null, ADDRESS1=null, ADDRESS2=null, CITY=null, '.
+    'STATE=null, POSTAL=null, COUNTRY=null '.
+    'WHERE DATALENGTH(LAST_NAME)>0 '.
+    'OR DATALENGTH(FIRST_NAME)>0 '.
+    'OR DATALENGTH(MID_INITIAL)>0 '.
+    'OR DATALENGTH(PAT_COMMENT)>0 '.
+    'OR DATALENGTH(REF_PHYSICIAN)>0 '.
+    'OR DATALENGTH(STUDY)>0 '.
+    'OR DATALENGTH(ADDRESS1)>0 '.
+    'OR DATALENGTH(ADDRESS2)>0 '.
+    'OR DATALENGTH(CITY)>0 '.
+    'OR DATALENGTH(STATE)>0 '.
+    'OR DATALENGTH(POSTAL)>0 '.
+    'OR DATALENGTH(COUNTRY)>0';
+
+  $db_apex->execute( $sql );
+}
+
+// Retrieve all of the correct meta data from salix
+//
+$sql =
+  'SELECT e.id AS apex_exam_id, '.
+  's.id AS apex_scan_id, '.
+  'b.id AS apex_baseline_id, '.
+  'DATE_FORMAT(b.dob, "%Y-%m-%d") AS BIRTHDATE, '.
+  'b.sex as SEX, '.
+  'b.ethnicity as ETHNICITY, '.
+  's.scan_datetime, '.
+  's.scanid, '.
+  's.patient_key, '.
+  't.type, '.
+  'e.height as HEIGHT, '.
+  'e.weight as WEIGHT, '.
+  'e.rank, '.
+  'e.barcode, '.
+  'n.serial_number '.
+  'FROM apex_deployment d '.
+  'JOIN apex_host h ON h.id=d.apex_host_id '.
+  'JOIN apex_scan s ON s.id=d.apex_scan_id '.
+  'JOIN apex_exam e ON e.id=s.apex_exam_id '.
+  'JOIN scan_type t ON t.id=s.scan_type_id '.
+  'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
+  'JOIN serial_number n ON n.id=e.serial_number_id '.
+  'WHERE h.name="' . $dexa_host . '" '.
+  'AND s.scan_datetime IS NOT NULL '.
+  'AND s.scanid IS NOT NULL '.
+  'AND patient_key IS NOT NULL'; // the scan must be on the host
+
+$res = $db_salix->get_all( $sql );
+
+$quotable_fields = array(
+  'SEX',
+  'BIRTHDATE',
+  'ETHNICITY'
+);
+
+$precision_fields = array(
+  'ADJUSTED_AGE' => 2,
+  'BMI' => 1,
+  'HEIGHT' => 1,
+  'WEIGHT' => 1
+);
+
+// Loop over the salix records, searching the APEX host db for
+// corresponding records
+//
+$total = count( $res );
+$num_patient_updated = 0;
+$num_patient_item_updated = 0;
+$num_analysis_updated = 0;
+$num_analysis_item_updated = 0;
+foreach( $res as $res_salix )
+{
+  $type = $res_salix['type'];
+  $bday = new DateTime( $res_salix['BIRTHDATE'] );
+  $sday = new DateTime( $res_salix['scan_datetime'] );
+  $diff = $sday->diff( $bday );
+  $rank = $res_salix['rank'];
+
+  $res_salix['ADJUSTED_AGE'] = $diff->y + $diff->m / 12.0 + $diff->d / 365.25;
+
+  $res_salix['BMI'] = 0 < $res_salix['HEIGHT'] ?
+    $res_salix['WEIGHT']/(0.0001*$res_salix['HEIGHT']*$res_salix['HEIGHT']) : -1;
+
+  $res_host_patient = null;
+  if( 1 == $rank )
+  {
+    // get the info from PATIENT table
+    $sql = sprintf(
+      "SELECT FORMAT(BIRTHDATE, 'yyyy-MM-dd') BIRTHDATE, SEX, ETHNICITY, WEIGHT, HEIGHT, BMI ".
+      'FROM PatScan.dbo.PATIENT '.
+      "WHERE PATIENT_KEY='%s'", $res_salix['patient_key'] );
+    $res_host_patient = $db_apex->get_row( $sql );
+    if( '' == $res_host_patient || !is_array( $res_host_patient ) )
+      $res_host_patient = null;
+  }
+  // always get the info from the ScanAnalysis table
+  $sql = sprintf(
+    'SELECT WEIGHT, HEIGHT, BMI, ADJUSTED_AGE '.
+    'FROM PatScan.dbo.ScanAnalysis '.
+    "WHERE PATIENT_KEY='%s' ".
+    "AND SCANID='%s' ".
+    "AND SERIAL_NUMBER='%s' ", $res_salix['patient_key'], $res_salix['scanid'], $res_salix['serial_number'] );
+
+  $res_host_analysis = $db_apex->get_row( $sql );
+  if( '' == $res_host_analysis || !is_array( $res_host_analysis ) )
+    $res_host_analysis = null;
+
+  $id_str = $res_salix['barcode'] . ' (rank ' . $rank . ') ' . $type;
+  if( 1 == $rank && null !== $res_host_patient )
+  {
+    $diff = array();
+    $diff_keys = array( 'SEX', 'ETHNICITY', 'BIRTHDATE' );
+    foreach( $diff_keys as $key )
+    {
+      if( $res_salix[$key] != $res_host_patient[$key] )
+        $diff[$key] = array(
+          $res_salix[$key],
+          $res_host_patient[$key] );
+    }
+
+    $diff_keys = array( 'WEIGHT', 'HEIGHT', 'BMI' );
+    foreach( $diff_keys as $key )
+    {
+      $precision = $precision_fields[$key];
+      if( 0 < $res_salix[$key] && round( $res_salix[$key], $precision ) !=
+        round( $res_host_patient[$key], $precision ) )
+      $diff[$key] = array(
+        round( $res_salix[$key], $precision ),
+        round( $res_host_patient[$key], $precision ) );
+    }
+
+    if( 0 < count( $diff ) )
+    {
+      $sql = 'UPDATE PatScan.dbo.PATIENT SET ';
+      foreach( $diff as $key => $data )
+      {
+        $sql .= sprintf(
+          ( in_array( $key, $quotable_fields ) ? "%s='%s', " : '%s=%s, ' ), $key, $data[0] );
+      }
+      $sql = rtrim( $sql, ', ' ) .
+        sprintf(
+          " WHERE PATIENT_KEY='%s'", $res_salix['patient_key'] );
+
+      $db_apex->execute( $sql );
+
+      $num_patient_updated++;
+      $num_patient_item_updated += count( $diff );
+    }
+  }
+
+  if( null !== $res_host_analysis )
+  {
+    $diff = array();
+    $diff_keys = array( 'ADJUSTED_AGE', 'WEIGHT', 'HEIGHT', 'BMI' );
+    foreach( $diff_keys as $key )
+    {
+      $precision = $precision_fields[$key];
+      if( 0 < $res_salix[$key] &&
+        round( $res_salix[$key], $precision ) !=
+        round( $res_host_analysis[$key], $precision ) )
+      {
+        $diff[$key] = array(
+          round( $res_salix[$key], $precision ),
+          round( $res_host_analysis[$key], $precision ) );
+      }
+    }
+
+    if( 0 < count( $diff ) )
+    {
+      $sql = 'UPDATE PatScan.dbo.ScanAnalysis SET ';
+      foreach( $diff as $key => $data )
+      {
+        $sql .= sprintf(
+          ( in_array( $key, $quotable_fields ) ? "%s='%s', " : '%s=%s, ' ), $key, $data[0] );
+      }
+      $sql = rtrim( $sql, ', ' ) .
+        sprintf(
+          " WHERE PATIENT_KEY='%s' ".
+          "AND SCANID='%s' ".
+          "AND SERIAL_NUMBER='%s'", $res_salix['patient_key'], $res_salix['scanid'], $res_salix['serial_number'] );
+
+      $db_apex->execute( $sql );
+
+      $num_analysis_updated++;
+      $num_analysis_item_updated += count( $diff );
+    }
+  }
+}
+
+write_log( 'number of records processed: ' . $total );
+write_log( 'number of host patient records updated: ' . $num_patient_updated );
+write_log( 'number of host patient items updated: ' . $num_patient_item_updated );
+write_log( 'number of host analysis records updated: ' . $num_analysis_updated );
+write_log( 'number of host analysis items updated: ' . $num_analysis_item_updated );
+
+return 1;

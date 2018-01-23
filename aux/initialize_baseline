@@ -1,0 +1,93 @@
+#!/usr/bin/php
+<?php
+/**
+ * load_opal_baseline.php
+ *
+ * A script which will populate salix apex_baseline table
+ * with data from Opal.  This script should be run once
+ * to initially set up the salix database.
+ *
+ */
+
+/**
+ * Make sure to fill in the following
+ */
+
+define( 'URL', 'https://localhost/release/salix/api/' );
+
+/**
+ * Do not edit any of the following lines
+ */
+
+chdir( dirname( __FILE__ ).'/../' );
+require_once 'settings.ini.php';
+require_once 'settings.local.ini.php';
+require_once $SETTINGS['path']['CENOZO'].'/src/initial.class.php';
+$initial = new \cenozo\initial();
+$settings = $initial->get_settings();
+
+define( 'OPAL_SERVER', $settings['opal']['server'] );
+define( 'OPAL_PORT', $settings['opal']['port'] );
+define( 'OPAL_USERNAME', $settings['opal']['username']  );
+define( 'OPAL_PASSWORD', $settings['opal']['password'] );
+
+define( 'DB_SERVER', $settings['db']['server'] );
+define( 'DB_PREFIX', $settings['db']['database_prefix'] );
+define( 'DB_USERNAME', $settings['db']['username'] );
+define( 'DB_PASSWORD', $settings['db']['password'] );
+
+define( 'USER', $settings['utility']['username'] );
+
+// a lite mysqli wrapper
+require_once( $settings['path']['APPLICATION'].'/../php_util/database.class.php' );
+// a lite curl wrapper
+require_once( $settings['path']['APPLICATION'].'/../php_util/opalcurl.class.php' );
+
+// function for writing to the log
+function write_log( $message )
+{
+  file_put_contents(
+    LOG_FILE_PATH,
+    sprintf( "%s [script] <%s> %s\n\n", date( 'Y-m-d (D) H:i:s' ), USER, $message ),
+    FILE_APPEND
+  );
+}
+
+$opal_curl = new opalcurl(
+  OPAL_SERVER, OPAL_PORT, OPAL_USERNAME, OPAL_PASSWORD, 'salix', 'baseline' );
+
+$identifier_list = $opal_curl->get_identifiers();
+$list = $opal_curl->get_complete_list();
+$total = count( $list );
+
+if( $total != count( $identifier_list ) )
+{
+  write_log( 'identifier list incomplete' );
+  return 0;
+}
+
+$db_salix = new database(
+  DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+
+foreach( $list as $uid => $row )
+{
+  $dob = $row['dob'];
+  if( '' == $dob ) continue;
+  $sql_p = 'SELECT DISTINCT id FROM ' . DB_PREFIX . 'cenozo.participant WHERE uid="' . $uid . '"';
+  $res = $db_salix->get_one( $sql_p );
+  if( false === $res ) continue;
+  $id = $res;
+  $eth = '' == $row['ethnicity'] ? 'W' : $row['ethnicity'];
+  $sex = '' == $row['sex'] ? 'F' : $row['sex'];
+
+  $sql = 'INSERT INTO apex_baseline (participant_id,dob,ethnicity,sex) VALUES '.
+    '(' . $id . ',"' . implode( '","', array( $dob, $eth, $sex) ) . '") '.
+    'ON DUPLICATE KEY UPDATE '.
+    'participant_id = VALUES(participant_id)';
+
+  $db_salix->execute( $sql );
+}
+
+write_log( 'done updating baseline table with ' . $total . ' identifiers' );
+
+return 1;
