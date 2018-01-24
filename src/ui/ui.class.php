@@ -49,7 +49,7 @@ class ui extends \cenozo\ui\ui
     $module = $this->get_module( 'apex_deployment' );
     if( !is_null( $module ) )
     {
-      $module->add_choose( 'apex_deployment' );
+      $module->add_child( 'apex_scan' );
     }
 
     $module = $this->get_module( 'scan_type' );
@@ -89,7 +89,6 @@ class ui extends \cenozo\ui\ui
     }
 
     $this->add_listitem( 'Apex Hosts', 'apex_host' );
-    $this->add_listitem( 'Apex Scans', 'apex_scan' );
 
     $this->remove_listitem( 'Availability Types' );
     $this->remove_listitem( 'Consent Types' );

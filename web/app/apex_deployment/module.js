@@ -188,7 +188,16 @@ define( function() {
   cenozo.providers.factory( 'CnApexDeploymentViewFactory', [
     'CnBaseViewFactory',
     function( CnBaseViewFactory ) {
-      var object = function( parentModel, root ) { CnBaseViewFactory.construct( this, parentModel, root ); };
+      var object = function( parentModel, root ) {
+        var self = this;
+        CnBaseViewFactory.construct( this, parentModel, root );
+
+        // customize the scan list heading
+        this.deferred.promise.then( function() {
+          if( angular.isDefined( self.apexScanModel ) ) 
+            self.apexScanModel.listModel.heading = 'Sister Apex Scan List';
+        } );
+      };
       return { instance: function( parentModel, root ) { return new object( parentModel, root ); } };
     }
   ] );

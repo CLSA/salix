@@ -1,12 +1,109 @@
 <cn-record-view model="model"></cn-record-view>
 <div class="vertical-spacer">
-  Codes and stuff goes here.
+  <div class="record-view rounded">
+    <div class="container-fluid bg-primary rounded-top"
+             data-toggle="collapse"
+             data-target="#apexDeploymentAnalysis"
+             ng-click="collapsed = !collapsed"
+             uib-tooltip-html="
+               '<div>Created on ' +
+               ( model.viewModel.record.create_timestamp | cnDatetime:'datetimesecond' ) + '<br/>' +
+               'Last edit on ' +
+               ( model.viewModel.record.update_timestamp | cnDatetime:'datetimesecond' ) + '</div>'"
+             style="cursor:pointer;">
+      <h4>
+        <div class="pull-right">
+          <i class="glyphicon glyph-hover btn-primary btn-header"
+             ng-class="collapsed ? 'glyphicon-collapse-down' : 'glyphicon-collapse-up'"
+             uib-tooltip="Click to expand analysis details"
+             tooltip-placement="left"></i>
+        </div>
+        Analysis
+        <span ng-if="!model.getEditEnabled()">(read only)</span>
+        <span ng-if="!isComplete">(Loading&hellip;)</span>
+      </h4>
+    </div>
+    <form name="form" class="form-horizontal" novalidate><fieldset ng-disabled="!isComplete">
+      <div class="form-group">
+        <div class="container-fluid form-body">
+          <div class="form-group">
+            <label class="col-sm-3 control-label">Codes</label>
+            <div class="col-sm-9">
+              <div class="row">
+                <div class="col-sm-2">
+                  <label class="checkbox" style="left: 25px" for="sunday">
+                    <input type="checkbox"></input> Blah
+                  </label>
+                </div>
+                <div class="col-sm-2">
+                  <label class="checkbox" style="left: 25px" for="sunday">
+                    <input type="checkbox"></input> Blah
+                  </label>
+                </div>
+                <div class="col-sm-2">
+                  <label class="checkbox" style="left: 25px" for="sunday">
+                    <input type="checkbox"></input> Blah
+                  </label>
+                </div>
+                <div class="col-sm-2">
+                  <label class="checkbox" style="left: 25px" for="sunday">
+                    <input type="checkbox"></input> Blah
+                  </label>
+                </div>
+                <div class="col-sm-2">
+                  <label class="checkbox" style="left: 25px" for="sunday">
+                    <input type="checkbox"></input> Blah
+                  </label>
+                </div>
+                <div class="col-sm-2">
+                  <label class="checkbox" style="left: 25px" for="sunday">
+                    <input type="checkbox"></input> Blah
+                  </label>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-sm-2">
+                  <label class="checkbox" style="left: 25px" for="sunday">
+                    <input type="checkbox"></input> Blah
+                  </label>
+                </div>
+                <div class="col-sm-2">
+                  <label class="checkbox" style="left: 25px" for="sunday">
+                    <input type="checkbox"></input> Blah
+                  </label>
+                </div>
+                <div class="col-sm-2">
+                  <label class="checkbox" style="left: 25px" for="sunday">
+                    <input type="checkbox"></input> Blah
+                  </label>
+                </div>
+                <div class="col-sm-2">
+                  <label class="checkbox" style="left: 25px" for="sunday">
+                    <input type="checkbox"></input> Blah
+                  </label>
+                </div>
+                <div class="col-sm-2">
+                  <label class="checkbox" style="left: 25px" for="sunday">
+                    <input type="checkbox"></input> Blah
+                  </label>
+                </div>
+                <div class="col-sm-2">
+                  <label class="checkbox" style="left: 25px" for="sunday">
+                    <input type="checkbox"></input> Blah
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </fieldset></form>
+    <div class="form-footer text-right rounded-bottom bg-info">
+    </div>
+  </div>
 </div>
-<div class="vertical-spacer" ng-repeat="child in model.module.children">
-  <cn-record-list ng-if="model.viewModel[child.subject.camel+'Model']"
-                  model="model.viewModel[child.subject.camel+'Model']"></cn-record-list>
-</div>
-<div class="vertical-spacer" ng-repeat="child in model.module.choosing">
-  <cn-record-list ng-if="model.viewModel[child.subject.camel+'Model']"
-                  model="model.viewModel[child.subject.camel+'Model']"></cn-record-list>
+<div class="vertical-spacer">
+  <cn-record-list ng-if="model.viewModel.apexScanModel"
+                  remove-columns="uid scan_type_side priority"
+                  model="model.viewModel.apexScanModel"></cn-record-list>
 </div>

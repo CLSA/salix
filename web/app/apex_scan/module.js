@@ -20,18 +20,25 @@ define( function() {
         column: 'participant.uid',
         title: 'Participant'
       },
-      scan_type_type: {
-        column: 'scan_type.type',
-        title: 'Type'
+      rank: {
+        column: 'apex_exam.rank',
+        title: 'Rank'
       },
       scan_type_side: {
-        column: 'scan_type.side',
-        title: 'Side'
+        title: 'Scan Type'
+      },
+      availability: {
+        title: 'Available',
+        type: 'boolean'
       },
       priority: {
         column: 'priority',
         title: 'Priority',
         type: 'boolean'
+      },
+      code_summary: {
+        column: 'apex_scan_code_summary.summary',
+        title: 'Codes'
       }
     },
     defaultOrder: {
