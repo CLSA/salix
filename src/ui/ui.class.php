@@ -67,13 +67,23 @@ class ui extends \cenozo\ui\ui
   {
     parent::build_listitem_list();
 
-    $this->add_listitem( 'Apex Baselines', 'apex_baseline' );
-    $this->add_listitem( 'Apex Exams', 'apex_exam' );
+    $db_role = lib::create( 'business\session' )->get_role();
+
+    if( 3 <= $db_role->tier )
+    {
+      $this->add_listitem( 'Apex Baselines', 'apex_baseline' );
+      $this->add_listitem( 'Apex Exams', 'apex_exam' );
+      $this->add_listitem( 'Code Types', 'code_type' );
+      $this->add_listitem( 'Scan Types', 'scan_type' );
+      $this->add_listitem( 'Serial Numbers', 'serial_number' );
+    }
+    else
+    {
+      $this->remove_listitem( 'Users' );
+    }
+
     $this->add_listitem( 'Apex Hosts', 'apex_host' );
     $this->add_listitem( 'Apex Scans', 'apex_scan' );
-    $this->add_listitem( 'Code Types', 'code_type' );
-    $this->add_listitem( 'Scan Types', 'scan_type' );
-    $this->add_listitem( 'Serial Numbers', 'serial_number' );
 
     $this->remove_listitem( 'Availability Types' );
     $this->remove_listitem( 'Consent Types' );
@@ -88,12 +98,16 @@ class ui extends \cenozo\ui\ui
    */
   protected function get_utility_items()
   {
-    // remove export
     $list = parent::get_utility_items();
+
+    $db_role = lib::create( 'business\session' )->get_role();
+
     if( array_key_exists( 'Participant Export', $list ) ) unset( $list['Participant Export'] );
     if( array_key_exists( 'Participant Multiedit', $list ) ) unset( $list['Participant Multiedit'] );
     if( array_key_exists( 'Participant Search', $list ) ) unset( $list['Participant Search'] );
     if( array_key_exists( 'Tracing', $list ) ) unset( $list['Tracing'] );
+    if( array_key_exists( 'User Overview', $list ) ) if( 3 > $db_role->tier ) unset( $list['User Overview'] );
+
     return $list;
   }
 }
