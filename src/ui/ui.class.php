@@ -46,6 +46,12 @@ class ui extends \cenozo\ui\ui
       $module->add_child( 'apex_deployment' );
     }
 
+    $module = $this->get_module( 'apex_deployment' );
+    if( !is_null( $module ) )
+    {
+      $module->add_choose( 'apex_deployment' );
+    }
+
     $module = $this->get_module( 'scan_type' );
     if( !is_null( $module ) )
     {

@@ -27,6 +27,11 @@ define( function() {
       scan_type_side: {
         column: 'scan_type.side',
         title: 'Side'
+      },
+      priority: {
+        column: 'priority',
+        title: 'Priority',
+        type: 'boolean'
       }
     },
     defaultOrder: {
@@ -62,9 +67,12 @@ define( function() {
     },
     availability: {
       title: 'Availability',
-      type: 'string',
-      constant: true,
-      help: '0: no files are available, 1: left scan only, 2: right scan only, 3: left and right scans available'
+      type: 'boolean',
+      constant: true
+    },
+    priority: {
+      title: 'Priority',
+      type: 'boolean'
     },
     scan_datetime: {
       title: 'Scan Date & Time',

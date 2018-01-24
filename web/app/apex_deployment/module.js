@@ -41,10 +41,6 @@ define( function() {
         title: 'Merged',
         type: 'boolean'
       },
-      priority: {
-        title: 'Priority',
-        type: 'boolean'
-      },
       status: {
         title: 'Status'
       },
@@ -64,25 +60,38 @@ define( function() {
       title: 'Apex Host',
       type: 'enum'
     },
+    uid: {
+      column: 'participant.uid',
+      title: 'Participant',
+      type: 'string'
+    },
+    barcode: {
+      column: 'apex_exam.barcode',
+      title: 'Barcode',
+      type: 'string'
+    },
+    rank: {
+      column: 'apex_exam.rank',
+      title: 'Wave Rank',
+      type: 'string'
+    },
+    scan_type_side: {
+      column: 'scan_type_side',
+      title: 'Scan Type & Side',
+      type: 'string'
+    }
+  } );
+
+  module.addInputGroup( 'Additional Details', {
     merged: {
       title: 'Merged',
       type: 'boolean',
       exclude: 'add',
       constant: true
     },
-    priority: {
-      title: 'Priority',
-      type: 'boolean'
-    },
     status: {
       title: 'Status',
       type: 'string',
-      exclude: 'add',
-      constant: true
-    },
-    pass: {
-      title: 'Pass',
-      type: 'boolean',
       exclude: 'add',
       constant: true
     },
@@ -109,10 +118,6 @@ define( function() {
       type: 'datetime',
       exclude: 'add',
       constant: true
-    },
-    note: {
-      title: 'Note',
-      type: 'text'
     },
   } );
 
