@@ -55,4 +55,18 @@ BEGIN
 SET NEW.create_timestamp = NOW();
 END$$
 
+
+DROP TRIGGER IF EXISTS code_AFTER_INSERT $$
+CREATE DEFINER = CURRENT_USER TRIGGER code_AFTER_INSERT AFTER INSERT ON code FOR EACH ROW
+BEGIN
+  CALL update_apex_scan_code_summary( NEW.apex_scan_id );
+END$$
+
+
+DROP TRIGGER IF EXISTS code_AFTER_UPDATE $$
+CREATE DEFINER = CURRENT_USER TRIGGER code_AFTER_UPDATE AFTER UPDATE ON code FOR EACH ROW
+BEGIN
+  CALL update_apex_scan_code_summary( NEW.apex_scan_id );
+END$$
+
 DELIMITER ;
