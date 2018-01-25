@@ -20,84 +20,82 @@
         </div>
         Analysis
         <span ng-if="!model.getEditEnabled()">(read only)</span>
-        <span ng-if="!isComplete">(Loading&hellip;)</span>
+        <span ng-if="model.viewModel.isLoading">(Loading&hellip;)</span>
       </h4>
     </div>
-    <form name="form" class="form-horizontal" novalidate><fieldset ng-disabled="!isComplete">
+    <form name="form" class="form-horizontal" novalidate><fieldset ng-disabled="model.viewModel.isLoading">
       <div class="form-group">
-        <div class="container-fluid form-body">
+        <cn-loading ng-if="!model.viewModel.isComplete"></cn-loading>
+        <div class="container-fluid form-body" ng-if="model.viewModel.isComplete">
           <div class="form-group">
             <label class="col-sm-3 control-label">Codes</label>
             <div class="col-sm-9">
               <div class="row">
-                <div class="col-sm-2">
-                  <label class="checkbox" style="left: 25px" for="sunday">
-                    <input type="checkbox"></input> Blah
-                  </label>
-                </div>
-                <div class="col-sm-2">
-                  <label class="checkbox" style="left: 25px" for="sunday">
-                    <input type="checkbox"></input> Blah
-                  </label>
-                </div>
-                <div class="col-sm-2">
-                  <label class="checkbox" style="left: 25px" for="sunday">
-                    <input type="checkbox"></input> Blah
-                  </label>
-                </div>
-                <div class="col-sm-2">
-                  <label class="checkbox" style="left: 25px" for="sunday">
-                    <input type="checkbox"></input> Blah
-                  </label>
-                </div>
-                <div class="col-sm-2">
-                  <label class="checkbox" style="left: 25px" for="sunday">
-                    <input type="checkbox"></input> Blah
-                  </label>
-                </div>
-                <div class="col-sm-2">
-                  <label class="checkbox" style="left: 25px" for="sunday">
-                    <input type="checkbox"></input> Blah
+                <div class="col-sm-2" ng-repeat="codeType in model.metadata.codeTypeList">
+                  <label class="checkbox"
+                         style="left: 25px"
+                         for="codeType{{ codeType.id }}"
+                         ng-if="6 > $index"
+                         uib-tooltip="{{ codeType.description }}">
+                    <input type="checkbox"
+                           ng-attr-id="codeType{{ codeType.id }}"
+                           name="codeType{{ codeType.id }}"
+                           ng-model="model.viewModel.record['codeType'+codeType.id]">
+                    </input> {{ codeType.code }}
                   </label>
                 </div>
               </div>
               <div class="row">
-                <div class="col-sm-2">
-                  <label class="checkbox" style="left: 25px" for="sunday">
-                    <input type="checkbox"></input> Blah
+                <div class="col-sm-2" ng-repeat="codeType in model.metadata.codeTypeList">
+                  <label class="checkbox"
+                         style="left: 25px"
+                         for="{{ codeType.code }}"
+                         ng-if="6 <= $index && $index < 12"
+                         uib-tooltip="{{ codeType.description }}">
+                    <input type="checkbox"
+                           ng-attr-id="codeType{{ codeType.id }}"
+                           name="codeType{{ codeType.id }}"
+                           ng-model="model.viewModel.record['codeType'+codeType.id]">
+                    </input> {{ codeType.code }}
                   </label>
                 </div>
-                <div class="col-sm-2">
-                  <label class="checkbox" style="left: 25px" for="sunday">
-                    <input type="checkbox"></input> Blah
-                  </label>
-                </div>
-                <div class="col-sm-2">
-                  <label class="checkbox" style="left: 25px" for="sunday">
-                    <input type="checkbox"></input> Blah
-                  </label>
-                </div>
-                <div class="col-sm-2">
-                  <label class="checkbox" style="left: 25px" for="sunday">
-                    <input type="checkbox"></input> Blah
-                  </label>
-                </div>
-                <div class="col-sm-2">
-                  <label class="checkbox" style="left: 25px" for="sunday">
-                    <input type="checkbox"></input> Blah
-                  </label>
-                </div>
-                <div class="col-sm-2">
-                  <label class="checkbox" style="left: 25px" for="sunday">
-                    <input type="checkbox"></input> Blah
+              </div>
+              <div class="row">
+                <div class="col-sm-2" ng-repeat="codeType in model.metadata.codeTypeList">
+                  <label class="checkbox"
+                         style="left: 25px"
+                         for="{{ codeType.code }}"
+                         ng-if="12 <= $index"
+                         uib-tooltip="{{ codeType.description }}">
+                    <input type="checkbox"
+                           ng-attr-id="codeType{{ codeType.id }}"
+                           name="codeType{{ codeType.id }}"
+                           ng-model="model.viewModel.record['codeType'+codeType.id]">
+                    </input> {{ codeType.code }}
                   </label>
                 </div>
               </div>
             </div>
           </div>
+          <div class="form-group">
+            <label class="col-sm-3 control-label">Pass</label>
+            <div class="col-sm-9">
+              <select name="pass" class="form-control">
+                <option value="">(empty)</option>
+                <option value="1">Pass</option>
+                <option value="0">Fail</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="col-sm-3 control-label">Note</label>
+            <div class="col-sm-9">
+              <textarea cn-elastic name="note" class="form-control"></textarea>
+            </div>
+          </div>
         </div>
       </div>
-    </fieldset></form>
+    </form>
     <div class="form-footer text-right rounded-bottom bg-info">
     </div>
   </div>
