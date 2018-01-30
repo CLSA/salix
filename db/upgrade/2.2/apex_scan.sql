@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS apex_scan (
   scan_datetime DATETIME NULL DEFAULT NULL,
   scanid VARCHAR(13) NULL DEFAULT NULL,
   patient_key VARCHAR(24) NULL DEFAULT NULL,
+  pass TINYINT(1) NULL DEFAULT NULL,
+  note TEXT NULL DEFAULT NULL,
   PRIMARY KEY (id),
   INDEX fk_apex_exam_id (apex_exam_id ASC),
   UNIQUE INDEX uq_apex_exam_id_scan_type_id (apex_exam_id ASC, scan_type_id ASC),
