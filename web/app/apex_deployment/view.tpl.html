@@ -85,8 +85,8 @@
             <div class="col-sm-9">
               <select name="pass" class="form-control">
                 <option value="">(empty)</option>
-                <option value="1">Pass</option>
-                <option value="0">Fail</option>
+                <option value="1">Yes</option>
+                <option value="0">No</option>
               </select>
             </div>
           </div>
@@ -105,6 +105,6 @@
 </div>
 <div class="vertical-spacer">
   <cn-record-list ng-if="model.viewModel.apexScanModel"
-                  remove-columns="uid scan_type_side priority"
+                  remove-columns="uid scan_type_side availability priority"
                   model="model.viewModel.apexScanModel"></cn-record-list>
 </div>

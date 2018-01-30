@@ -36,6 +36,11 @@ define( function() {
         title: 'Priority',
         type: 'boolean'
       },
+      pass: {
+        column: 'pass',
+        title: 'Pass',
+        type: 'boolean'
+      },
       code_summary: {
         column: 'apex_scan_code_summary.summary',
         title: 'Codes'
