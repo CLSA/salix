@@ -66,8 +66,17 @@ if( $total != count( $identifier_list ) )
   return 0;
 }
 
-$db_salix = new database(
-  DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+$db_salix = '';
+try
+{
+  $db_salix = new database(
+    DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+}
+catch( Exception $e )
+{
+  write_log( $e->getMessage() );
+  return 0;
+}
 
 foreach( $list as $uid => $row )
 {

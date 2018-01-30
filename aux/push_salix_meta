@@ -59,9 +59,17 @@ if( 2 != $argc )
 }
 
 $dexa_host = $argv[1];
-
-$db_salix = new database(
-  DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+$db_salix = '';
+try
+{
+  $db_salix = new database(
+    DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+}
+catch( Exception $e )
+{
+  write_log( $e->getMessage() );
+  return 0;
+}
 
 $sql = 'SELECT name FROM apex_host';
 $host_names = $db_salix->get_all( $sql );
@@ -74,7 +82,7 @@ array_walk( $host_names, function( &$item ) { $item = $item['name']; } );
 
 if( !in_array( $dexa_host, $host_names) )
 {
-  write_log( 'ERROR: invalid dexa host ' . $host );
+  write_log( 'ERROR: invalid dexa host ' . $dexa_host );
   return 0;
 }
 
@@ -86,7 +94,16 @@ $db_apex_username = $res['sql_user'];
 $db_apex_password  = $res['sql_pass'];
 $apex_host_id = $res['id'];
 
-$db_apex = new odbc( $db_apex_server, $db_apex_username, $db_apex_password );
+$db_apex = '';
+try
+{
+  $db_apex = new odbc( $db_apex_server, $db_apex_username, $db_apex_password );
+}
+catch( Exception $e )
+{
+  write_log( $e->getMessage() );
+  return 0;
+}
 
 // Anonymize all patient biography data populated from the dicom image import
 //
