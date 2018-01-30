@@ -25,8 +25,8 @@ SOURCE code_type.sql
 SOURCE scan_type_has_code_type.sql
 SOURCE code.sql
 
-SOURCE apex_scan_code_summary.sql
-SOURCE update_apex_scan_code_summary.sql
+SOURCE apex_deployment_code_summary.sql
+SOURCE update_apex_deployment_code_summary.sql
 
 SOURCE update_version_number.sql
 

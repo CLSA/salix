@@ -166,6 +166,15 @@ define( function() {
         scope: { model: '=?' },
         controller: function( $scope ) {
           if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexDeploymentModelFactory.root;
+
+          $scope.patch = function( property ) {
+            if( $scope.model.getEditEnabled() ) {
+              if( null != property.match( /^codeType/ ) ) {
+                var codeTypeId = property.replace( /^codeType/, '' );
+                $scope.model.viewModel.patchCodeType( codeTypeId );
+              }
+            }
+          };
         }
       };
     }
@@ -200,7 +209,7 @@ define( function() {
 
         // customize the scan list heading
         this.deferred.promise.then( function() {
-          if( angular.isDefined( self.apexScanModel ) ) 
+          if( angular.isDefined( self.apexScanModel ) )
             self.apexScanModel.listModel.heading = 'Sister Apex Scan List';
         } );
 
@@ -222,6 +231,13 @@ define( function() {
               } );
             } );
           } );
+        };
+
+        this.patchCodeType = function( codeTypeId ) {
+          
+          return CnHttpFactory.instance( {
+            path: 'apex_scan/' + self.record.apex_scan_id + '/code/' + codeTypeId,
+          } ).post
         };
 
       };
@@ -254,9 +270,9 @@ define( function() {
                   select: { column: [ 'id', 'name' ] },
                   modifier: { order: { name: false } }
                 }
-              } ).query().then( function success( response ) { 
-                self.metadata.columnList.apex_host_id.enumList = []; 
-                response.data.forEach( function( item ) { 
+              } ).query().then( function success( response ) {
+                self.metadata.columnList.apex_host_id.enumList = [];
+                response.data.forEach( function( item ) {
                   self.metadata.columnList.apex_host_id.enumList.push( {
                     value: item.id,
                     name: item.name

@@ -40,6 +40,7 @@
                     <input type="checkbox"
                            ng-attr-id="codeType{{ codeType.id }}"
                            name="codeType{{ codeType.id }}"
+                           ng-change="patch( 'codeType'+codeType.id )"
                            ng-model="model.viewModel.record['codeType'+codeType.id]">
                     </input> {{ codeType.code }}
                   </label>
@@ -55,6 +56,7 @@
                     <input type="checkbox"
                            ng-attr-id="codeType{{ codeType.id }}"
                            name="codeType{{ codeType.id }}"
+                           ng-change="patch( 'codeType'+codeType.id )"
                            ng-model="model.viewModel.record['codeType'+codeType.id]">
                     </input> {{ codeType.code }}
                   </label>
@@ -70,6 +72,7 @@
                     <input type="checkbox"
                            ng-attr-id="codeType{{ codeType.id }}"
                            name="codeType{{ codeType.id }}"
+                           ng-change="patch( 'codeType'+codeType.id )"
                            ng-model="model.viewModel.record['codeType'+codeType.id]">
                     </input> {{ codeType.code }}
                   </label>
