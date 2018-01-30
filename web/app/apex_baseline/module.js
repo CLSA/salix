@@ -3,12 +3,7 @@ define( function() {
 
   try { var module = cenozoApp.module( 'apex_baseline', true ); } catch( err ) { console.warn( err ); return; }
   angular.extend( module, {
-    identifier: {
-      parent: {
-        subject: 'participant',
-        column: 'participant.uid'
-      }
-    },
+    identifier: 'participant.uid',
     name: {
       singular: 'apex baseline',
       plural: 'apex baselines',

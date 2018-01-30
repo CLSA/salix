@@ -1,0 +1,160 @@
+<org.obiba.magma.views.View>
+  <name>meta_1</name>
+  <from class="org.obiba.magma.views.JoinTable">
+    <list>
+      <table inner="false" class="org.obiba.magma.support.ValueTableReference">
+        <reference>clsa-dcs.Participants</reference>
+      </table>
+      <table inner="false" class="org.obiba.magma.support.ValueTableReference">
+        <reference>clsa-dcs.QuestionnaireBoneDensity</reference>
+      </table>
+      <table inner="false" class="org.obiba.magma.support.ValueTableReference">
+        <reference>clsa-dcs-images.DualHipBoneDensity</reference>
+      </table>
+      <table inner="false" class="org.obiba.magma.support.ValueTableReference">
+        <reference>clsa-dcs-images.ForearmBoneDensity</reference>
+      </table>
+      <table inner="false" class="org.obiba.magma.support.ValueTableReference">
+        <reference>clsa-dcs-images.LateralBoneDensity</reference>
+      </table>
+      <table inner="false" class="org.obiba.magma.support.ValueTableReference">
+        <reference>clsa-dcs-images.WholeBodyBoneDensity</reference>
+      </table>
+      <table inner="false" class="org.obiba.magma.support.ValueTableReference">
+        <reference>clsa-sac-releases.60minQv1_CoP_Baseline</reference>
+      </table>
+    </list>
+  </from>
+  <select class="org.obiba.magma.views.support.NoneClause"/>
+  <where class="org.obiba.magma.views.support.AllClause"/>
+  <variables class="org.obiba.magma.js.views.VariablesClause">
+    <variables class="linked-hash-set">
+      <variable name="barcode" valueType="text" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="3">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/clsa-dcs/table/Participants/variable/Admin.Participant.barcode</attribute>
+          <attribute name="script" valueType="text">$(&apos;Admin.Participant.barcode&apos;)</attribute>
+        </attributes>
+      </variable>
+      <variable name="site" valueType="text" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="18">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_1/variable/site</attribute>
+          <attribute name="script" valueType="text">var res=$(&apos;Admin.ApplicationConfiguration.siteName&apos;)
+res=res.map({
+  &apos;British Columbia&apos;:&apos;University of BC DCS&apos;,
+  &apos;Calgary&apos;:&apos;Calgary DCS&apos;,
+  &apos;Dalhousie&apos;:&apos;Dalhousie DCS&apos;,
+  &apos;Hamilton&apos;:&apos;Hamilton DCS&apos;,
+  &apos;Manitoba&apos;:&apos;Manitoba DCS&apos;,
+  &apos;McGill&apos;:&apos;McGill DCS&apos;,
+  &apos;McMaster&apos;:&apos;Hamilton DCS&apos;,
+  &apos;Memorial&apos;:&apos;Memorial DCS&apos;,
+  &apos;Ottawa&apos;:&apos;Ottawa DCS&apos;,
+  &apos;Sherbrooke&apos;:&apos;Sherbrooke DCS&apos;,
+  &apos;Simon Fraser&apos;:&apos;Simon Fraser DCS&apos;,
+  &apos;Victoria&apos;:&apos;Victoria DCS&apos;},res,null)  </attribute>
+        </attributes>
+      </variable>
+      <variable name="height" valueType="decimal" entityType="Participant" unit="cm" mimeType="" referencedEntityType="" index="1060">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_1/variable/height</attribute>
+          <attribute name="script" valueType="text">$(&apos;HGT_HEIGHT_M_COM&apos;).div(0.01)</attribute>
+        </attributes>
+      </variable>
+      <variable name="weight" valueType="decimal" entityType="Participant" unit="Kg" mimeType="" referencedEntityType="" index="1064">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/clsa-sac-releases/table/60minQv1_CoP_Baseline/variable/WGT_WEIGHT_KG_COM</attribute>
+          <attribute name="script" valueType="text">$(&apos;WGT_WEIGHT_KG_COM&apos;)</attribute>
+        </attributes>
+      </variable>
+      <variable name="technician" valueType="text" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="4">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_1/variable/technician</attribute>
+          <attribute name="script" valueType="text">// the user who ran the onyx bone density qnaire stage just before
+// performing the dexa exam
+//
+var q=$(&apos;clsa-dcs.QuestionnaireBoneDensity:QuestionnaireRun.user&apos;).lowerCase()
+
+// the user who ran the dexa image transfer to onyx, who may or may not
+// be the same user who actually performed the exam
+//
+var wu=$(&apos;clsa-dcs-images.WholeBodyBoneDensity:InstrumentRun.user&apos;).lowerCase()
+var lu=$(&apos;clsa-dcs-images.LateralBoneDensity:InstrumentRun.user&apos;).lowerCase()
+var hu=$(&apos;clsa-dcs-images.DualHipBoneDensity:InstrumentRun.user&apos;).lowerCase()
+var fu=$(&apos;clsa-dcs-images.ForearmBoneDensity:InstrumentRun.user&apos;).lowerCase()
+var a = new Array()
+if(wu.isNull().not().value() &amp;&amp; a.indexOf(wu.value())&lt;0) a.push(wu.value())
+if(lu.isNull().not().value() &amp;&amp; a.indexOf(lu.value())&lt;0) a.push(lu.value())
+if(hu.isNull().not().value() &amp;&amp; a.indexOf(hu.value())&lt;0) a.push(hu.value())
+if(fu.isNull().not().value() &amp;&amp; a.indexOf(fu.value())&lt;0) a.push(fu.value())
+var res=null
+if(0&lt;a.length) {
+  res=newValue(a.join(&apos;/&apos;))
+  if(q.isNull().not().value() &amp;&amp; a.indexOf(q.value())&lt;0) {
+    res=res.concat(&apos;/&apos;).concat(q)
+  }
+} else {
+  res=q
+}
+res</attribute>
+        </attributes>
+      </variable>
+      <variable name="age" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="36">
+        <attributes>
+          <attribute name="script" valueType="text">$(&apos;AGE&apos;)</attribute>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/clsa-dcs/table/Participants/variable/AGE</attribute>
+        </attributes>
+      </variable>
+      <variable name="lateral_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="10">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/scan_1/variable/iva_availability</attribute>
+          <attribute name="script" valueType="text">$(&apos;RES_SEL_DICOM_MEASURE&apos;).isNull().value()?0:1</attribute>
+        </attributes>
+      </variable>
+      <variable name="wbody_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="10">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/scan_1/variable/wholebody_availability</attribute>
+          <attribute name="script" valueType="text">$(&apos;RES_WB_DICOM_1&apos;).isNull().value()?0:1</attribute>
+        </attributes>
+      </variable>
+      <variable name="wbodycomposition_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_1/variable/wbodycomposition_availability</attribute>
+          <attribute name="script" valueType="text">$(&apos;RES_WB_DICOM_2&apos;).isNull().value()?0:1</attribute>
+        </attributes>
+      </variable>
+      <variable name="hip_left_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_1/variable/hip_left_availability</attribute>
+          <attribute name="script" valueType="text">var v=$group(&apos;Measure.OUTPUT_HIP_SIDE&apos;,&apos;LEFT&apos;,&apos;Measure.RES_HIP_DICOM&apos;).asSequence().last()
+v.isNull().value()?0:1</attribute>
+        </attributes>
+      </variable>
+      <variable name="hip_right_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_1/variable/hip_availability</attribute>
+          <attribute name="script" valueType="text">var v=$group(&apos;Measure.OUTPUT_HIP_SIDE&apos;,&apos;RIGHT&apos;,&apos;Measure.RES_HIP_DICOM&apos;).asSequence().last()
+v.isNull().value()?0:1</attribute>
+        </attributes>
+      </variable>
+      <variable name="forearm_left_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_1/variable/forearm_left_availability</attribute>
+          <attribute name="script" valueType="text">$(&apos;OUTPUT_FA_SIDE&apos;).any(&apos;LEFT&apos;).value()?1:0</attribute>
+        </attributes>
+      </variable>
+      <variable name="forearm_right_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_1/variable/forearm_right_availability</attribute>
+          <attribute name="script" valueType="text">$(&apos;OUTPUT_FA_SIDE&apos;).any(&apos;RIGHT&apos;).value()?1:0</attribute>
+        </attributes>
+      </variable>
+      <variable name="spine_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="script" valueType="text">0</attribute>
+        </attributes>
+      </variable>
+    </variables>
+  </variables>
+  <created valueType="datetime">2018-01-02T14:33:34.552-05</created>
+  <updated valueType="datetime">2018-01-04T11:02:01.931-05</updated>
+</org.obiba.magma.views.View>

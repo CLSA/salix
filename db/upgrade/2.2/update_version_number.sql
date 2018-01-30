@@ -10,7 +10,7 @@ CREATE PROCEDURE upgrade_application_number()
 
     SET @sql = CONCAT(
       "UPDATE ", @cenozo, ".application ",
-      "SET version = '2.1.0' ",
+      "SET version = '2.2' ",
       "WHERE '", DATABASE(), "' LIKE CONCAT( '%_', name )" );
     PREPARE statement FROM @sql;
     EXECUTE statement;
@@ -21,5 +21,3 @@ DELIMITER ;
 
 CALL upgrade_application_number();
 DROP PROCEDURE IF EXISTS upgrade_application_number;
-
-SELECT "PLEASE NOTE: If this is the initial installation be sure to also run initial_install.sql" AS "";

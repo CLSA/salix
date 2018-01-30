@@ -12,14 +12,11 @@ global $SETTINGS;
 // tagged version
 $SETTINGS['general']['application_name'] = 'salix';
 $SETTINGS['general']['instance_name'] = $SETTINGS['general']['application_name'];
-$SETTINGS['general']['version'] = '2.1.0';
-$SETTINGS['general']['build'] = '30414dc';
+$SETTINGS['general']['version'] = '2.2';
+$SETTINGS['general']['build'] = '4b46482';
 
 // the location of salix internal path
 $SETTINGS['path']['APPLICATION'] = str_replace( '/settings.ini.php', '', __FILE__ );
-
-// always leave as false when running as production server
-$SETTINGS['general']['development_mode'] = false;
 
 // Salix does not use VOIP
 $SETTINGS['voip']['enabled'] = false;

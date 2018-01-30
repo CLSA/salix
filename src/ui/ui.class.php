@@ -33,10 +33,30 @@ class ui extends \cenozo\ui\ui
       $module->add_child( 'apex_scan' );
     }
 
+    $module = $this->get_module( 'apex_scan' );
+    if( !is_null( $module ) )
+    {
+      $module->add_child( 'apex_deployment' );
+      $module->add_child( 'code' );
+    }
+
     $module = $this->get_module( 'apex_host' );
     if( !is_null( $module ) )
     {
+      $module->add_child( 'apex_deployment' );
+    }
+
+    $module = $this->get_module( 'scan_type' );
+    if( !is_null( $module ) )
+    {
       $module->add_child( 'apex_scan' );
+      $module->add_choose( 'code_type' );
+    }
+
+    $module = $this->get_module( 'code_type' );
+    if( !is_null( $module ) )
+    {
+      $module->add_choose( 'scan_type' );
     }
   }
 
@@ -51,12 +71,16 @@ class ui extends \cenozo\ui\ui
     $this->add_listitem( 'Apex Exams', 'apex_exam' );
     $this->add_listitem( 'Apex Hosts', 'apex_host' );
     $this->add_listitem( 'Apex Scans', 'apex_scan' );
+    $this->add_listitem( 'Code Types', 'code_type' );
+    $this->add_listitem( 'Scan Types', 'scan_type' );
+    $this->add_listitem( 'Serial Numbers', 'serial_number' );
 
     $this->remove_listitem( 'Availability Types' );
     $this->remove_listitem( 'Consent Types' );
     $this->remove_listitem( 'Event Types' );
     $this->remove_listitem( 'Languages' );
-    $this->remove_listitem( 'States' );
+    $this->remove_listitem( 'Participants' );
+    $this->remove_listitem( 'Settings' );
   }
 
   /**
@@ -67,6 +91,9 @@ class ui extends \cenozo\ui\ui
     // remove export
     $list = parent::get_utility_items();
     if( array_key_exists( 'Participant Export', $list ) ) unset( $list['Participant Export'] );
+    if( array_key_exists( 'Participant Multiedit', $list ) ) unset( $list['Participant Multiedit'] );
+    if( array_key_exists( 'Participant Search', $list ) ) unset( $list['Participant Search'] );
+    if( array_key_exists( 'Tracing', $list ) ) unset( $list['Tracing'] );
     return $list;
   }
 }

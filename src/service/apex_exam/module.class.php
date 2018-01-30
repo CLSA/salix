@@ -23,5 +23,7 @@ class module extends \cenozo\service\module
 
     $modifier->join( 'apex_baseline', 'apex_exam.apex_baseline_id', 'apex_baseline.id' );
     $modifier->join( 'participant', 'apex_baseline.participant_id', 'participant.id' );
+    $modifier->join( 'serial_number', 'apex_exam.serial_number_id', 'serial_number.id' );
+    $modifier->join( 'site', 'serial_number.site_id', 'site.id' );
   }
 }

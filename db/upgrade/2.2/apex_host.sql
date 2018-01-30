@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS apex_host (
   host VARCHAR(45) NOT NULL,
   sql_user VARCHAR(45) NOT NULL,
   sql_pass VARCHAR(45) NOT NULL,
+  allocation FLOAT NOT NULL DEFAULT 0,
   PRIMARY KEY (id),
   UNIQUE INDEX uq_name (name ASC))
 ENGINE = InnoDB;
