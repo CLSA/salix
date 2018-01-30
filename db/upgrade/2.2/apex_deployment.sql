@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS apex_deployment (
   analysis_datetime DATETIME NULL DEFAULT NULL,
   export_datetime DATETIME NULL DEFAULT NULL,
   import_datetime DATETIME NULL DEFAULT NULL,
+  pass TINYINT(1) NULL DEFAULT NULL,
+  note TEXT NULL DEFAULT NULL,
   PRIMARY KEY (id),
   INDEX fk_apex_scan_id (apex_scan_id ASC),
   INDEX fk_apex_host_id (apex_host_id ASC),

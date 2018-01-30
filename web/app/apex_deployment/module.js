@@ -39,6 +39,9 @@ define( function() {
       status: {
         title: 'Status'
       },
+      pass: {
+        title: 'pass',
+      },
       code_summary: {
         column: 'apex_deployment_code_summary.summary',
         title: 'Code Summary'
@@ -79,7 +82,9 @@ define( function() {
       title: 'Scan Type & Side',
       type: 'string',
       constant: true
-    }
+    },
+    pass: { type: 'boolean', exclude: true }, // used by CnApexDeploymentViewFactory::patch
+    note: { type: 'hidden' }
   } );
 
   module.addInputGroup( 'Additional Details', {
@@ -161,6 +166,11 @@ define( function() {
         scope: { model: '=?' },
         controller: function( $scope ) {
           if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexDeploymentModelFactory.root;
+          $scope.booleanEnumList = [
+            { value: '', name: '(empty)' },
+            { value: true, name: 'Yes' },
+            { value: false, name: 'No' }
+          ];
         }
       };
     }
@@ -219,32 +229,38 @@ define( function() {
           } );
         };
 
-        this.patchCodeType = function( codeTypeId ) {
-          var newValue = self.record['codeType'+codeTypeId];
-          if( newValue ) {
-            return CnHttpFactory.instance( {
-              path: 'code',
-              data: {
-                apex_deployment_id: self.record.id,
-                code_type_id: codeTypeId,
-                user_id: CnSession.user.id
-              },
-              onError: function( response ) {
-                // ignore 409 (code already exists)
-                if( 409 != response.status ) CnModalMessageFactory.httpError( response );
-              }
-            } ).post()
+        this.patch = function( property ) {
+          if( property.match( /^codeType/ ) ) {
+            var newValue = self.record[property];
+            var codeTypeId = property.replace( /^codeType/, '' );
+            if( newValue ) {
+              return CnHttpFactory.instance( {
+                path: 'code',
+                data: {
+                  apex_deployment_id: self.record.id,
+                  code_type_id: codeTypeId,
+                  user_id: CnSession.user.id
+                },
+                onError: function( response ) {
+                  // ignore 409 (code already exists)
+                  if( 409 != response.status ) CnModalMessageFactory.httpError( response );
+                }
+              } ).post()
+            } else {
+              CnHttpFactory.instance( {
+                path: 'code/apex_deployment_id='+self.record.id+';code_type_id='+codeTypeId,
+                onError: function( response ) {
+                  // ignore 404 (code has already been deleted)
+                  if( 404 != response.status ) CnModalMessageFactory.httpError( response );
+                }
+              } ).delete();
+            }
           } else {
-            return CnHttpFactory.instance( {
-              path: 'code/apex_deployment_id='+self.record.id+';code_type_id='+codeTypeId,
-              onError: function( response ) {
-                // ignore 404 (code has already been deleted)
-                if( 404 != response.status ) CnModalMessageFactory.httpError( response );
-              }
-            } ).delete();
+            var data = {};
+            data[property] = self.record[property];
+            self.onPatch( data );
           }
         };
-
       };
       return { instance: function( parentModel, root ) { return new object( parentModel, root ); } };
     }
