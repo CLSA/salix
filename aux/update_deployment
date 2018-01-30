@@ -1,0 +1,467 @@
+#!/usr/bin/php
+<?php
+/**
+ * update_deployment.php
+ *
+ * A script for retrieving DEXA scans, verifying their content,
+ * and creating a deployment record for subsequent transfer to
+ * the APEX host workstations.  The script currently only allows
+ * for grouped hip scan retrieval (left side preferred) and
+ * priority whole body scans.
+ *
+ *
+ * @author Dean Inglis <inglisd@mcmaster.ca>
+ * @date 2018-01-30
+ */
+
+/**
+ * Make sure to fill in the following
+ */
+
+define( 'URL', 'https://localhost/release/salix/api/' );
+
+/**
+ * Do not edit any of the following lines
+ */
+
+chdir( dirname( __FILE__ ).'/../' );
+require_once 'settings.ini.php';
+require_once 'settings.local.ini.php';
+require_once $SETTINGS['path']['CENOZO'].'/src/initial.class.php';
+$initial = new \cenozo\initial();
+$settings = $initial->get_settings();
+
+define( 'OPAL_SERVER', $settings['opal']['server'] );
+define( 'OPAL_PORT', $settings['opal']['port'] );
+define( 'OPAL_USERNAME', $settings['opal']['username']  );
+define( 'OPAL_PASSWORD', $settings['opal']['password'] );
+
+define( 'DB_SERVER', $settings['db']['server'] );
+define( 'DB_PREFIX', $settings['db']['database_prefix'] );
+define( 'DB_USERNAME', $settings['db']['username'] );
+define( 'DB_PASSWORD', $settings['db']['password'] );
+
+define( 'IMAGE_PATH', $settings['path']['TEMPORARY_FILES'] );
+
+define( 'USER', $settings['utility']['username'] );
+
+// a lite mysqli wrapper
+require_once( $settings['path']['APPLICATION'].'/../php_util/database.class.php' );
+// a lite odbc wrapper
+require_once( $settings['path']['APPLICATION'].'/../php_util/odbc.class.php' );
+// a lite curl wrapper
+require_once( $settings['path']['APPLICATION'].'/../php_util/opalcurl.class.php' );
+
+// function for writing to the log
+function write_log( $message )
+{
+  file_put_contents(
+    LOG_FILE_PATH,
+    sprintf( "%s  [cron] <%s> %s\n\n", date( 'Y-m-d (D) H:i:s' ), USER, $message ),
+    FILE_APPEND
+  );
+}
+
+class dexa_scan
+{
+  public function __construct( $uid, $type, $side, $rank, $barcode, $serial_number,
+    $apex_scan_id, $priority = 0, $apex_host_id = NULL )
+  {
+    $this->uid = $uid;
+    $this->type = $type;
+    $this->side = $side;
+    $this->rank = $rank;
+    $this->barcode = $barcode;
+    $this->serial_number = $serial_number;
+    $this->apex_scan_id = $apex_scan_id;
+    $this->apex_host_id = 'NULL' === $apex_host_id ? NULL : $apex_host_id;
+    $this->priority = $priority;
+  }
+
+  public function get_scan_file( $opal_source, $path )
+  {
+    $opal_var = $this->type;
+    $opal_var .= 'none' == $this->side ? '' : '_' . $this->side;
+    $opal_var .= '_image';
+
+    $opal_source->set_view( 'image_' . $this->rank );
+
+    // download the dicom file based on uid, rank, type, side, barcode to the working directory
+    $res = $opal_source->get_participant( $this->uid );
+    if( is_object( $res ) && property_exists( $res, 'values' ) )
+    {
+      $res = array_filter( $res->values,
+        function ( $obj ) use( $opal_var )
+        {
+          return ( property_exists( $obj, 'link' ) &&
+                   property_exists( $obj, 'length' ) &&
+                   0 < $obj->length &&
+                   false !== strpos( $obj->link, $opal_var ) );
+        } );
+    }
+    if( NULL === $res || false === $res )
+    {
+      write_log( 'WARNING: expected scan data not found in opal' );
+      return NULL;
+    }
+
+    $res = current( $res );
+    $link = $res->link;
+    $filename = sprintf( '%s/%s_%s_%s_%d.dcm', $path,
+      $this->type, $this->side, $this->barcode, $this->rank );
+
+    $opal_source->send( $link, array( 'output' => $filename ) );
+
+    // verify the file is non-empty
+    if( !file_exists( $filename ) )
+    {
+      write_log( 'WARNING: requested file failed to download' );
+      $filename = NULL;
+    }
+    return $filename;
+  }
+
+  public function validate( $filename )
+  {
+    $file_error = false;
+    if( NULL === $filename ) return $file_error;
+
+    $validation_list = static::$validation_types[$this->type];
+    foreach( $validation_list as $validation )
+    {
+      $gdcm_command = static::$gdcm_validation_list[$validation];
+      $res = trim( shell_exec( sprintf( $gdcm_command, $filename ) ) );
+      if( 'LATERALITY' == $validation )
+      {
+        $laterality = 'left' == $this->side ? 'L' : 'R';
+        if( $laterality != $res )
+        {
+          write_log( sprintf(
+           'IGNORING: laterality expected %s received %s in file %s',
+           $laterality, $res, $filename ) );
+          $file_error = true;
+        }
+      }
+      else if( 'PATIENTID' == $validation )
+      {
+        if( $this->barcode != $res )
+        {
+          write_log( sprintf(
+            'IGNORING: barcode expected: %s, received: %s in file %s',
+            $this->barcode, $res, $filename ) );
+          $file_error = true;
+        }
+      }
+      else if( 'SERIAL_NUMBER' == $validation )
+      {
+        $res = preg_replace( '/[^0-9]/', '', $res );
+        if( $this->serial_number != $res )
+        {
+          write_log( sprintf(
+            'IGNORING: serial number expected: %s, received: %s in file %s',
+            $this->serial_number, $res, $filename ) );
+          $file_error = true;
+        }
+      }
+    }
+
+    return $file_error;
+  }
+
+  private static $gdcm_validation_list = array(
+    'SERIAL_NUMBER' =>
+    "gdcmdump -d %s | grep -E '\(0008,1090\)' | awk '{print $4$5$6}'",
+    'LATERALITY' =>
+    "gdcmdump -d %s | grep -E '\(0020,0060\)' | awk '{print $4}'",
+    'PATIENTID' =>
+    "gdcmdump -d %s | grep -E '\(0010,0020\)' | awk '{print $4}'" );
+
+  private static $validation_types = array(
+    'hip' => array( 'SERIAL_NUMBER', 'LATERALITY', 'PATIENTID' ),
+    'forearm' => array( 'SERIAL_NUMBER', 'LATERALITY', 'PATIENTID' ),
+    'lateral' => array( 'SERIAL_NUMBER', 'PATIENTID' ),
+    'spine' => array( 'SERIAL_NUMBER', 'PATIENTID' ),
+    'wbody' => array( 'SERIAL_NUMBER', 'PATIENTID' ) );
+
+  public $uid;
+  public $type;
+  public $side;
+  public $serial_number;
+  public $barcode;
+  public $apex_scan_id;
+  public $priority;
+  public $apex_host_id;
+}
+
+if( $argc < 2 )
+{
+  util::out('ERROR: invalid args ' . implode( ',', $argv ) );
+  return 0;
+}
+$max_rank = $argv[1];
+
+$allocation_limit = 100;
+if( 3 == $argc )
+{
+  $allocation_limit = $argv[2];
+}
+
+$db_salix = new database(
+  DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+
+$sql = 'SELECT MAX(rank) FROM apex_exam';
+$res = $db_salix->get_one( $sql );
+if( false === $res || $res < $max_rank )
+{
+  write_log( 'ERROR: invalid maximum rank ' . $max_rank );
+  return 0;
+}
+
+// verify sum of host allocation ratios = 1
+//
+$sql = 'SELECT * FROM apex_host ORDER BY allocation DESC';
+$res = $db_salix->get_all( $sql );
+$host_list = array();
+$allocation_sum = 0.0;
+$priority_host_id = '';
+foreach( $res as $item )
+{
+  $name = $item['name'];
+  unset( $item['name'] );
+  $host_list[$name] = $item;
+  $allocation_sum += $item['allocation'];
+  if( 'skimmer' == $name ) $priority_host_id = $item['id'];
+}
+
+if( 1.0 != round( $allocation_sum, 1 ) )
+{
+  write_log( 'ERROR: host allocation not equal to 1: ' . $allocation_sum );
+  return 0;
+}
+
+// get the potential and existing hip and wbody deployments
+// order by UID and later re-order by UID keys having one or
+// more priority scans
+//
+$sql = sprintf(
+  'SELECT uid, '.
+  'type, '.
+  'side, '.
+  'rank, '.
+  'barcode, '.
+  's.id AS apex_scan_id, '.
+  'priority, '.
+  'n.id AS serial_number, '.
+  'IFNULL(d.apex_host_id, "NULL") AS apex_host_id '.
+  'FROM apex_exam e '.
+  'JOIN apex_scan s ON s.apex_exam_id=e.id '.
+  'JOIN scan_type t ON s.scan_type_id=t.id '.
+  'JOIN serial_number n ON e.serial_number_id=n.id '.
+  'JOIN apex_baseline b ON e.apex_baseline_id=b.id '.
+  'JOIN ' . DB_PREFIX . 'cenozo.participant p ON b.participant_id=p.id '.
+  'LEFT JOIN apex_deployment d ON d.apex_scan_id=s.id '.
+  'WHERE s.availability=1 '.
+  'AND rank<=%d '.
+  'AND type IN ("hip","wbody") '. // currently only allow hip and wbody scans
+  'ORDER BY uid, side, rank', $max_rank );
+
+$data_list = $db_salix->get_all( $sql );
+$current_uid = NULL;
+$scan_list = array();
+$priority_keys = array();
+foreach( $data_list as $data )
+{
+  $item = new dexa_scan( $data['uid'], $data['type'], $data['side'],
+    $data['rank'], $data['barcode'], $data['serial_number'],
+    $data['apex_scan_id'], $data['priority'], $data['apex_host_id'] );
+
+  if( $item->uid != $current_uid )
+  {
+    $current_uid = $item->uid;
+    $scan_list[$item->uid] = array();
+  }
+  if( $current_uid == $item->uid )
+  {
+    $scan_list[$item->uid][] = $item;
+  }
+  if( 1 == $item->priority ) $priority_keys[] = $item->uid;
+}
+
+if( 0 < count( $priority_keys ) )
+{
+  $priority_keys = array_unique( $priority_keys );
+  foreach( $priority_keys as $uid )
+  {
+    $scan_list = array( $uid => $scan_list[$uid] ) + $scan_list;
+  }
+}
+
+// connect to opal source to download scans using curl
+//
+$opal_curl = new opalcurl( OPAL_SERVER, OPAL_PORT, OPAL_USERNAME, OPAL_PASSWORD );
+$opal_curl->set_datasource( 'salix' );
+
+// for each UID, go through the list of hip scans searching for paired or higher groups
+// starting with the preferred left side
+//
+$pending_list = array();
+$priority_list = array();
+foreach( $scan_list as $uid => $item_list )
+{
+  $group_list = array( 'left' => array(), 'right' => array() );
+  foreach( $item_list as $item )
+  {
+    if( 'hip' == $item->type )
+    {
+      $group_list[$item->side][] = $item;
+    }
+    else
+    {
+      // wbody scans are sent directly to the priority host
+      if( 1 == $item->priority && NULL === $item->apex_host_id )
+        $priority_list[] = $item;
+    }
+  }
+
+  // prefer left groupings first
+  $found = false;
+  foreach( $group_list as $side => $side_item_list )
+  {
+    $current_list = array();
+    $host_id_list = array();
+    $rank_list = array();
+    $has_priority = false;
+    if( 1 < count( $side_item_list ) )
+    {
+      // if a scan is already on a host, no need to validate
+      foreach( $side_item_list as $item )
+      {
+        if( 1 == $item->priority ) $has_priority = true;
+        if( NULL === $item->apex_host_id )
+        {
+          $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
+          if( NULL !== $filename )
+          {
+            if( false === $item->validate( $filename ) )
+            {
+              $current_list[] = $item;
+              $rank_list[] = $item->rank;
+            }
+            unlink( $filename );
+          }
+        }
+        else
+        {
+          $current_list[] = $item;
+          $host_id_list[] = $item->apex_host_id;
+          $rank_list[] = $item->rank;
+        }
+      }
+    }
+
+    // there are enough scans to perform grouped analysis
+    if( 1 < count( $rank_list ) )
+    {
+      // verify the set of ranks is sequentially complete
+      $rank_list = array_unique( $rank_list );
+      sort( $rank_list );
+      if( $max_rank == count( $rank_list ) &&
+          $max_rank == max( $rank_list ) )
+      {
+        // enforce deployment uniformity which supercedes priority
+        // deployment to the preferred host
+        if( 0 < count( $host_id_list ) )
+        {
+          $host_id = current( array_unique( $host_id_list ) );
+          foreach( $current_list as $item )
+          {
+            if( $host_id != $item->apex_host_id )
+            {
+              $item->apex_host_id = $host_id;
+              $pending_list[] = $item;
+            }
+          }
+        }
+        else // none of the scans are deployed
+        {
+          foreach( $current_list as $item )
+          {
+            $item->apex_host_id = $has_priority ? $priority_host_id : NULL;
+          }
+          $pending_list = array_merge( $pending_list, $current_list );
+        }
+
+        $found = true;
+      }
+    }
+
+    if( $found ) break;
+  }
+
+  if( count( $pending_list ) >= $allocation_limit ) break;
+}
+
+// apportion out to the hosts and update the apex_deployment table
+// note that host allocations can be modified in the presence of
+// priority scans being sent to the preferred host
+//
+$total = count( $pending_list );
+$allocation_list = array();
+$last_total = $total;
+foreach( $host_list as $name => $data )
+{
+  $num = intval( round( $data['allocation']*$total, 0 ) );
+  $last_total -= $num;
+  if( $last_total < 0 ) $num -= abs( $last_total);
+  $allocation_list[$name] = $num;
+  write_log( $name . ' to receive ' . $num . ' of ' . $total );
+}
+
+foreach( $allocation_list as $name => $num )
+{
+  $target = $num;
+  $apex_host_id = $host_list[$name]['id'];
+  $current_list = array();
+  foreach( $pending_list as $idx => $item )
+  {
+    if( $apex_host_id == $item->apex_host_id )
+    {
+      $current_list[] = $item;
+      unset( $pending_list[$idx] );
+    }
+  }
+  $target -= count( $current_list );
+  if( $target > 0 )
+  {
+    foreach( $pending_list as $idx => $item )
+    {
+      if( NULL === $item->apex_host_id )
+      {
+        $current_list[] = $item;
+        unset( $pending_list[$idx] );
+        $target--;
+      }
+      if( 0 == $target ) break;
+    }
+  }
+  foreach( $current_list as $item )
+  {
+    $sql = sprintf(
+      'INSERT INTO apex_deployment (apex_scan_id, apex_host_id) '.
+      'VALUES (%d, %d) ', $item->apex_scan_id, $apex_host_id );
+    $db_salix->execute( $sql );
+  }
+  write_log( 'host ' . $name . ' received ' . count( $current_list ) . ' of allocated ' . $num );
+}
+
+foreach( $priority_list as $item )
+{
+  $sql = sprintf(
+    'INSERT INTO apex_deployment (apex_scan_id, apex_host_id) '.
+    'VALUES (%d, %d)', $item->apex_scan_id, $priority_host_id );
+  $db_salix->execute( $sql );
+}
+
+write_log( 'done! ' . count( $pending_list ) . ' remaining items pending' );
+
+return 1;
