@@ -43,10 +43,6 @@ define( function() {
       },
       status: {
         title: 'Status'
-      },
-      pass: {
-        title: 'Pass',
-        type: 'boolean'
       }
     },
     defaultOrder: {
