@@ -25,13 +25,8 @@ define( function() {
         title: 'Wave Rank',
         type: 'rank'
       },
-      scan_type_type: {
-        column: 'scan_type.type',
-        title: 'Scan Type'
-      },
       scan_type_side: {
-        column: 'scan_type.side',
-        title: 'Scan Side'
+        title: 'Scan Type'
       },
       apex_host: {
         column: 'apex_host.name',
@@ -43,6 +38,10 @@ define( function() {
       },
       status: {
         title: 'Status'
+      },
+      code_summary: {
+        column: 'apex_deployment_code_summary.summary',
+        title: 'Code Summary'
       }
     },
     defaultOrder: {
@@ -162,15 +161,6 @@ define( function() {
         scope: { model: '=?' },
         controller: function( $scope ) {
           if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexDeploymentModelFactory.root;
-
-          $scope.patch = function( property ) {
-            if( $scope.model.getEditEnabled() ) {
-              if( null != property.match( /^codeType/ ) ) {
-                var codeTypeId = property.replace( /^codeType/, '' );
-                $scope.model.viewModel.patchCodeType( codeTypeId );
-              }
-            }
-          };
         }
       };
     }
@@ -196,8 +186,8 @@ define( function() {
 
   /* ######################################################################################################## */
   cenozo.providers.factory( 'CnApexDeploymentViewFactory', [
-    'CnBaseViewFactory', 'CnHttpFactory',
-    function( CnBaseViewFactory, CnHttpFactory ) {
+    'CnBaseViewFactory', 'CnHttpFactory', 'CnSession', 'CnModalMessageFactory',
+    function( CnBaseViewFactory, CnHttpFactory, CnSession, CnModalMessageFactory ) {
       var object = function( parentModel, root ) {
         var self = this;
         CnBaseViewFactory.construct( this, parentModel, root );
@@ -218,7 +208,7 @@ define( function() {
                 self.record['codeType'+codeType.id] = false;
               } );
               return CnHttpFactory.instance( {
-                path: 'apex_scan/' + self.record.apex_scan_id + '/code',
+                path: 'apex_deployment/' + self.record.id + '/code',
                 data: { select: { column: [ 'code_type_id' ] } }
               } ).query().then( function( response ) {
                 response.data.forEach( function( code ) {
@@ -230,10 +220,29 @@ define( function() {
         };
 
         this.patchCodeType = function( codeTypeId ) {
-          
-          return CnHttpFactory.instance( {
-            path: 'apex_scan/' + self.record.apex_scan_id + '/code/' + codeTypeId,
-          } ).post
+          var newValue = self.record['codeType'+codeTypeId];
+          if( newValue ) {
+            return CnHttpFactory.instance( {
+              path: 'code',
+              data: {
+                apex_deployment_id: self.record.id,
+                code_type_id: codeTypeId,
+                user_id: CnSession.user.id
+              },
+              onError: function( response ) {
+                // ignore 409 (code already exists)
+                if( 409 != response.status ) CnModalMessageFactory.httpError( response );
+              }
+            } ).post()
+          } else {
+            return CnHttpFactory.instance( {
+              path: 'code/apex_deployment_id='+self.record.id+';code_type_id='+codeTypeId,
+              onError: function( response ) {
+                // ignore 404 (code has already been deleted)
+                if( 404 != response.status ) CnModalMessageFactory.httpError( response );
+              }
+            } ).delete();
+          }
         };
 
       };
@@ -255,6 +264,14 @@ define( function() {
         this.addModel = CnApexDeploymentAddFactory.instance( this );
         this.listModel = CnApexDeploymentListFactory.instance( this );
         this.viewModel = CnApexDeploymentViewFactory.instance( this, root );
+
+        // extend getServiceData
+        this.getServiceData = function( type, columnRestrictLists ) {
+          var data = this.$$getServiceData( type, columnRestrictLists );
+          if( 'apex_deployment' == this.getSubjectFromState() && 'view' == this.getActionFromState() )
+            data.sibling_apex_deployment_id = self.getQueryParameter( 'identifier' );
+          return data;
+        };
 
         // extend getMetadata
         this.getMetadata = function() {

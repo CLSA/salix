@@ -6,7 +6,7 @@
  */
 
 namespace salix\service\code_type\apex_scan;
-use cenozo\lib, cenozo\log;
+use cenozo\lib, cenozo\log, salix\util;
 
 /**
  * Extends parent class

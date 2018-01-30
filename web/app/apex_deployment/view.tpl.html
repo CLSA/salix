@@ -40,7 +40,7 @@
                     <input type="checkbox"
                            ng-attr-id="codeType{{ codeType.id }}"
                            name="codeType{{ codeType.id }}"
-                           ng-change="patch( 'codeType'+codeType.id )"
+                           ng-change="model.viewModel.patchCodeType( codeType.id )"
                            ng-model="model.viewModel.record['codeType'+codeType.id]">
                     </input> {{ codeType.code }}
                   </label>
@@ -56,7 +56,7 @@
                     <input type="checkbox"
                            ng-attr-id="codeType{{ codeType.id }}"
                            name="codeType{{ codeType.id }}"
-                           ng-change="patch( 'codeType'+codeType.id )"
+                           ng-change="model.viewModel.patchCodeType( codeType.id )"
                            ng-model="model.viewModel.record['codeType'+codeType.id]">
                     </input> {{ codeType.code }}
                   </label>
@@ -72,7 +72,7 @@
                     <input type="checkbox"
                            ng-attr-id="codeType{{ codeType.id }}"
                            name="codeType{{ codeType.id }}"
-                           ng-change="patch( 'codeType'+codeType.id )"
+                           ng-change="model.viewModel.patchCodeType( codeType.id )"
                            ng-model="model.viewModel.record['codeType'+codeType.id]">
                     </input> {{ codeType.code }}
                   </label>
@@ -104,7 +104,7 @@
   </div>
 </div>
 <div class="vertical-spacer">
-  <cn-record-list ng-if="model.viewModel.apexScanModel"
-                  remove-columns="uid scan_type_side availability priority"
-                  model="model.viewModel.apexScanModel"></cn-record-list>
+  <cn-record-list ng-if="model.viewModel.apexDeploymentModel"
+                  remove-columns="uid scan_type_side"
+                  model="model.viewModel.apexDeploymentModel"></cn-record-list>
 </div>
