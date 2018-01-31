@@ -21,8 +21,8 @@ define( function() {
         title: 'Apex Scans',
         type: 'number'
       },
-      participant_count: {
-        title: 'Participants',
+      code_type_count: {
+        title: 'Code Types',
         type: 'number'
       }
     },
@@ -40,18 +40,6 @@ define( function() {
     side: {
       title: 'Side',
       type: 'string'
-    },
-    apex_scan_count: {
-      title: 'Apex Scans',
-      type: 'string',
-      exclude: 'add',
-      constant: true
-    },
-    participant_count: {
-      title: 'Participants',
-      type: 'string',
-      exclude: 'add',
-      constant: true
     }
   } );
 

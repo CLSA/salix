@@ -45,5 +45,10 @@ class module extends \cenozo\service\module
     $modifier->join( 'participant', 'apex_baseline.participant_id', 'participant.id' );
     $modifier->join( 'scan_type', 'apex_scan.scan_type_id', 'scan_type.id' );
     $modifier->join( 'apex_host', 'apex_deployment.apex_host_id', 'apex_host.id' );
+    $modifier->join(
+      'apex_deployment_code_summary', 'apex_deployment.id', 'apex_deployment_code_summary.apex_deployment_id' );
+
+    if( $select->has_column( 'scan_type_side' ) )
+      $select->add_column( 'CONCAT( IF( side="none","",CONCAT( side, " " ) ), type )', 'scan_type_side', false );
   }
 }
