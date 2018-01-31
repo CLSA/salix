@@ -11,7 +11,6 @@ SOURCE application_has_site.sql
 SOURCE access.sql
 SOURCE service.sql
 SOURCE role_has_service.sql
-SOURCE setting.sql
 SOURCE writelog.sql
 
 SOURCE apex_host.sql
@@ -24,6 +23,7 @@ SOURCE apex_deployment.sql
 SOURCE code_type.sql
 SOURCE scan_type_has_code_type.sql
 SOURCE code.sql
+SOURCE setting.sql
 
 SOURCE apex_deployment_code_summary.sql
 SOURCE update_apex_deployment_code_summary.sql
