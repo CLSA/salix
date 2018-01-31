@@ -5,11 +5,6 @@
              data-toggle="collapse"
              data-target="#apexDeploymentAnalysis"
              ng-click="collapsed = !collapsed"
-             uib-tooltip-html="
-               '<div>Created on ' +
-               ( model.viewModel.record.create_timestamp | cnDatetime:'datetimesecond' ) + '<br/>' +
-               'Last edit on ' +
-               ( model.viewModel.record.update_timestamp | cnDatetime:'datetimesecond' ) + '</div>'"
              style="cursor:pointer;">
       <h4>
         <div class="pull-right">
@@ -24,7 +19,7 @@
       </h4>
     </div>
     <form name="form" class="form-horizontal" novalidate><fieldset ng-disabled="model.viewModel.isLoading">
-      <div class="form-group">
+      <div class="form-group collapse" ng-class="{'in':!initCollapsed}" id="apexDeploymentAnalysis">
         <cn-loading ng-if="!model.viewModel.isComplete"></cn-loading>
         <div class="container-fluid form-body" ng-if="model.viewModel.isComplete">
           <div class="form-group">
@@ -40,7 +35,7 @@
                     <input type="checkbox"
                            ng-attr-id="codeType{{ codeType.id }}"
                            name="codeType{{ codeType.id }}"
-                           ng-change="patch( 'codeType'+codeType.id )"
+                           ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
                            ng-model="model.viewModel.record['codeType'+codeType.id]">
                     </input> {{ codeType.code }}
                   </label>
@@ -56,7 +51,7 @@
                     <input type="checkbox"
                            ng-attr-id="codeType{{ codeType.id }}"
                            name="codeType{{ codeType.id }}"
-                           ng-change="patch( 'codeType'+codeType.id )"
+                           ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
                            ng-model="model.viewModel.record['codeType'+codeType.id]">
                     </input> {{ codeType.code }}
                   </label>
@@ -72,7 +67,7 @@
                     <input type="checkbox"
                            ng-attr-id="codeType{{ codeType.id }}"
                            name="codeType{{ codeType.id }}"
-                           ng-change="patch( 'codeType'+codeType.id )"
+                           ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
                            ng-model="model.viewModel.record['codeType'+codeType.id]">
                     </input> {{ codeType.code }}
                   </label>
@@ -83,17 +78,22 @@
           <div class="form-group">
             <label class="col-sm-3 control-label">Pass</label>
             <div class="col-sm-9">
-              <select name="pass" class="form-control">
-                <option value="">(empty)</option>
-                <option value="1">Yes</option>
-                <option value="0">No</option>
+              <select name="pass"
+                      ng-change="model.viewModel.patch( 'pass' )"
+                      ng-model="model.viewModel.record.pass"
+                      ng-options="item.value as item.name for item in booleanEnumList"
+                      class="form-control">
               </select>
             </div>
           </div>
           <div class="form-group">
             <label class="col-sm-3 control-label">Note</label>
             <div class="col-sm-9">
-              <textarea cn-elastic name="note" class="form-control"></textarea>
+              <textarea cn-elastic
+                        name="note"
+                        cn-change="model.viewModel.patch( 'note' )"
+                        ng-model="model.viewModel.record.note"
+                        class="form-control"></textarea>
             </div>
           </div>
         </div>
@@ -104,7 +104,7 @@
   </div>
 </div>
 <div class="vertical-spacer">
-  <cn-record-list ng-if="model.viewModel.apexScanModel"
-                  remove-columns="uid scan_type_side availability priority"
-                  model="model.viewModel.apexScanModel"></cn-record-list>
+  <cn-record-list ng-if="model.viewModel.apexDeploymentModel"
+                  remove-columns="uid scan_type_side"
+                  model="model.viewModel.apexDeploymentModel"></cn-record-list>
 </div>

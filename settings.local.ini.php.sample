@@ -20,3 +20,6 @@ $SETTINGS['db']['password'] = 'put your database password here';
 
 // the location of opal views in json format
 $SETTINGS['path']['OPAL_VIEWS'] = $SETTINGS['path']['APPLICATION'].'/aux/opal_views/json';
+
+// the location of the SSH key file used to communicate with APEX hosts
+$SETTINGS['apex']['apex_ssh_key'] = '/path/to/ssh/key';

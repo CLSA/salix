@@ -25,7 +25,6 @@ class module extends \cenozo\service\module
     $modifier->join( 'apex_baseline', 'apex_exam.apex_baseline_id', 'apex_baseline.id' );
     $modifier->join( 'participant', 'apex_baseline.participant_id', 'participant.id' );
     $modifier->join( 'scan_type', 'apex_scan.scan_type_id', 'scan_type.id' );
-    $modifier->join( 'apex_scan_code_summary', 'apex_scan.id', 'apex_scan_code_summary.apex_scan_id' );
 
     if( $select->has_column( 'scan_type_side' ) )
     {

@@ -20,6 +20,7 @@ CREATE PROCEDURE patch_code()
         "INDEX fk_apex_deployment_id (apex_deployment_id ASC), ",
         "INDEX fk_code_type_id (code_type_id ASC), ",
         "INDEX fk_user_id (user_id ASC), ",
+        "UNIQUE INDEX uq_apex_deployment_id_code_type_id (apex_deployment_id ASC, code_type_id ASC), ",
         "CONSTRAINT fk_code_code_type_id ",
           "FOREIGN KEY (code_type_id) ",
           "REFERENCES code_type (id) ",
