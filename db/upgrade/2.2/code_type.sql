@@ -30,8 +30,11 @@ INSERT IGNORE INTO code_type ( code, description ) VALUES
 ( 'low', 'The ROI is placed too low.' ),
 ( 'left', 'The anatomy is placed too far to the left in the ROI.' ),
 ( 'right', 'The anatomy is placed too far to the right in the ROI.' ),
-( 'art(metal)', NULL ),
-( 'art(blur)', NULL ),
-( 'art(streak)', NULL ),
-( 'art(unknown)', NULL ),
-( 'art(button)', NULL );
+( 'art(metal)', 'Metal artifact.' ),
+( 'art(blur)', 'Blurring artifact.' ),
+( 'art(streak)', 'Streak or banding artifact.' ),
+( 'art(unknown)', 'Unknown artifact.' ),
+( 'art(object)', 'Object artifact.' ),
+( 'art(motion)', 'Motion artifact.' ),
+( 'art(noise)', 'Noise or poor quality (grainy) image.' ),
+( 'other', 'Corrupt file or other condition.' );
