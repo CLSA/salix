@@ -1,0 +1,603 @@
+#!/usr/bin/php
+<?php
+/**
+ * initialize_deployments.php
+ *
+ * A script which will populate / update salix
+ * apex_scan and apex_deployment tables
+ * with data from an Apex host.  This script should only
+ * be used to initialize the apex_depoyment table with
+ * pre-existing host data.
+ *
+ * @author Dean Inglis <inglisd@mcmaster.ca>
+ I* @date 2018-02-01
+ */
+
+/**
+ * Make sure to fill in the following
+ */
+
+define( 'URL', 'https://localhost/release/salix/api/' );
+
+/**
+ * Do not edit any of the following lines
+ */
+
+chdir( dirname( __FILE__ ).'/../' );
+require_once 'settings.ini.php';
+require_once 'settings.local.ini.php';
+require_once $SETTINGS['path']['CENOZO'].'/src/initial.class.php';
+$initial = new \cenozo\initial();
+$settings = $initial->get_settings();
+
+define( 'USER', $settings['utility']['username'] );
+
+define( 'DB_SERVER', $settings['db']['server'] );
+define( 'DB_PREFIX', $settings['db']['database_prefix'] );
+define( 'DB_USERNAME', $settings['db']['username'] );
+define( 'DB_PASSWORD', $settings['db']['password'] );
+
+// lite wrapper for mysqli
+require_once( $settings['path']['APPLICATION'].'/../php_util/database.class.php' );
+// lite wrapper for MS SQL
+require_once( $settings['path']['APPLICATION'].'/../php_util/odbc.class.php' );
+
+// function for writing to the log
+function write_log( $message )
+{
+  file_put_contents(
+    LOG_FILE_PATH,
+    sprintf( "%s  [script] <%s> %s\n\n", date( 'Y-m-d (D) H:i:s' ), USER, $message ),
+    FILE_APPEND
+  );
+}
+
+if( 2 != $argc )
+{
+  write_log( 'incorrect arguments: ' .  implode( ',', $argv ) );
+  return 0;
+}
+
+$dexa_host = $argv[1];
+$db_salix = '';
+try
+{
+  $db_salix = new database(
+    DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+}
+catch( Exception $e )
+{
+  write_log( $e->getMessage() );
+  return 0;
+}
+
+$sql = 'SELECT name FROM apex_host';
+$host_names = $db_salix->get_all( $sql );
+if( false === $host_names || !is_array( $host_names ) )
+{
+  write_log( 'ERROR: invalid dexa host ' . $dexa_host );
+  return 0;
+}
+array_walk( $host_names, function( &$item ) { $item = $item['name']; } );
+
+if( !in_array( $dexa_host, $host_names) )
+{
+  write_log( 'ERROR: invalid dexa host ' . $dexa_host );
+  return 0;
+}
+
+// get the scan types that salix tracks
+$sql =
+  'SELECT id AS scan_type_id, type, side '.
+  'FROM scan_type';
+
+$res = $db_salix->get_all( $sql );
+$types = array();
+foreach( $res as $value )
+{
+  $types[$value['scan_type_id']]['type'] = $value['type'];
+  $types[$value['scan_type_id']]['side'] = $value['side'];
+}
+
+// lookup data for site and serial number information
+$sql =
+  'SELECT name AS site, n.id AS serial_number_id, s.id AS site_id '.
+  'FROM serial_number n '.
+  'JOIN ' . DB_PREFIX . 'cenozo.site s ON s.id=n.site_id';
+
+$res = $db_salix->get_all( $sql );
+$site_lookup = array();
+foreach( $res as $values )
+{
+  $site_lookup[$values['serial_number_id']] = array(
+    'site_id' => $values['site_id'],
+    'site' => $values['site'] );
+}
+
+// Dicom images are scp'd to the APEX host by default to
+// E:\Incoming and stored in folders named by /type/(side if any)/barcode/XXXXX.dcm
+// Once dicom transferred to the running APEX instance, the files are then moved to
+// root directory E:\ORIGINAL
+// - see salix_transfer_transfer_opal_dicom.php
+//
+// Read and parse the E:\ORIGINAL directory listing of dicom files and their datetimes
+//
+
+// Open an odbc connection to the MS SQL Server on the host
+//
+$sql = 'SELECT * FROM apex_host WHERE name="' . $dexa_host .'"';
+$res = $db_salix->get_row( $sql );
+$dexa_address = $res['host'];
+$ssh_pre = 'ssh -i salix_ssh_key clsa@' . $dexa_address . ' ';
+
+$db_dexa_host = strtoupper( $res['name'] );
+$db_dexa_user = $res['sql_user'];
+$db_dexa_pwd  = $res['sql_pass'];
+$apex_host_id = $res['id'];
+try
+{
+  $db_dexa = new odbc( $db_dexa_host, $db_dexa_user, $db_dexa_pwd );
+}
+catch( Exception $e )
+{
+  write_log( $e->getMessage() );
+  return 0;
+}
+
+if( null === $db_dexa || false === $db_dexa )
+{
+  return 0;
+}
+/*
+// Get all participant identifiers and scan data from the PatScan db
+// PATIENT and ScanAnalysis tables
+//
+*/
+
+// sprintf template
+$sql_str =
+    "SELECT p.IDENTIFIER1+'' barcode, ".
+    'p.PATIENT_KEY patient_key, '.
+    'p.SEX sex, '.
+    "s.SCAN_TYPE+'' scan_type_id, ".
+    '(RANK() OVER(PARTITION BY p.IDENTIFIER1 ORDER BY s.SCAN_DATE ASC)) wave, '.
+    's.SCANID scanid, '.
+    's.COMP_SCANID comp_scanid, '.
+    'CONVERT(varchar,s.SCAN_DATE) scan_datetime, '.
+    'CONVERT(varchar,s.ANALYSIS_DATE) analysis_datetime, '.
+    's.SERIAL_NUMBER serial_number '.
+    'FROM PatScan.dbo.PATIENT p '.
+    'INNER JOIN PatScan.dbo.ScanAnalysis s '.
+    'ON s.PATIENT_KEY=p.PATIENT_KEY '.
+    'WHERE s.SCAN_TYPE=%d';
+
+write_log( 'Querying remote SQL server ...' );
+
+// get the Apex data by scan type
+$dexa_data = array();
+foreach( $types as $scan_type_id => $type_data )
+{
+  $sql = sprintf( $sql_str, $scan_type_id );
+  $res = $db_dexa->get_all( $sql );
+  if( is_array( $res ) && 0 < count( $res ) )
+    $dexa_data[$scan_type_id] = $res;
+}
+
+// get the import datetimes from the file timestamps in host E:\ORIGINAL folder
+$import_datetimes = array();
+foreach( $dexa_data as $scan_type_id => $items )
+{
+  $type_data = $types[$scan_type_id];
+  $type = $type_data['type'];
+  $side = $type_data['side'];
+  $str = $ssh_pre . 'ls -l --time-style="long-iso" -d -1 /cygdrive/e/ORIGINAL/' . $type;
+  $str .= ('none' == $side ) ? '/*/*.dcm | ' : ('/' . $side . '/*/*.dcm | ');
+  $str .= "grep -E '[1-9]{1}[0-9]{7}' | ";
+  $str .= "awk '{print $6" . '" "$7" "$8 }'. "'";
+
+  write_log( 'Retrieving import datetimes...' );
+  $res = shell_exec($str);
+
+  if( ''==$res || false === $res || 0 == strlen($res) )
+  {
+    write_log('WARNING: failed to retrieve '. $type .
+      ' (' . $side . ') import datetimes from ' . $dexa_host );
+    continue;
+  }
+
+  $res = explode( PHP_EOL, $res );
+  $import_datetimes[$type][$side] = array();
+  foreach( $res as $value )
+  {
+    if( '' == $value || 0 == strlen( $value) ) continue;
+    $items = explode( ' ', $value );
+    $file_name = array_pop( $items );
+    $time = array_pop( $items );
+    $date = current( $items );
+    $barcode = current( preg_grep( '/^[1-9]{1}[0-9]{7}$/', explode( '/', $file_name ) ) );
+    $import_datetimes[$type][$side][$barcode] = $date . ' '. $time . ':00';
+  }
+}
+
+// sprintf template to get the salix baseline, rank and scan data
+$sql_str =
+  'SELECT s.id AS apex_scan_id, '.
+  'rank, '.
+  'apex_baseline_id '.
+  'FROM apex_exam e '.
+  'JOIN apex_scan s ON s.apex_exam_id=e.id '.
+  'JOIN scan_type t ON s.scan_type_id=t.id '.
+  'JOIN serial_number n ON e.serial_number_id=n.id '.
+  'WHERE n.id=%d '.
+  'AND s.availability=1 '.
+  'AND scan_type_id=%d '.
+  'AND rank=%d '.
+  'AND barcode="%s"';
+
+write_log( 'Processing server response ...' );
+
+$num_baseline_merged = 0;
+$num_baseline_unmerged = 0;
+$num_followup_merged = 0;
+$num_followup_unmerged = 0;
+$num_processed = 0;
+$num_completed = 0;
+$num_site_difference = 0;
+$num_host_scans = 0;
+$baseline_merge_list = array();
+foreach( $dexa_data as $scan_type_id => $items )
+{
+  $num_host_scans += count( $items );
+  $type = $types[$scan_type_id]['type'];
+  $side = $types[$scan_type_id]['side'];
+  write_log( $type . ' (side: ' . $side . ') processing '.  count( $items ) . ' scans' );
+  foreach( $items as $values )
+  {
+    $host_barcode = $values['barcode'];
+    $host_rank = $values['wave'];
+    $scanid  = $values['scanid'];
+    $comp_scanid = $values['comp_scanid'];
+    $comp_scanid = ( '' == $comp_scanid || NULL === $comp_scanid || 'NULL' == $comp_scanid ) ? null : $comp_scanid;
+    $host_serial_number = $values['serial_number'];
+
+    if( !array_key_exists( $host_serial_number, $site_lookup ) )
+    {
+      write_log( 'ERROR: unknown serial number ' . $host_serial_number . ' on host ' . $dexa_host );
+      continue;
+    }
+
+    $serial_number    = null;
+    $rank             = null;
+    $apex_scan_id     = null;
+    $apex_baseline_id = null;
+    $barcode          = null;
+    $merged = 0;
+    $status = 'pending';
+
+    // get the apex_scan and apex_baseline record information for the current dexa scan
+    // case 1: baseline barcode with rank = 1 => baseline scan, query succeed
+    //         process data as is
+
+    // case 2: baseline barcode with rank > 1 => merged followup scan, query succeed
+    //         recover followup data
+
+    // case 3: baseline barcode with rank > 1 => merged followup scan acquired at different site, query fail
+    //         recover baseline data
+
+    // case 4: followup barcode with rank = 1 => un-merged followup scan
+
+    $sql = sprintf( $sql_str, $host_serial_number, $scan_type_id, $host_rank, $host_barcode );
+    $res = $db_salix->get_row( $sql );
+    if( false === $res || !is_array( $res ) )
+    {
+      if( 1 < $host_rank ) // this is only possible with merged scans
+      {
+        // get the baseline record for the scan, which could have been taken at a different site
+        $sql = sprintf(
+          'SELECT s.id AS apex_scan_id, '.
+          'e.apex_baseline_id, '.
+          'n.id AS serial_number_id '.
+          'FROM apex_exam e '.
+          'JOIN apex_scan s ON s.apex_exam_id=e.id '.
+          'JOIN serial_number n ON e.serial_number_id=n.id '.
+          'WHERE scan_type_id=%d '.
+          'AND barcode="%s" '.
+          'AND rank=1', $scan_type_id, $host_barcode );
+
+        $res = $db_salix->get_all( $sql ); // in case a barcode gets used twice: use get_all instead of get_row
+
+        if( false !== $res && is_array( $res ) )
+        {
+          $host_site = $site_lookup[$host_serial_number]['site'];
+
+          // we now have a baseline scan, we need the followup scan that is merged to this baseline
+          // so that we can obtain its apex_scan_id, rank and barcode
+          $subfound = false;
+          foreach( $res as $idx => $item )
+          {
+            $site = $site_lookup[$item['serial_number_id']]['site'];
+            $tentative_merge_id = $item['apex_scan_id'];
+            $apex_baseline_id = $item['apex_baseline_id'];
+            $sql = sprintf(
+              'SELECT s.id AS apex_scan_id, '.
+              'barcode '.
+              'FROM apex_scan s '.
+              'JOIN apex_exam e ON e.id=s.apex_exam_id '.
+              'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
+              'JOIN scan_type t ON t.id=s.scan_type_id '.
+              'JOIN serial_number n ON n.id=e.serial_number_id '.
+              'WHERE scan_type_id=%d '.
+              'AND s.availability=1 '.
+              'AND rank=%d '.
+              'AND b.id=%d '.
+              'AND n.id=%d', $scan_type_id, $host_rank, $apex_baseline_id, $host_serial_number );
+
+            $subres = $db_salix->get_row( $sql );
+            if( false !== $subres && is_array( $subres ) )
+            {
+              $barcode = $subres['barcode'];
+              $rank = $host_rank;
+              $apex_scan_id = $subres['apex_scan_id'];
+              $serial_number = $host_serial_number;
+              $merged = 1;
+              $status = 'completed';
+              $baseline_merge_list[] = $tentative_merge_id;
+              $subfound = true;
+              if( $site != $host_site )
+              {
+                $num_site_difference++;
+              }
+              break;
+            }
+          }
+          if( !$subfound )
+          {
+            write_log( 'ERROR: failed to find merged followup scan' );
+          }
+        }
+      }
+      else
+      {
+        $sql = sprintf(
+          'SELECT s.id AS apex_scan_id, '.
+          'b.id AS apex_baseline_id, '.
+          'rank '.
+          'FROM apex_scan s '.
+          'JOIN apex_exam e ON e.id=s.apex_exam_id '.
+          'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
+          'JOIN scan_type t ON t.id=s.scan_type_id '.
+          'JOIN serial_number n ON n.id=e.serial_number_id '.
+          'WHERE scan_type_id=%d '.
+          'AND s.availability=1 '.
+          'AND rank>1 '.
+          'AND barcode="%s" '.
+          'AND n.id=%d', $scan_type_id, $host_barcode, $host_serial_number );
+
+        $res = $db_salix->get_row( $sql );
+        if( false !== $res && is_array( $res ) )
+        {
+          $barcode = $host_barcode;
+          $rank = $res['rank'];
+          $apex_scan_id = $res['apex_scan_id'];
+          $apex_baseline_id = $res['apex_baseline_id'];
+          $serial_number = $host_serial_number;
+        }
+      }
+    }
+    else // either a baseline scan, or an unmerged followup scan
+    {
+      $apex_baseline_id = $res['apex_baseline_id'];
+      $rank = $res['rank'];
+      $apex_scan_id = $res['apex_scan_id'];
+      $serial_number = $host_serial_number;
+      $barcode = $host_barcode;
+    }
+
+    if( null === $apex_baseline_id || '' === $apex_baseline_id ||
+        null === $apex_scan_id || '' === $apex_scan_id )
+    {
+      write_log( 'ERROR: no salix '. $type . ' data for '. $host_barcode .
+        ' (rank ' .  $host_rank . ')' );
+      continue;
+    }
+
+    $import_datetime = null;
+    if( !array_key_exists( $type, $import_datetimes ) ||
+        !array_key_exists( $barcode, $import_datetimes[$type][$side] ) )
+    {
+      write_log( 'WARNING: missing ' . $type . '(' . $side .
+        ') import datetime: ' . $dexa_host . ' ' . $barcode );
+    }
+    else
+    {
+      $import_datetime = $import_datetimes[$type][$side][$barcode];
+    }
+
+    if( null !== $import_datetime )
+    {
+      // if the analysis datetime occurred after the scan was imported onto the host
+      // then mark as completed
+      //
+      $d1 = new DateTime( $values['analysis_datetime'] );
+      $d2 = new DateTime( $import_datetime );
+      if( $d2 < $d1 && 'completed' != $status )
+      {
+        $status = 'completed';
+      }
+    }
+    // if there is a comparison scan_id then mark as merged
+    if( null !== $comp_scanid && 0 == $merged)
+    {
+      $merged = 1;
+    }
+    if( 'completed' != $status && null !== $comp_scanid )
+    {
+      // if there is a comparison scanid, then mark as completed
+      $status = 'completed';
+    }
+
+    // update apex_scan record
+    $sql = sprintf(
+      'UPDATE apex_scan '.
+      'SET '.
+      'scan_datetime="%s", '.
+      'scanid="%s", '.
+      'patient_key="%s" '.
+      'WHERE id=%d '.
+      'AND availability=1 ',
+      $values['scan_datetime'], $scanid, $values['patient_key'],
+      $apex_scan_id );
+
+    $db_salix->execute( $sql );
+
+    // create apex_host_has_apex_scan record
+    $comp_scanid = null === $comp_scanid ? 'NULL' : '"' . $comp_scanid . '"';
+    $import_datetime = null === $import_datetime ? 'NULL' : '"' . $import_datetime . '"';
+
+
+    $sql = sprintf(
+      'INSERT INTO apex_deployment '.
+      '(apex_host_id, apex_scan_id, merged, status, comp_scanid, analysis_datetime, import_datetime ) '.
+      'VALUES (%d, %d, %d, "%s", %s, "%s", %s ) ON DUPLICATE KEY UPDATE '.
+      'apex_host_id = VALUES(apex_host_id), '.
+      'apex_scan_id = VALUES(apex_scan_id)',
+      $apex_host_id, $apex_scan_id, $merged, $status, $comp_scanid, $values['analysis_datetime'], $import_datetime );
+
+    $db_salix->execute( $sql );
+
+    if( 0 == $merged && $barcode == $host_barcode && $rank < $host_rank )
+    {
+      $merged = 1;
+      $status = 'completed';
+    }
+
+    if( 1 == $merged )
+    {
+      if( 1 == $rank )
+        $num_baseline_merged++;
+      else
+        $num_followup_merged++;
+    }
+    else
+    {
+      if( 1 == $rank )
+        $num_baseline_unmerged++;
+      else
+        $num_followup_unmerged++;
+    }
+    if( 'completed' == $status )
+    {
+      $num_completed++;
+    }
+    $num_processed++;
+  }
+}
+
+write_log( 'number of salix records updated: ' . $num_processed );
+write_log( 'number of dexa records retrieved: ' . $num_host_scans );
+write_log( 'number of site differences: ' . $num_site_difference );
+write_log( 'number of completed: ' . $num_completed );
+write_log( 'number of pending: ' . ($num_processed-$num_completed) );
+write_log( 'number of baseline merged: ' . $num_baseline_merged );
+write_log( 'number of baseline unmerged: ' . $num_baseline_unmerged );
+write_log( 'number of followup merged: ' . $num_followup_merged );
+write_log( 'number of followup unmerged: ' . $num_followup_unmerged );
+
+// set the merged state of upstream scans to 1, set status to completed
+
+// get all the followup scans that are merged
+// find their baseline scan siblings
+// mark those siblings as merged, status completed
+
+write_log( 'setting baseline scans to merged=1, status=completed: ' .
+  count( $baseline_merge_list ) );
+
+foreach( $baseline_merge_list as $apex_scan_id )
+{
+  $sql = sprintf(
+    'UPDATE apex_deployment '.
+    'SET merged=1, status="completed" '.
+    'WHERE apex_host_id=%s '.
+    'AND apex_scan_id=%s', $apex_host_id, $apex_scan_id);
+  $db_salix->execute( $sql );
+}
+
+foreach( $dexa_data as $scan_type_id => $items )
+{
+  $type_data = $types[$scan_type_id];
+  $type = $type_data['type'];
+  $side = $type_data['side'];
+  write_log( $type . ' (side: ' . $side . ') processing '.  count( $items ) . ' scans' );
+
+  $sql = sprintf(
+    'SELECT count(*) FROM '.
+    'apex_deployment d '.
+    'JOIN apex_scan s ON s.id=d.apex_scan_id '.
+    'WHERE apex_host_id=%d '.
+    'AND status="pending" '.
+    'AND merged=0 '.
+    'AND scan_type_id=%d', $apex_host_id, $scan_type_id );
+  $res = $db_salix->get_one( $sql );
+  write_log( $type . ' (' . $side . ') number of pending not merged ' . $res );
+
+  $sql = sprintf(
+    'SELECT count(*) FROM '.
+    'apex_deployment d '.
+    'JOIN apex_scan s ON s.id=d.apex_scan_id '.
+    'WHERE apex_host_id=%s '.
+    'AND status="pending" '.
+    'AND merged=1 '.
+    'AND scan_type_id=%d', $apex_host_id, $scan_type_id );
+  $res = $db_salix->get_one( $sql );
+  write_log( $type . ' (' . $side . ') number of pending merged ' . $res );
+
+  $sql = sprintf(
+    'SELECT count(*) FROM '.
+    'apex_deployment d '.
+    'JOIN apex_scan s ON s.id=d.apex_scan_id '.
+    'WHERE apex_host_id=%s '.
+    'AND status="completed" '.
+    'AND merged=0 '.
+    'AND scan_type_id=%d', $apex_host_id, $scan_type_id );
+  $res = $db_salix->get_one( $sql );
+  write_log(  $type . ' (' . $side . ') number of completed not merged ' . $res );
+
+  $sql = sprintf(
+    'SELECT count(*) FROM '.
+    'apex_deployment d '.
+    'JOIN apex_scan s ON s.id=d.apex_scan_id '.
+    'WHERE apex_host_id=%s '.
+    'AND status="completed" '.
+    'AND merged=1 '.
+    'AND scan_type_id=%d', $apex_host_id, $scan_type_id );
+  $res = $db_salix->get_one( $sql );
+  write_log(  $type . ' (' . $side . ') number of completed merged ' . $res );
+}
+
+// go through all the scans that have a scan_datetime
+// correct the exam age column as necessary
+$sql =
+  'SELECT '.
+  'e.id, MIN(scan_datetime) AS scan_datetime, age, dob '.
+  'FROM apex_exam e '.
+  'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
+  'JOIN apex_scan s ON s.apex_exam_id=e.id '.
+  'WHERE s.scan_datetime IS NOT NULL '.
+  'GROUP BY e.id';
+
+$res = $db_salix->get_all( $sql );
+foreach( $res as $values )
+{
+  $bday = new DateTime( $values['dob'] );
+  $sday = new DateTime( $values['scan_datetime'] );
+  $diff = $sday->diff( $bday );
+  $age = round($diff->y + $diff->m / 12.0 + $diff->d / 365.25, 2);
+  if( $age != $values['age'] )
+  {
+    $sql = sprintf(
+      'UPDATE apex_exam SET age=%s WHERE id=%s', $age, $values['id'] );
+    $db_salix->execute( $sql );
+  }
+}
+
+write_log( 'done' );
