@@ -236,8 +236,8 @@ define( function() {
 
         // customize the scan list heading
         this.deferred.promise.then( function() {
-          if( angular.isDefined( self.apexScanModel ) )
-            self.apexScanModel.listModel.heading = 'Sister Apex Scan List';
+          if( angular.isDefined( self.apexDeploymentModel ) )
+            self.apexDeploymentModel.listModel.heading = 'Sibling Apex Deployment List';
         } );
 
         this.onView = function( force ) {
