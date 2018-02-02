@@ -25,6 +25,10 @@ define( function() {
         title: 'Wave Rank',
         type: 'rank'
       },
+      barcode: {
+        column: 'apex_exam.barcode',
+        title: 'Barcode'
+      },
       scan_type_side: {
         title: 'Scan Type'
       },
@@ -220,7 +224,7 @@ define( function() {
               select: { column: 'id' },
               modifier: {
                 where: [ { column: 'status', operator: '=', value: 'pending' } ],
-                order: { 'apex_scan.priority': true },
+                order: [ { 'apex_scan.priority': true }, { 'apex_exam.rank': false } ],
                 limit: 1
               }
             }

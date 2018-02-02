@@ -40,6 +40,7 @@ class query extends \cenozo\service\query
         '',
         'current_apex_deployment'
       );
+      $modifier->where( 'apex_deployment.apex_host_id', '=', 'current_apex_deployment.apex_host_id', false );
       $this->select->apply_aliases_to_modifier( $modifier );
       return $apex_deployment_class_name::count( $modifier );
     }
