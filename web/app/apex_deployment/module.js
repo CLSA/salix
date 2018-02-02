@@ -176,6 +176,7 @@ define( function() {
             { value: true, name: 'Yes' },
             { value: false, name: 'No' }
           ];
+          $scope.nextApexDeployment = function() { $scope.model.viewModel.transitionOnNextViewState(); };
         }
       };
     }
@@ -201,12 +202,33 @@ define( function() {
 
   /* ######################################################################################################## */
   cenozo.providers.factory( 'CnApexDeploymentViewFactory', [
-    'CnBaseViewFactory', 'CnHttpFactory', 'CnSession', 'CnModalMessageFactory', 'CnModalConfirmFactory', '$q',
-    function( CnBaseViewFactory, CnHttpFactory, CnSession, CnModalMessageFactory, CnModalConfirmFactory, $q ) {
+    'CnBaseViewFactory', 'CnHttpFactory', 'CnSession', 'CnModalMessageFactory', 'CnModalConfirmFactory',
+    '$q', '$state',
+    function( CnBaseViewFactory, CnHttpFactory, CnSession, CnModalMessageFactory, CnModalConfirmFactory,
+              $q, $state ) {
       var object = function( parentModel, root ) {
         var self = this;
         CnBaseViewFactory.construct( this, parentModel, root );
         this.isComplete = false;
+
+        // transitions to the next available deployment for analysis
+        this.transitionOnNextViewState = function() {
+          return CnHttpFactory.instance( {
+            path: 'apex_host/' + self.record.apex_host_id + '/apex_deployment',
+            // get the highest priority record
+            data: {
+              select: { column: 'id' },
+              modifier: {
+                where: [ { column: 'status', operator: '=', value: 'pending' } ],
+                order: { 'apex_scan.priority': true },
+                limit: 1
+              }
+            }
+          } ).get().then( function( response ) {
+            if( 0 < response.data.length )
+              return $state.go( 'apex_deployment.view', { identifier: response.data[0].id } );
+          } );
+        };
 
         // customize the scan list heading
         this.deferred.promise.then( function() {

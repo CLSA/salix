@@ -26,17 +26,20 @@ class module extends \cenozo\service\module
 
     if( 300 > $this->get_status()->get_code() )
     {
+      if( $service_class_name::is_write_method( $method ) )
+      {
       $status = $this->get_resource()->status;
 
-      // don't delete deployments which have a status
-      if( 'DELETE' == $method )
-      {
-        if( !is_null( $status ) ) $this->get_status()->set_code( 403 );
-      }
-      // do not allow editing if the deployment is exported or null
-      else if( $service_class_name::is_write_method( $method ) )
-      {
-        if( is_null( $status ) || 'exported' == $status ) $this->get_status()->set_code( 403 );
+        // don't delete deployments which have a status
+        if( 'DELETE' == $method )
+        {
+          if( !is_null( $status ) ) $this->get_status()->set_code( 403 );
+        }
+        // do not allow editing if the deployment is exported or null
+        else
+        {
+          if( is_null( $status ) || 'exported' == $status ) $this->get_status()->set_code( 403 );
+        }
       }
     }
   }
