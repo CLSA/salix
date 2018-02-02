@@ -21,13 +21,22 @@ class module extends \cenozo\service\module
   {
     parent::validate();
 
+    $service_class_name = lib::get_class_name( 'service\service' );
+    $method = $this->get_method();
+
     if( 300 > $this->get_status()->get_code() )
     {
+      $status = $this->get_resource()->status;
+
       // don't delete deployments which have a status
-      if( 'DELETE' == $this->get_method() )
+      if( 'DELETE' == $method )
       {
-        $db_apex_deployment = $this->get_resource();
-        if( !is_null( $db_apex_deployment->status ) ) $this->get_status()->set_code( 403 );
+        if( !is_null( $status ) ) $this->get_status()->set_code( 403 );
+      }
+      // do not allow editing if the deployment is exported or null
+      else if( $service_class_name::is_write_method( $method ) )
+      {
+        if( is_null( $status ) || 'exported' == $status ) $this->get_status()->set_code( 403 );
       }
     }
   }

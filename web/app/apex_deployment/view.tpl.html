@@ -18,86 +18,88 @@
         <span ng-if="model.viewModel.isLoading">(Loading&hellip;)</span>
       </h4>
     </div>
-    <form name="form" class="form-horizontal" novalidate><fieldset ng-disabled="model.viewModel.isLoading">
-      <div class="form-group collapse" ng-class="{'in':!initCollapsed}" id="apexDeploymentAnalysis">
-        <cn-loading ng-if="!model.viewModel.isComplete"></cn-loading>
-        <div class="container-fluid form-body" ng-if="model.viewModel.isComplete">
-          <div class="form-group">
-            <label class="col-sm-3 control-label">Codes</label>
-            <div class="col-sm-9">
-              <div class="row">
-                <div class="col-sm-2" ng-repeat="codeType in model.metadata.codeTypeList">
-                  <label class="checkbox"
-                         style="left: 25px"
-                         for="codeType{{ codeType.id }}"
-                         ng-if="6 > $index"
-                         uib-tooltip="{{ codeType.description }}">
-                    <input type="checkbox"
-                           ng-attr-id="codeType{{ codeType.id }}"
-                           name="codeType{{ codeType.id }}"
-                           ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
-                           ng-model="model.viewModel.record['codeType'+codeType.id]">
-                    </input> {{ codeType.code }}
-                  </label>
+    <form name="form" class="form-horizontal" novalidate>
+      <fieldset ng-disabled="model.viewModel.isLoading || !model.getEditEnabled()">
+        <div class="form-group collapse" ng-class="{'in':!initCollapsed}" id="apexDeploymentAnalysis">
+          <cn-loading ng-if="!model.viewModel.isComplete"></cn-loading>
+          <div class="container-fluid form-body" ng-if="model.viewModel.isComplete">
+            <div class="form-group">
+              <label class="col-sm-3 control-label">Codes</label>
+              <div class="col-sm-9">
+                <div class="row">
+                  <div class="col-sm-2" ng-repeat="codeType in model.metadata.codeTypeList">
+                    <label class="checkbox"
+                           style="left: 25px"
+                           for="codeType{{ codeType.id }}"
+                           ng-if="6 > $index"
+                           uib-tooltip="{{ codeType.description }}">
+                      <input type="checkbox"
+                             ng-attr-id="codeType{{ codeType.id }}"
+                             name="codeType{{ codeType.id }}"
+                             ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
+                             ng-model="model.viewModel.record['codeType'+codeType.id]">
+                      </input> {{ codeType.code }}
+                    </label>
+                  </div>
                 </div>
-              </div>
-              <div class="row">
-                <div class="col-sm-2" ng-repeat="codeType in model.metadata.codeTypeList">
-                  <label class="checkbox"
-                         style="left: 25px"
-                         for="{{ codeType.code }}"
-                         ng-if="6 <= $index && $index < 12"
-                         uib-tooltip="{{ codeType.description }}">
-                    <input type="checkbox"
-                           ng-attr-id="codeType{{ codeType.id }}"
-                           name="codeType{{ codeType.id }}"
-                           ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
-                           ng-model="model.viewModel.record['codeType'+codeType.id]">
-                    </input> {{ codeType.code }}
-                  </label>
+                <div class="row">
+                  <div class="col-sm-2" ng-repeat="codeType in model.metadata.codeTypeList">
+                    <label class="checkbox"
+                           style="left: 25px"
+                           for="{{ codeType.code }}"
+                           ng-if="6 <= $index && $index < 12"
+                           uib-tooltip="{{ codeType.description }}">
+                      <input type="checkbox"
+                             ng-attr-id="codeType{{ codeType.id }}"
+                             name="codeType{{ codeType.id }}"
+                             ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
+                             ng-model="model.viewModel.record['codeType'+codeType.id]">
+                      </input> {{ codeType.code }}
+                    </label>
+                  </div>
                 </div>
-              </div>
-              <div class="row">
-                <div class="col-sm-2" ng-repeat="codeType in model.metadata.codeTypeList">
-                  <label class="checkbox"
-                         style="left: 25px"
-                         for="{{ codeType.code }}"
-                         ng-if="12 <= $index"
-                         uib-tooltip="{{ codeType.description }}">
-                    <input type="checkbox"
-                           ng-attr-id="codeType{{ codeType.id }}"
-                           name="codeType{{ codeType.id }}"
-                           ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
-                           ng-model="model.viewModel.record['codeType'+codeType.id]">
-                    </input> {{ codeType.code }}
-                  </label>
+                <div class="row">
+                  <div class="col-sm-2" ng-repeat="codeType in model.metadata.codeTypeList">
+                    <label class="checkbox"
+                           style="left: 25px"
+                           for="{{ codeType.code }}"
+                           ng-if="12 <= $index"
+                           uib-tooltip="{{ codeType.description }}">
+                      <input type="checkbox"
+                             ng-attr-id="codeType{{ codeType.id }}"
+                             name="codeType{{ codeType.id }}"
+                             ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
+                             ng-model="model.viewModel.record['codeType'+codeType.id]">
+                      </input> {{ codeType.code }}
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div class="form-group">
-            <label class="col-sm-3 control-label">Pass</label>
-            <div class="col-sm-9">
-              <select name="pass"
-                      ng-change="model.viewModel.patch( 'pass' )"
-                      ng-model="model.viewModel.record.pass"
-                      ng-options="item.value as item.name for item in booleanEnumList"
-                      class="form-control">
-              </select>
+            <div class="form-group">
+              <label class="col-sm-3 control-label">Pass</label>
+              <div class="col-sm-9">
+                <select name="pass"
+                        ng-change="model.viewModel.patch( 'pass' )"
+                        ng-model="model.viewModel.record.pass"
+                        ng-options="item.value as item.name for item in booleanEnumList"
+                        class="form-control">
+                </select>
+              </div>
             </div>
-          </div>
-          <div class="form-group">
-            <label class="col-sm-3 control-label">Note</label>
-            <div class="col-sm-9">
-              <textarea cn-elastic
-                        name="note"
-                        cn-change="model.viewModel.patch( 'note' )"
-                        ng-model="model.viewModel.record.note"
-                        class="form-control"></textarea>
+            <div class="form-group">
+              <label class="col-sm-3 control-label">Note</label>
+              <div class="col-sm-9">
+                <textarea cn-elastic
+                          name="note"
+                          cn-change="model.viewModel.patch( 'note' )"
+                          ng-model="model.viewModel.record.note"
+                          class="form-control"></textarea>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </fieldset>
     </form>
     <div class="form-footer text-right rounded-bottom bg-info">
     </div>
@@ -105,6 +107,6 @@
 </div>
 <div class="vertical-spacer">
   <cn-record-list ng-if="model.viewModel.apexDeploymentModel"
-                  remove-columns="uid scan_type_side"
+                  remove-columns="uid scan_type_side apex_host"
                   model="model.viewModel.apexDeploymentModel"></cn-record-list>
 </div>

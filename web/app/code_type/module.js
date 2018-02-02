@@ -14,8 +14,8 @@ define( function() {
       code: {
         title: 'Code'
       },
-      apex_scan_count: {
-        title: 'Apex Scans',
+      apex_deployment_count: {
+        title: 'Apex Deployments',
         type: 'number'
       },
       scan_type_count: {
