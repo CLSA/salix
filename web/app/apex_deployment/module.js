@@ -5,8 +5,8 @@ define( function() {
   angular.extend( module, {
     identifier: {
       parent: {
-        subject: 'apex_scan',
-        column: 'apex_scan.id'
+        subject: 'apex_host',
+        column: 'apex_host.name'
       }
     },
     name: {
