@@ -28,7 +28,7 @@ class module extends \cenozo\service\module
     {
       if( $service_class_name::is_write_method( $method ) )
       {
-      $status = $this->get_resource()->status;
+        $status = $this->get_resource()->status;
 
         // don't delete deployments which have a status
         if( 'DELETE' == $method )
