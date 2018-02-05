@@ -7,16 +7,7 @@
  * with data from Opal.  This script should be run once
  * to initially set up the salix database.
  *
- */
-
-/**
- * Make sure to fill in the following
- */
-
-define( 'URL', 'https://localhost/release/salix/api/' );
-
-/**
- * Do not edit any of the following lines
+ * @author Dean Inglis <inglisd@mcmaster.ca>
  */
 
 chdir( dirname( __FILE__ ).'/../' );

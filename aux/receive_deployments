@@ -9,19 +9,7 @@
  * for grouped hip scan retrieval (left side preferred) and
  * priority whole body scans.
  *
- *
  * @author Dean Inglis <inglisd@mcmaster.ca>
- * @date 2018-01-30
- */
-
-/**
- * Make sure to fill in the following
- */
-
-define( 'URL', 'https://localhost/release/salix/api/' );
-
-/**
- * Do not edit any of the following lines
  */
 
 chdir( dirname( __FILE__ ).'/../' );

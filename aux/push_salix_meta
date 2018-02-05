@@ -11,16 +11,7 @@
  * the APEX db tables with cleaned data and de-identifies all biographical
  * information.
  *
- */
-
-/**
- * Make sure to fill in the following
- */
-
-define( 'URL', 'https://localhost/release/salix/api/' );
-
-/**
- * Do not edit any of the following lines
+ * @author Dean Inglis <inglisd@mcmaster.ca>
  */
 
 chdir( dirname( __FILE__ ).'/../' );

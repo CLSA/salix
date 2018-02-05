@@ -8,16 +8,7 @@
  * The Opal meta_* views must have an Entities Filter script set, for example:
  * $lastupdate().after(newValue('2017-11-05', 'date'))
  *
- */
-
-/**
- * Make sure to fill in the following
- */
-
-define( 'URL', 'https://localhost/release/salix/api/' );
-
-/**
- * Do not edit any of the following lines
+ * @author Dean Inglis <inglisd@mcmaster.ca>
  */
 
 chdir( dirname( __FILE__ ).'/../' );
