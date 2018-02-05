@@ -1,7 +1,7 @@
 #!/usr/bin/php
 <?php
 /**
- * update_deployment.php
+ * receive_deployments.php
  *
  * A script for retrieving DEXA scans, verifying their content,
  * and creating a deployment record for subsequent transfer to
@@ -232,19 +232,31 @@ $sql = 'SELECT * FROM apex_host ORDER BY allocation DESC';
 $res = $db_salix->get_all( $sql );
 $host_list = array();
 $allocation_sum = 0.0;
-$priority_host_id = '';
 foreach( $res as $item )
 {
   $name = $item['name'];
   unset( $item['name'] );
   $host_list[$name] = $item;
   $allocation_sum += $item['allocation'];
-  if( 'skimmer' == $name ) $priority_host_id = $item['id'];
 }
 
 if( 1.0 != round( $allocation_sum, 1 ) )
 {
   write_log( 'ERROR: host allocation not equal to 1: ' . $allocation_sum );
+  return 0;
+}
+
+// get the preferred host for priority scans
+$sql =
+  'SELECT setting.priority_apex_host_id '.
+  'FROM setting '.
+  'JOIN ' . DB_PREFIX . '.site ON setting.site_id=site.id '.
+  'WHERE site.name="NCC"';
+$priority_host_id = $db_salix->get_one( $sql );
+
+if( false === $priority_host_id || '' == $priority_host_id )
+{
+  write_log( 'ERROR: indeterminate priority host' );
   return 0;
 }
 
