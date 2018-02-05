@@ -1,0 +1,540 @@
+#!/usr/bin/php
+<?php
+/**
+ * import_scans.php
+ *
+ * A script for retrieving DEXA scans from Opal based on
+ * apex_deployment table information.
+ * To direct to only one host, set the allocation
+ * ratios accordingly in the salix UI.
+ *
+ *
+ * @author Dean Inglis <inglisd@mcmaster.ca>
+ * @date 2018-01-30
+ */
+
+/**
+ * Make sure to fill in the following
+ */
+
+define( 'URL', 'https://localhost/release/salix/api/' );
+
+/**
+ * Do not edit any of the following lines
+ */
+
+chdir( dirname( __FILE__ ).'/../' );
+require_once 'settings.ini.php';
+require_once 'settings.local.ini.php';
+require_once $SETTINGS['path']['CENOZO'].'/src/initial.class.php';
+$initial = new \cenozo\initial();
+$settings = $initial->get_settings();
+
+define( 'OPAL_SERVER', $settings['opal']['server'] );
+define( 'OPAL_PORT', $settings['opal']['port'] );
+define( 'OPAL_USERNAME', $settings['opal']['username']  );
+define( 'OPAL_PASSWORD', $settings['opal']['password'] );
+
+define( 'DB_SERVER', $settings['db']['server'] );
+define( 'DB_PREFIX', $settings['db']['database_prefix'] );
+define( 'DB_USERNAME', $settings['db']['username'] );
+define( 'DB_PASSWORD', $settings['db']['password'] );
+
+define( 'IMAGE_PATH', $settings['path']['TEMPORARY_FILES'] );
+
+define( 'USER', $settings['utility']['username'] );
+
+define( 'APEX_SSH_KEY', $settings['apex']['apex_ssh_key'] );
+
+// a lite mysqli wrapper
+require_once( $settings['path']['APPLICATION'].'/../php_util/database.class.php' );
+// a lite odbc wrapper
+require_once( $settings['path']['APPLICATION'].'/../php_util/odbc.class.php' );
+// a lite curl wrapper
+require_once( $settings['path']['APPLICATION'].'/../php_util/opalcurl.class.php' );
+
+// function for writing to the log
+function write_log( $message )
+{
+  file_put_contents(
+    LOG_FILE_PATH,
+    sprintf( "%s  [cron] <%s> %s\n\n", date( 'Y-m-d (D) H:i:s' ), USER, $message ),
+    FILE_APPEND
+  );
+}
+
+// scp args: apex host address, source file, destination file
+function scp_command( $address, $source, $destination )
+{
+  return trim( shell_exec( sprintf(
+    'scp -i ' . APEX_SSH_KEY .
+    ' %s clsa@%s:/cygdrive/e/InComing/%s', $source, $address, $destination ) ) );
+}
+
+// ssh args: apex host address, command arg
+function ssh_command( $address, $arg )
+{
+  return trim( shell_exec( sprintf(
+    'ssh -i ' . APEX_SSH_KEY . ' clsa@%s %s', $address, $arg ) ) );
+}
+
+// dgate (conquest dicom server service) args: apex host address, command arg
+function dgate_command( $address, $arg )
+{
+  return ssh_command( $address, '/cygdrive/c/dicomserverIn/dgate -v ' . $arg );
+}
+
+class dexa_scan
+{
+  public function __construct(
+    $uid, $type, $side, $scan_type_id,
+    $rank, $barcode, $serial_number,
+    $apex_scan_id, $priority = 0, $apex_host_id = NULL )
+  {
+    $this->uid = $uid;
+    $this->type = $type;
+    $this->side = $side;
+    $this->scan_type_id = $scan_type_id;
+    $this->rank = $rank;
+    $this->barcode = $barcode;
+    $this->serial_number = $serial_number;
+    $this->apex_scan_id = $apex_scan_id;
+    $this->apex_host_id = 'NULL' === $apex_host_id ? NULL : $apex_host_id;
+    $this->priority = $priority;
+    $this->copy_from = NULL;
+    $this->copy_to = NULL;
+    $this->import_datetime = NULL;
+  }
+
+  public function get_basefile_name()
+  {
+    return sprintf( '%s_%s_%s_%d.dcm',
+      $this->type, $this->side, $this->barcode, $this->rank );
+  }
+
+  public function get_scan_file( $opal_source, $path )
+  {
+    $opal_var = $this->type;
+    $opal_var .= 'none' == $this->side ? '' : '_' . $this->side;
+    $opal_var .= '_image';
+
+    $opal_source->set_view( 'image_' . $this->rank );
+
+    // download the dicom file based on uid, rank, type, side, barcode to the working directory
+    $res = $opal_source->get_participant( $this->uid );
+    if( is_object( $res ) && property_exists( $res, 'values' ) )
+    {
+      $res = array_filter( $res->values,
+        function ( $obj ) use( $opal_var )
+        {
+          return ( property_exists( $obj, 'link' ) &&
+                   property_exists( $obj, 'length' ) &&
+                   0 < $obj->length &&
+                   false !== strpos( $obj->link, $opal_var ) );
+        } );
+    }
+    if( NULL === $res || false === $res )
+    {
+      write_log( 'WARNING: expected scan data not found in opal' );
+      return NULL;
+    }
+
+    $res = current( $res );
+    $link = $res->link;
+    $path = rtrim( $path, '/' );
+    $filename = sprintf( '%s/%s', $path, $this->get_basefile_name() );
+
+    $opal_source->send( $link, array( 'output' => $filename ) );
+
+    // verify the file is non-empty
+    if( !file_exists( $filename ) )
+    {
+      write_log( 'WARNING: requested file failed to download' );
+      $filename = NULL;
+    }
+    return $filename;
+  }
+
+  public function validate( $filename )
+  {
+    $file_error = false;
+    if( NULL === $filename ) return $file_error;
+
+    $validation_list = static::$validation_types[$this->type];
+    foreach( $validation_list as $validation )
+    {
+      $gdcm_command = static::$gdcm_validation_list[$validation];
+      $res = trim( shell_exec( sprintf( $gdcm_command, $filename ) ) );
+      if( 'LATERALITY' == $validation )
+      {
+        $laterality = 'left' == $this->side ? 'L' : 'R';
+        if( $laterality != $res )
+        {
+          write_log( sprintf(
+           'WARNING: laterality expected %s received %s in file %s',
+           $laterality, $res, $filename ) );
+          $file_error = true;
+        }
+      }
+      else if( 'PATIENTID' == $validation )
+      {
+        if( $this->barcode != $res )
+        {
+          write_log( sprintf(
+            'WARNING: barcode expected: %s, received: %s in file %s',
+            $this->barcode, $res, $filename ) );
+          $file_error = true;
+        }
+      }
+      else if( 'SERIAL_NUMBER' == $validation )
+      {
+        $res = preg_replace( '/[^0-9]/', '', $res );
+        if( $this->serial_number != $res )
+        {
+          write_log( sprintf(
+            'WARNING: serial number expected: %s, received: %s in file %s',
+            $this->serial_number, $res, $filename ) );
+          $file_error = true;
+        }
+      }
+    }
+
+    return $file_error;
+  }
+
+  private static $gdcm_validation_list = array(
+    'SERIAL_NUMBER' =>
+    "gdcmdump -d %s | grep -E '\(0008,1090\)' | awk '{print $4$5$6}'",
+    'LATERALITY' =>
+    "gdcmdump -d %s | grep -E '\(0020,0060\)' | awk '{print $4}'",
+    'PATIENTID' =>
+    "gdcmdump -d %s | grep -E '\(0010,0020\)' | awk '{print $4}'" );
+
+  private static $validation_types = array(
+    'hip' => array( 'SERIAL_NUMBER', 'LATERALITY', 'PATIENTID' ),
+    'forearm' => array( 'SERIAL_NUMBER', 'LATERALITY', 'PATIENTID' ),
+    'lateral' => array( 'SERIAL_NUMBER', 'PATIENTID' ),
+    'spine' => array( 'SERIAL_NUMBER', 'PATIENTID' ),
+    'wbody' => array( 'SERIAL_NUMBER', 'PATIENTID' ) );
+
+  public $uid;
+  public $type;
+  public $side;
+  public $scan_type_id;
+  public $serial_number;
+  public $barcode;
+  public $apex_scan_id;
+  public $priority;
+  public $apex_host_id;
+  public $copy_from;
+  public $copy_to;
+  public $import_datetime;
+}
+
+// optional argument: limit on number of scans
+// to direct to only one host, set the allocation
+// ratios in the salix UI
+
+$allocation_limit = 100;
+if( 2 == $argc )
+{
+  $allocation_limit = $argv[2];
+}
+
+$db_salix = '';
+try
+{
+  $db_salix = new database(
+    DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+}
+catch( Exception $e )
+{
+  write_log( $e->getMessage() );
+  return 0;
+}
+
+// verify sum of host allocation ratios = 1
+//
+$sql = 'SELECT *, 0 AS quota FROM apex_host ORDER BY allocation DESC';
+$res = $db_salix->get_all( $sql );
+$host_list = array();
+$allocation_sum = 0.0;
+foreach( $res as $item )
+{
+  $name = $item['name'];
+  unset( $item['name'] );
+  $host_list[$name] = $item;
+  $allocation_sum += $item['allocation'];
+}
+
+if( 1.0 != round( $allocation_sum, 1 ) )
+{
+  write_log( 'ERROR: host allocation not equal to 1: ' . $allocation_sum );
+  return 0;
+}
+
+// define quotas on number of non-priority scans
+foreach( $host_list as $name => $item )
+{
+  $host_list[$name]['quota'] = intval( round( $item['allocation'] * $allocation_limit ) );
+}
+
+$scan_list = array();
+foreach( $host_list as $name => $host_item )
+(
+  $quota = $host_item['quota'];
+
+  $sql = sprintf(
+    'SELECT uid, '.
+    'type, '.
+    'side, '.
+    'rank, '.
+    'barcode, '.
+    's.id AS apex_scan_id, '.
+    'priority, '.
+    'n.id AS serial_number, '.
+    't.id AS scan_type_id, '.
+    'h.id AS apex_host_id '.
+    'FROM apex_exam e '.
+    'JOIN apex_scan s ON s.apex_exam_id=e.id '.
+    'JOIN scan_type t ON s.scan_type_id=t.id '.
+    'JOIN serial_number n ON e.serial_number_id=n.id '.
+    'JOIN apex_baseline b ON e.apex_baseline_id=b.id '.
+    'JOIN ' . DB_PREFIX . 'cenozo.participant p ON b.participant_id=p.id '.
+    'JOIN apex_deployment d ON d.apex_scan_id=s.id '.
+    'JOIN apex_host h ON d.apex_host_id=h.id '.
+    'WHERE s.availability=1 '.
+    'AND d.status IS NULL '.
+    'AND d.comp_scanid IS NULL '.
+    'AND d.analysis_datetime IS NULL '.
+    'AND d.import_datetime IS NULL '.
+    'AND d.export_datetime IS NULL '.
+    ( 0 == $quota ? 'AND priority=1 ' : '' ).
+    'AND h.name="%s"' ).
+    'ORDER BY uid, side, rank', $name );
+
+  $data_list = $db_salix->get_all( $sql );
+
+  if( 0 == count( $data_list ) ) continue;
+
+  $current_uid = NULL;
+  $priority_keys = array();
+  $current_list = array();
+  foreach( $data_list as $data )
+  {
+    $item = new dexa_scan(
+      $data['uid'], $data['type'], $data['side'], $data['scan_type_id'],
+      $data['rank'], $data['barcode'], $data['serial_number'],
+      $data['apex_scan_id'], $data['priority'], $data['apex_host_id'] );
+
+    if( $item->uid != $current_uid )
+    {
+      $current_uid = $item->uid;
+      $current_list[$item->uid] = array();
+    }
+    if( $current_uid == $item->uid )
+    {
+      $current_list[$item->uid][] = $item;
+    }
+    if( 1 == $item->priority ) $priority_keys[] = $item->uid;
+  }
+
+  // prioritze scans
+  if( 0 < count( $priority_keys ) )
+  {
+    $priority_keys = array_unique( $priority_keys );
+    foreach( $priority_keys as $uid )
+    {
+      $current_list = array( $uid => $current_list[$uid] ) + $current_list;
+    }
+  }
+
+  if( 0 < $quota )
+  {
+    $total = count( $priority_keys ) + $quota;
+    if( $total < count( $current_list ) )
+      $current_list = array_slice( $current_list, 0, $total, true );
+  }
+
+  if( 0 < count( $current_list ) )
+    $scan_list[$name] = $current_list;
+}
+
+// connect to opal source to download scans using curl
+//
+$opal_curl = new opalcurl( OPAL_SERVER, OPAL_PORT, OPAL_USERNAME, OPAL_PASSWORD );
+$opal_curl->set_datasource( 'salix' );
+
+// verify that on each host, both conquest dicom server and APEX are running
+$verify_host_list = array_keys( $scan_list );
+foreach( $verify_host_list as $name )
+{
+  $db_dexa_server = strtoupper( $name );
+  $db_dexa_username = $host_list[$name]['sql_user'];
+  $db_dexa_password = $host_list[$name]['sql_pass'];
+  try
+  {
+    $db_dexa = new odbc( $db_dexa_server, $db_dexa_username, $db_dexa_password );
+  }
+  catch( Exception $e )
+  {
+    write_log( $e->getMessage() );
+    return 0;
+  }
+
+  $host_address = $host_list[$name]['host'];
+
+  $res = dgate_command( $host_address, '--echo:CONQUESTSRV1' );
+  if( NULL === $res || ( false === strpos( $res, 'UP' ) ) )
+  {
+    write_log( sprintf( 'ERROR: host dicom server (%s) is not running!' . $name ) );
+    return 0;
+  }
+
+  $res = ssh_command( $host_address, ' tasklist /FI \"IMAGENAME eq qdr.exe\" /FO LIST' );
+  if( NULL === $res || ( false === strpos( $res, 'qdr.exe' ) ) )
+  {
+    write_log( sprintf( 'ERROR: Apex (%s) is not running!', $name ) );
+    return 0;
+  }
+}
+
+// loop over hosts
+foreach( $scan_list as $name => $identifier_list )
+{
+  $db_dexa_server = strtoupper( $name );
+  $db_dexa_username = $host_list[$name]['sql_user'];
+  $db_dexa_password = $host_list[$name]['sql_pass'];
+  $host_address = $host_list[$name]['host'];
+
+  $db_dexa = '';
+  try
+  {
+    $db_dexa = new odbc( $db_dexa_server, $db_dexa_username, $db_dexa_password );
+  }
+  catch( Exception $e )
+  {
+    write_log( $e->getMessage() );
+    return 0;
+  }
+
+  foreach( $identifier_list as $uid => $item )
+  {
+    $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
+    if( NULL !== $filename )
+    {
+      // run gdcmconv -E -w the_file.dcm the_file.dcm
+      exec( sprintf( 'gdcmconv -E -w %s %s', $filename, $filename ) );
+
+      // scp the_file.dcm to the host E:\InComing dir
+      $subpath = '';
+      if( 'none' == $side )
+        $subpath = sprintf( '%s/%s', $item->type, $item->barcode );
+      else
+        $subpath = sprintf( '%s/%s/%s', $item->type, $item->side, $item->barcode );
+
+      $res = ssh_command( $host_address, 'mkdir /cygdrive/e/InComing/' . $subpath );
+
+      $base = basename( $filename );
+
+      $res = scp_command( $host_address, $filename, $subpath . '/' . $base );
+
+      $item->import_datetime = date( 'Y-m-d H:i:s' );
+      $item->copy_from = '/cygdrive/e/InComing/' . $subpath . '/' . $base;
+      $item->copy_to = '/cygdrive/e/ORIGINAL/' . $subpath . '/' . $base;
+
+      unlink( $filename );
+    }
+  }
+
+  // wait a few seconds for scp transfer to complete
+  sleep(5);
+
+  // remotely run the conquest dicom server to rebuild its db
+  $res = dgate_command( $host_address, '--initializetables' );
+  if( '' != $res )
+  {
+    write_log( sprintf( 'ERROR: %s failed to initialize conquest dicom server tables: %s', $name, $res ) );
+  }
+
+  // regenerate the conquest dicom server db from files in E:\InComing
+  $res = dgate_command( $host_address, '--regendevice:MAG0' );
+  if( '' != $res )
+  {
+    write_log( sprintf( 'ERROR: %s failed to regenerate conquest dicom server image db: %s', $name, $res ) );
+  }
+
+  // dicom C-Move files to Apex
+  $res = dgate_command( $host_address, sprintf( '--movepatient:CONQUESTSRV1,DEXA_%s,*', $name ) );
+  if( 0 != $res )
+  {
+    write_log( sprintf( 'ERROR: %s failed to dicom C-move images to Apex: %s', $name, $res ) );
+  }
+
+  // query Apex MS SQL Server db to verify transfer
+  $sql_str =
+      'SELECT p.PATIENT_KEY patient_key, '.
+      's.SCANID scanid, '.
+      'CONVERT(varchar,s.SCAN_DATE) scan_datetime, '.
+      's.SERIAL_NUMBER serial_number '.
+      'FROM PatScan.dbo.PATIENT p '.
+      'INNER JOIN PatScan.dbo.ScanAnalysis s '.
+      'ON s.PATIENT_KEY=p.PATIENT_KEY '.
+      'WHERE s.SCAN_TYPE=%d '.
+      "AND p.IDENTIFIER1='%s'";
+
+  // reloop through this host's set of scan items
+  foreach( $identifier_list as $uid => $item )
+  {
+    // query Apex SQL db
+    $sql = sprintf( $sql_str, $item->scan_type_id, $item->barcode );
+    $res = $db_dexa->get_row( $sql );
+    $filename = $item->get_basefile_name();
+
+    if( false === $res || '' == $res )
+    {
+      util::out( 'ERROR: failed to dicom transfer file ' . $filename );
+    }
+    else
+    {
+      $serial_number = $res['serial_number'];
+      $scanid = $res['scanid'];
+      $patient_key = $res['patient_key'];
+      $scan_datetime = $res['scan_datetime'];
+
+      $sql = sprintf(
+        'UPDATE apex_scan '.
+        'SET '.
+        'scan_datetime="%s", '.
+        'scanid="%s", '.
+        'patient_key="%s" '.
+        'WHERE id=%d ', $scan_datetime, $scanid, $patient_key, $item->apex_scan_id );
+
+      $db_salix->execute( $sql );
+
+      $sql = sprintf(
+        'UPDATE apex_deployment SET '.
+        'merged=0, status="pending", comp_scanid=NULL, analysis_datetime=NULL, import_datetime="%s" ) '.
+        'WHERE apex_host_id=%d '.
+        'AND apex_scan_id=%d',
+        $item->import_datetime, $item->apex_host_id, $item->apex_scan_id );
+
+      $db_salix->execute( $sql );
+
+      // copy the file on the host from InComing to ORIGINAL
+      // create the barcode subdirectory
+      $dir = '/cygdrive/e/ORIGINAL/' . $item->type . '/';
+      $dir .= ('none' == $side) ? $item->barcode : ( $item->side . '/' . $item->barcode);
+      $res = ssh_command( $host_address, 'mkdir -p ' . $dir );
+      $res = ssh_command( $host_address, sprintf( 'cp %s %s', $item->copy_from, $item->copy_to ) );
+
+      // remove the barcode sub-directory from InComing
+      $dir = str_replace( '/cygdrive/e/ORIGINAL/', '/cygdrive/e/InComing/', $dir );
+      $res = ssh_command( $host_address, 'rm -rf ' . $dir );
+    }
+  }
+}
+
+write_log( 'done!');
+
+return 1;

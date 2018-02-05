@@ -1,7 +1,7 @@
 #!/usr/bin/php
 <?php
 /**
- * initialize_deployments.php
+ * receive_host_deployments.php
  *
  * A script which will populate / update salix
  * apex_scan and apex_deployment tables
@@ -10,7 +10,7 @@
  * pre-existing host data.
  *
  * @author Dean Inglis <inglisd@mcmaster.ca>
- I* @date 2018-02-01
+ * @date 2018-02-01
  */
 
 /**
@@ -461,7 +461,8 @@ foreach( $dexa_data as $scan_type_id => $items )
       'VALUES (%d, %d, %d, "%s", %s, "%s", %s ) ON DUPLICATE KEY UPDATE '.
       'apex_host_id = VALUES(apex_host_id), '.
       'apex_scan_id = VALUES(apex_scan_id)',
-      $apex_host_id, $apex_scan_id, $merged, $status, $comp_scanid, $values['analysis_datetime'], $import_datetime );
+      $apex_host_id, $apex_scan_id, $merged, $status, $comp_scanid,
+      $values['analysis_datetime'], $import_datetime );
 
     $db_salix->execute( $sql );
 
