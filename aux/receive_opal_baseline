@@ -1,7 +1,7 @@
 #!/usr/bin/php
 <?php
 /**
- * load_opal_baseline.php
+ * receive_opal_baseline.php
  *
  * A script which will populate salix apex_baseline table
  * with data from Opal.  This script should be run once

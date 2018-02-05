@@ -232,7 +232,8 @@ foreach( $res as $res_salix )
     'FROM PatScan.dbo.ScanAnalysis '.
     "WHERE PATIENT_KEY='%s' ".
     "AND SCANID='%s' ".
-    "AND SERIAL_NUMBER='%s' ", $res_salix['patient_key'], $res_salix['scanid'], $res_salix['serial_number'] );
+    "AND SERIAL_NUMBER='%s'",
+    $res_salix['patient_key'], $res_salix['scanid'], $res_salix['serial_number'] );
 
   $res_host_analysis = $db_apex->get_row( $sql );
   if( '' == $res_host_analysis || !is_array( $res_host_analysis ) )
@@ -310,7 +311,8 @@ foreach( $res as $res_salix )
         sprintf(
           " WHERE PATIENT_KEY='%s' ".
           "AND SCANID='%s' ".
-          "AND SERIAL_NUMBER='%s'", $res_salix['patient_key'], $res_salix['scanid'], $res_salix['serial_number'] );
+          "AND SERIAL_NUMBER='%s'",
+          $res_salix['patient_key'], $res_salix['scanid'], $res_salix['serial_number'] );
 
       $db_apex->execute( $sql );
 
