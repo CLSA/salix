@@ -32,7 +32,6 @@ class query extends \cenozo\service\query
       $join_mod->where( 'apex_scan.scan_type_id', '=', 'current_apex_scan.scan_type_id', false );
       $modifier->join_modifier( 'apex_scan', $join_mod, '', 'current_apex_scan' );
       $modifier->where( 'apex_scan.id', '!=', $db_apex_deployment->apex_scan_id );
-      $modifier->where( 'current_apex_scan.id', '=', $db_apex_deployment->apex_scan_id );
       $modifier->join(
         'apex_deployment',
         'current_apex_scan.id',
@@ -40,6 +39,8 @@ class query extends \cenozo\service\query
         '',
         'current_apex_deployment'
       );
+      $modifier->where( 'current_apex_deployment.id', '=', $db_apex_deployment->id );
+      $modifier->where( 'apex_deployment.apex_host_id', '=', 'current_apex_deployment.apex_host_id', false );
       $this->select->apply_aliases_to_modifier( $modifier );
       return $apex_deployment_class_name::count( $modifier );
     }
@@ -67,7 +68,6 @@ class query extends \cenozo\service\query
       $join_mod->where( 'apex_scan.scan_type_id', '=', 'current_apex_scan.scan_type_id', false );
       $modifier->join_modifier( 'apex_scan', $join_mod, '', 'current_apex_scan' );
       $modifier->where( 'apex_scan.id', '!=', $db_apex_deployment->apex_scan_id );
-      $modifier->where( 'current_apex_scan.id', '=', $db_apex_deployment->apex_scan_id );
       $modifier->join(
         'apex_deployment',
         'current_apex_scan.id',
@@ -75,6 +75,8 @@ class query extends \cenozo\service\query
         '',
         'current_apex_deployment'
       );
+      $modifier->where( 'current_apex_deployment.id', '=', $db_apex_deployment->id );
+      $modifier->where( 'apex_deployment.apex_host_id', '=', 'current_apex_deployment.apex_host_id', false );
       $this->select->apply_aliases_to_modifier( $modifier );
 
       return $apex_deployment_class_name::select( $select, $modifier );

@@ -14,6 +14,27 @@ use cenozo\lib, cenozo\log, salix\util;
  */
 class module extends \cenozo\service\module
 {
+  /**
+   * Extend parent method
+   */
+  public function validate()
+  {
+    parent::validate();
+
+    $service_class_name = lib::get_class_name( 'service\service' );
+    $method = $this->get_method();
+
+    if( 300 > $this->get_status()->get_code() )
+    {
+      // do not allow editing if the deployment is exported or null
+      if( $service_class_name::is_write_method( $method ) )
+      {
+        $status = $this->get_resource()->get_apex_deployment()->status;
+        if( is_null( $status ) || 'exported' == $status ) $this->get_status()->set_code( 403 );
+      }
+    }
+  }
+
   /** 
    * Extend parent method
    */
