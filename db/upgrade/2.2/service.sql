@@ -96,7 +96,6 @@ INSERT INTO service ( subject, method, resource, restricted ) VALUES
 ( 'code', 'DELETE', 1, 1 ),
 ( 'code', 'GET', 0, 0 ),
 ( 'code', 'GET', 1, 0 ),
-( 'code', 'PATCH', 1, 1 ),
 ( 'code', 'POST', 0, 1 ),
 ( 'code_type', 'DELETE', 1, 1 ),
 ( 'code_type', 'GET', 0, 0 ),

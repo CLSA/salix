@@ -5,8 +5,8 @@ define( function() {
   angular.extend( module, {
     identifier: {
       parent: {
-        subject: 'apex_scan',
-        column: 'apex_scan.id'
+        subject: 'apex_host',
+        column: 'apex_host.name'
       }
     },
     name: {
@@ -25,6 +25,10 @@ define( function() {
         title: 'Wave Rank',
         type: 'rank'
       },
+      barcode: {
+        column: 'apex_exam.barcode',
+        title: 'Barcode'
+      },
       scan_type_side: {
         title: 'Scan Type'
       },
@@ -38,6 +42,11 @@ define( function() {
       },
       status: {
         title: 'Status'
+      },
+      priority: {
+        column: 'apex_scan.priority',
+        title: 'Priority',
+        type: 'boolean'
       },
       pass: {
         title: 'pass',
@@ -171,6 +180,7 @@ define( function() {
             { value: true, name: 'Yes' },
             { value: false, name: 'No' }
           ];
+          $scope.nextApexDeployment = function() { $scope.model.viewModel.transitionOnNextViewState(); };
         }
       };
     }
@@ -196,21 +206,47 @@ define( function() {
 
   /* ######################################################################################################## */
   cenozo.providers.factory( 'CnApexDeploymentViewFactory', [
-    'CnBaseViewFactory', 'CnHttpFactory', 'CnSession', 'CnModalMessageFactory',
-    function( CnBaseViewFactory, CnHttpFactory, CnSession, CnModalMessageFactory ) {
+    'CnBaseViewFactory', 'CnHttpFactory', 'CnSession', 'CnModalMessageFactory', 'CnModalConfirmFactory',
+    '$q', '$state',
+    function( CnBaseViewFactory, CnHttpFactory, CnSession, CnModalMessageFactory, CnModalConfirmFactory,
+              $q, $state ) {
       var object = function( parentModel, root ) {
         var self = this;
         CnBaseViewFactory.construct( this, parentModel, root );
         this.isComplete = false;
 
+        // transitions to the next available deployment for analysis
+        this.transitionOnNextViewState = function() {
+          return CnHttpFactory.instance( {
+            path: 'apex_host/' + self.record.apex_host_id + '/apex_deployment',
+            // get the highest priority record
+            data: {
+              select: { column: 'id' },
+              modifier: {
+                where: [ { column: 'status', operator: '=', value: 'pending' } ],
+                order: [ { 'apex_scan.priority': true }, { 'apex_exam.rank': false } ],
+                limit: 1
+              }
+            }
+          } ).get().then( function( response ) {
+            if( 0 < response.data.length )
+              return $state.go( 'apex_deployment.view', { identifier: response.data[0].id } );
+          } );
+        };
+
         // customize the scan list heading
         this.deferred.promise.then( function() {
-          if( angular.isDefined( self.apexScanModel ) )
-            self.apexScanModel.listModel.heading = 'Sister Apex Scan List';
+          if( angular.isDefined( self.apexDeploymentModel ) )
+            self.apexDeploymentModel.listModel.heading = 'Sibling Apex Deployment List';
         } );
 
         this.onView = function( force ) {
           return this.$$onView( force ).then( function() {
+            // do not allow exported deployments to be edited
+            self.parentModel.getEditEnabled = null == self.record.status || 'exported' == self.record.status
+                                            ? function() { return false; }
+                                            : function() { return self.parentModel.$$getEditEnabled(); };
+
             // set all code values to false then get the scan's codes
             return self.parentModel.metadata.getPromise().then( function() {
               self.isComplete = true;
@@ -243,22 +279,55 @@ define( function() {
                 },
                 onError: function( response ) {
                   // ignore 409 (code already exists)
-                  if( 409 != response.status ) CnModalMessageFactory.httpError( response );
+                  if( 409 != response.status ) {
+                    self.record[property] = !self.record[property];
+                    CnModalMessageFactory.httpError( response );
+                  }
                 }
               } ).post()
             } else {
-              CnHttpFactory.instance( {
+              return CnHttpFactory.instance( {
                 path: 'code/apex_deployment_id='+self.record.id+';code_type_id='+codeTypeId,
                 onError: function( response ) {
                   // ignore 404 (code has already been deleted)
-                  if( 404 != response.status ) CnModalMessageFactory.httpError( response );
+                  if( 404 != response.status ) {
+                    self.record[property] = !self.record[property];
+                    CnModalMessageFactory.httpError( response );
+                  }
                 }
               } ).delete();
             }
           } else {
-            var data = {};
-            data[property] = self.record[property];
-            self.onPatch( data );
+            var promiseList = [];
+            var codeList = [];
+            var resetCodes = false;
+
+            // check if pass is being set to null (which at this point will be an empty string)
+            if( 'pass' == property && '' === self.record.pass ) {
+              // gather all selected code types
+              for( var column in self.record )
+                if( column.match( /^codeType/ ) && self.record[column] )
+                  codeList.push( column );
+
+              // if there are any code types, offer to reset them
+              if( 0 < codeList.length ) {
+                promiseList.push(
+                  CnModalConfirmFactory.instance( {
+                    title: 'Reset Codes',
+                    message: 'Do you also wish to remove all codes associated with this deployment?'
+                  } ).show().then( function( response ) { resetCodes = response; } )
+                );
+              }
+            }
+
+            return $q.all( promiseList ).then( function() {
+              var data = {};
+              data[property] = self.record[property];
+              if( resetCodes ) data.reset_codes = true;
+              return self.onPatch( data ).then( function() {
+                if( 'pass' == property ) return self.onView();
+              } );
+            } );
           }
         };
       };
