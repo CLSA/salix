@@ -250,7 +250,7 @@ if( 1.0 != round( $allocation_sum, 1 ) )
 $sql =
   'SELECT setting.priority_apex_host_id '.
   'FROM setting '.
-  'JOIN ' . DB_PREFIX . '.site ON setting.site_id=site.id '.
+  'JOIN ' . DB_PREFIX . 'cenozo.site ON setting.site_id=site.id '.
   'WHERE site.name="NCC"';
 $priority_host_id = $db_salix->get_one( $sql );
 
