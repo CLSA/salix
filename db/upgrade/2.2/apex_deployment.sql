@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS apex_deployment (
   merged TINYINT(1) NOT NULL DEFAULT 0,
   status ENUM('pending', 'completed', 'exported') NULL DEFAULT NULL,
   comp_scanid VARCHAR(13) NULL DEFAULT NULL,
+  export_filename VARCHAR(255) NULL DEFAULT NULL,
   analysis_datetime DATETIME NULL DEFAULT NULL,
   export_datetime DATETIME NULL DEFAULT NULL,
   import_datetime DATETIME NULL DEFAULT NULL,
