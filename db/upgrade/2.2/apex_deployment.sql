@@ -38,4 +38,10 @@ BEGIN
 SET NEW.create_timestamp = NOW();
 END$$
 
+DROP TRIGGER IF EXISTS apex_deployment_AFTER_INSERT $$
+CREATE DEFINER = CURRENT_USER TRIGGER apex_deployment_AFTER_INSERT AFTER INSERT ON apex_deployment FOR EACH ROW
+BEGIN
+  CALL update_apex_deployment_code_summary( NEW.id );
+END$$
+
 DELIMITER ;
