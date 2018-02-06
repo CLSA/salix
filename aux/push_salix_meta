@@ -151,6 +151,7 @@ $sql =
   's.scan_datetime, '.
   's.scanid, '.
   's.patient_key, '.
+  's.scan_type_id, '.
   't.type, '.
   'e.height as HEIGHT, '.
   'e.weight as WEIGHT, '.
@@ -167,7 +168,9 @@ $sql =
   'WHERE h.name="' . $dexa_host . '" '.
   'AND s.scan_datetime IS NOT NULL '.
   'AND s.scanid IS NOT NULL '.
-  'AND patient_key IS NOT NULL'; // the scan must be on the host
+  'AND s.availability=1 '.
+  'AND d.status="pending" '.
+  'AND s.patient_key IS NOT NULL';
 
 $res = $db_salix->get_all( $sql );
 
@@ -230,7 +233,6 @@ foreach( $res as $res_salix )
   if( '' == $res_host_analysis || !is_array( $res_host_analysis ) )
     $res_host_analysis = null;
 
-  $id_str = $res_salix['barcode'] . ' (rank ' . $rank . ') ' . $type;
   if( 1 == $rank && null !== $res_host_patient )
   {
     $diff = array();
