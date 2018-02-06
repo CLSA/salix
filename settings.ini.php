@@ -19,7 +19,7 @@ $SETTINGS['general']['build'] = '29dc4a1';
 $SETTINGS['path']['APPLICATION'] = str_replace( '/settings.ini.php', '', __FILE__ );
 
 // the location of deployment reports (defaults to cenozo/doc/deployment_report)
-$settings['path']['DEPLOYMENT_REPORT'] = str_replace( 'settings.ini.php', 'doc/deployment_report', __FILE__ );
+$SETTINGS['path']['DEPLOYMENT_REPORT'] = str_replace( 'settings.ini.php', 'doc/deployment_report', __FILE__ );
 
 // Salix does not use VOIP
 $SETTINGS['voip']['enabled'] = false;
