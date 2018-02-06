@@ -135,6 +135,13 @@ define( function() {
     },
   } );
 
+  module.addExtraOperation( 'view', {
+    title: 'Download Report',
+    isIncluded: function( $state, model ) { return model.canDownloadReports(); },
+    isDisabled: function( $state, model ) { return !model.viewModel.fileExists; },
+    operation: function( $state, model ) { return model.viewModel.downloadReport(); }
+  } );
+
   /* ######################################################################################################## */
   cenozo.providers.directive( 'cnApexDeploymentAdd', [
     'CnApexDeploymentModelFactory',
@@ -214,6 +221,14 @@ define( function() {
         var self = this;
         CnBaseViewFactory.construct( this, parentModel, root );
         this.isComplete = false;
+        this.fileExists = false;
+
+        this.downloadReport = function () {
+          return CnHttpFactory.instance( {
+            path: 'apex_deployment/' + self.record.getIdentifier(),
+            format: 'jpeg'
+          } ).file();
+        };
 
         // transitions to the next available deployment for analysis
         this.transitionOnNextViewState = function() {
@@ -241,26 +256,37 @@ define( function() {
         } );
 
         this.onView = function( force ) {
+          self.isComplete = false;
+          self.fileExists = false;
           return this.$$onView( force ).then( function() {
             // do not allow exported deployments to be edited
             self.parentModel.getEditEnabled = null == self.record.status || 'exported' == self.record.status
                                             ? function() { return false; }
                                             : function() { return self.parentModel.$$getEditEnabled(); };
 
-            // set all code values to false then get the scan's codes
             return self.parentModel.metadata.getPromise().then( function() {
               self.isComplete = true;
               self.parentModel.metadata.codeTypeList.forEach( function( codeType ) {
                 self.record['codeType'+codeType.id] = false;
               } );
-              return CnHttpFactory.instance( {
-                path: 'apex_deployment/' + self.record.id + '/code',
-                data: { select: { column: [ 'code_type_id' ] } }
-              } ).query().then( function( response ) {
-                response.data.forEach( function( code ) {
-                  self.record['codeType'+code.code_type_id] = true;
-                } );
-              } );
+              return $q.all( [
+                // set all code values to false then get the scan's codes
+                CnHttpFactory.instance( {
+                  path: 'apex_deployment/' + self.record.getIdentifier() + '/code',
+                  data: { select: { column: [ 'code_type_id' ] } }
+                } ).query().then( function( response ) {
+                  response.data.forEach( function( code ) {
+                    self.record['codeType'+code.code_type_id] = true;
+                  } );
+                } ),
+
+                // determine whether the report is available
+                CnHttpFactory.instance( {
+                  path: 'apex_deployment/' + self.record.getIdentifier() + '?report=1'
+                } ).get().then( function( response ) {
+                  self.fileExists = response.data;
+                } )
+              ] );
             } );
           } );
         };
@@ -273,7 +299,7 @@ define( function() {
               return CnHttpFactory.instance( {
                 path: 'code',
                 data: {
-                  apex_deployment_id: self.record.id,
+                  apex_deployment_id: self.record.getIdentifier(),
                   code_type_id: codeTypeId,
                   user_id: CnSession.user.id
                 },
@@ -287,7 +313,7 @@ define( function() {
               } ).post()
             } else {
               return CnHttpFactory.instance( {
-                path: 'code/apex_deployment_id='+self.record.id+';code_type_id='+codeTypeId,
+                path: 'code/apex_deployment_id=' + self.record.getIdentifier() + ';code_type_id=' + codeTypeId,
                 onError: function( response ) {
                   // ignore 404 (code has already been deleted)
                   if( 404 != response.status ) {
@@ -339,16 +365,18 @@ define( function() {
   cenozo.providers.factory( 'CnApexDeploymentModelFactory', [
     'CnBaseModelFactory',
     'CnApexDeploymentAddFactory', 'CnApexDeploymentListFactory', 'CnApexDeploymentViewFactory',
-    'CnHttpFactory', '$q',
+    'CnSession', 'CnHttpFactory', '$q',
     function( CnBaseModelFactory,
               CnApexDeploymentAddFactory, CnApexDeploymentListFactory, CnApexDeploymentViewFactory,
-              CnHttpFactory, $q ) {
+              CnSession, CnHttpFactory, $q ) {
       var object = function( root ) {
         var self = this;
         CnBaseModelFactory.construct( this, module );
         this.addModel = CnApexDeploymentAddFactory.instance( this );
         this.listModel = CnApexDeploymentListFactory.instance( this );
         this.viewModel = CnApexDeploymentViewFactory.instance( this, root );
+
+        this.canDownloadReports = function() { return 3 <= CnSession.role.tier; };
 
         // extend getServiceData
         this.getServiceData = function( type, columnRestrictLists ) {

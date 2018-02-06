@@ -13,10 +13,13 @@ global $SETTINGS;
 $SETTINGS['general']['application_name'] = 'salix';
 $SETTINGS['general']['instance_name'] = $SETTINGS['general']['application_name'];
 $SETTINGS['general']['version'] = '2.2';
-$SETTINGS['general']['build'] = '4ddeeea';
+$SETTINGS['general']['build'] = '29dc4a1';
 
 // the location of salix internal path
 $SETTINGS['path']['APPLICATION'] = str_replace( '/settings.ini.php', '', __FILE__ );
+
+// the location of deployment reports (defaults to cenozo/doc/deployment_report)
+$settings['path']['DEPLOYMENT_REPORT'] = str_replace( 'settings.ini.php', 'doc/deployment_report', __FILE__ );
 
 // Salix does not use VOIP
 $SETTINGS['voip']['enabled'] = false;
