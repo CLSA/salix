@@ -269,8 +269,9 @@ foreach( $host_list as $name => $item )
 
 $scan_list = array();
 foreach( $host_list as $name => $host_item )
-(
+{
   $quota = $host_item['quota'];
+  $apex_host_id = $host_item['id'];
 
   $sql = sprintf(
     'SELECT uid, '.
@@ -298,12 +299,13 @@ foreach( $host_list as $name => $host_item )
     'AND d.import_datetime IS NULL '.
     'AND d.export_datetime IS NULL '.
     ( 0 == $quota ? 'AND priority=1 ' : '' ).
-    'AND h.name="%s"' ).
-    'ORDER BY uid, side, rank', $name );
+    'AND h.id=%d '.
+    'ORDER BY uid', $apex_host_id );
 
   $data_list = $db_salix->get_all( $sql );
 
-  if( 0 == count( $data_list ) ) continue;
+  if( false === $data_list || !is_array( $data_list ) ||
+    0 == count( $data_list ) ) continue;
 
   $current_uid = NULL;
   $priority_keys = array();
@@ -313,7 +315,7 @@ foreach( $host_list as $name => $host_item )
     $item = new dexa_scan(
       $data['uid'], $data['type'], $data['side'], $data['scan_type_id'],
       $data['rank'], $data['barcode'], $data['serial_number'],
-      $data['apex_scan_id'], $data['priority'], $data['apex_host_id'] );
+      $data['apex_scan_id'], $data['priority'], $apex_host_id );
 
     if( $item->uid != $current_uid )
     {
@@ -406,32 +408,39 @@ foreach( $scan_list as $name => $identifier_list )
     return 0;
   }
 
-  foreach( $identifier_list as $uid => $item )
+  $num_scp = 0;
+  $num_can = 0;
+  foreach( $identifier_list as $uid => $item_list )
   {
-    $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
-    if( NULL !== $filename )
+    foreach( $item_list as $item )
     {
-      // run gdcmconv -E -w the_file.dcm the_file.dcm
-      exec( sprintf( 'gdcmconv -E -w %s %s', $filename, $filename ) );
+      $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
+      $num_can++;
+      if( NULL !== $filename )
+      {
+        // run gdcmconv -E -w the_file.dcm the_file.dcm
+        exec( sprintf( 'gdcmconv -E -w %s %s', $filename, $filename ) );
 
-      // scp the_file.dcm to the host E:\InComing dir
-      $subpath = '';
-      if( 'none' == $side )
-        $subpath = sprintf( '%s/%s', $item->type, $item->barcode );
-      else
-        $subpath = sprintf( '%s/%s/%s', $item->type, $item->side, $item->barcode );
+        // scp the_file.dcm to the host E:\InComing dir
+        $subpath = '';
+        if( 'none' == $item->side )
+          $subpath = sprintf( '%s/%s', $item->type, $item->barcode );
+        else
+          $subpath = sprintf( '%s/%s/%s', $item->type, $item->side, $item->barcode );
 
-      $res = ssh_command( $host_address, 'mkdir /cygdrive/e/InComing/' . $subpath );
+        $res = ssh_command( $host_address, 'mkdir /cygdrive/e/InComing/' . $subpath );
 
-      $base = basename( $filename );
+        $base = basename( $filename );
 
-      $res = scp_command( $host_address, $filename, $subpath . '/' . $base );
+        $res = scp_command( $host_address, $filename, $subpath . '/' . $base );
 
-      $item->import_datetime = date( 'Y-m-d H:i:s' );
-      $item->copy_from = '/cygdrive/e/InComing/' . $subpath . '/' . $base;
-      $item->copy_to = '/cygdrive/e/ORIGINAL/' . $subpath . '/' . $base;
+        $item->import_datetime = date( 'Y-m-d H:i:s' );
+        $item->copy_from = '/cygdrive/e/InComing/' . $subpath . '/' . $base;
+        $item->copy_to = '/cygdrive/e/ORIGINAL/' . $subpath . '/' . $base;
 
-      unlink( $filename );
+        unlink( $filename );
+        $num_scp++;
+      }
     }
   }
 
@@ -472,55 +481,63 @@ foreach( $scan_list as $name => $identifier_list )
       "AND p.IDENTIFIER1='%s'";
 
   // reloop through this host's set of scan items
-  foreach( $identifier_list as $uid => $item )
+  $num_cmv = 0;
+  foreach( $identifier_list as $uid => $item_list )
   {
-    // query Apex SQL db
-    $sql = sprintf( $sql_str, $item->scan_type_id, $item->barcode );
-    $res = $db_dexa->get_row( $sql );
-    $filename = $item->get_basefile_name();
-
-    if( false === $res || '' == $res )
+    foreach( $item_list as $item )
     {
-      util::out( 'ERROR: failed to dicom transfer file ' . $filename );
-    }
-    else
-    {
-      $serial_number = $res['serial_number'];
-      $scanid = $res['scanid'];
-      $patient_key = $res['patient_key'];
-      $scan_datetime = $res['scan_datetime'];
+      // query Apex SQL db
+      $sql = sprintf( $sql_str, $item->scan_type_id, $item->barcode );
+      $res = $db_dexa->get_row( $sql );
+      $filename = $item->get_basefile_name();
 
-      $sql = sprintf(
-        'UPDATE apex_scan '.
-        'SET '.
-        'scan_datetime="%s", '.
-        'scanid="%s", '.
-        'patient_key="%s" '.
-        'WHERE id=%d ', $scan_datetime, $scanid, $patient_key, $item->apex_scan_id );
+      if( false === $res || '' == $res )
+      {
+        write_log( 'ERROR: failed to dicom transfer file ' . $filename );
+      }
+      else
+      {
+        $serial_number = $res['serial_number'];
+        $scanid = $res['scanid'];
+        $patient_key = $res['patient_key'];
+        $scan_datetime = $res['scan_datetime'];
 
-      $db_salix->execute( $sql );
+        $sql = sprintf(
+          'UPDATE apex_scan '.
+          'SET '.
+          'scan_datetime="%s", '.
+          'scanid="%s", '.
+          'patient_key="%s" '.
+          'WHERE id=%d ', $scan_datetime, $scanid, $patient_key, $item->apex_scan_id );
 
-      $sql = sprintf(
-        'UPDATE apex_deployment SET '.
-        'merged=0, status="pending", comp_scanid=NULL, analysis_datetime=NULL, import_datetime="%s" ) '.
-        'WHERE apex_host_id=%d '.
-        'AND apex_scan_id=%d',
-        $item->import_datetime, $item->apex_host_id, $item->apex_scan_id );
+        $db_salix->execute( $sql );
 
-      $db_salix->execute( $sql );
+        $sql = sprintf(
+          'UPDATE apex_deployment SET '.
+          'merged=0, status="pending", comp_scanid=NULL, analysis_datetime=NULL, import_datetime="%s" ) '.
+          'WHERE apex_host_id=%d '.
+          'AND apex_scan_id=%d',
+          $item->import_datetime, $item->apex_host_id, $item->apex_scan_id );
 
-      // copy the file on the host from InComing to ORIGINAL
-      // create the barcode subdirectory
-      $dir = '/cygdrive/e/ORIGINAL/' . $item->type . '/';
-      $dir .= ('none' == $side) ? $item->barcode : ( $item->side . '/' . $item->barcode);
-      $res = ssh_command( $host_address, 'mkdir -p ' . $dir );
-      $res = ssh_command( $host_address, sprintf( 'cp %s %s', $item->copy_from, $item->copy_to ) );
+        $db_salix->execute( $sql );
 
-      // remove the barcode sub-directory from InComing
-      $dir = str_replace( '/cygdrive/e/ORIGINAL/', '/cygdrive/e/InComing/', $dir );
-      $res = ssh_command( $host_address, 'rm -rf ' . $dir );
+        // copy the file on the host from InComing to ORIGINAL
+        // create the barcode subdirectory
+        $dir = '/cygdrive/e/ORIGINAL/' . $item->type . '/';
+        $dir .= ('none' == $item->side) ? $item->barcode : ( $item->side . '/' . $item->barcode);
+        $res = ssh_command( $host_address, 'mkdir -p ' . $dir );
+        $res = ssh_command( $host_address, sprintf( 'cp %s %s', $item->copy_from, $item->copy_to ) );
+
+        // remove the barcode sub-directory from InComing
+        $dir = str_replace( '/cygdrive/e/ORIGINAL/', '/cygdrive/e/InComing/', $dir );
+        $res = ssh_command( $host_address, 'rm -rf ' . $dir );
+
+        $num_cmv++;
+      }
     }
   }
+  write_log( sprintf( '%s: N candidates %d, N scp transfers %d, N verified %d',
+    $name, $num_can, $num_scp, $num_cmv ) );
 }
 
 write_log( 'done!');
