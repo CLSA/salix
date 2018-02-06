@@ -183,7 +183,7 @@ class dexa_scan
 
 if( $argc < 2 )
 {
-  util::out('ERROR: invalid args ' . implode( ',', $argv ) );
+  write_log('ERROR: invalid args ' . implode( ',', $argv ) );
   return 0;
 }
 $max_rank = $argv[1];
