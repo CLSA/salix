@@ -377,7 +377,7 @@ foreach( $verify_host_list as $name )
   $res = dgate_command( $host_address, '--echo:CONQUESTSRV1' );
   if( NULL === $res || ( false === strpos( $res, 'UP' ) ) )
   {
-    write_log( sprintf( 'ERROR: host dicom server (%s) is not running!' . $name ) );
+    write_log( sprintf( 'ERROR: host dicom server (%s) is not running!', $name ) );
     return 0;
   }
 
