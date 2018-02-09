@@ -514,7 +514,7 @@ foreach( $scan_list as $name => $identifier_list )
 
         $sql = sprintf(
           'UPDATE apex_deployment SET '.
-          'merged=0, status="pending", comp_scanid=NULL, analysis_datetime=NULL, import_datetime="%s" ) '.
+          'merged=0, status="pending", comp_scanid=NULL, analysis_datetime=NULL, import_datetime="%s" '.
           'WHERE apex_host_id=%d '.
           'AND apex_scan_id=%d',
           $item->import_datetime, $item->apex_host_id, $item->apex_scan_id );
