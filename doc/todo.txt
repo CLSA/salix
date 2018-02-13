@@ -1,1 +1,2 @@
 - scans with availability = 0 should not display in apex deployment and code list in UI
+- add counts in apex host list: pending, completed, exported
