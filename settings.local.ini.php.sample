@@ -21,7 +21,7 @@ $SETTINGS['db']['password'] = 'put your database password here';
 // the location of opal views in json format
 $SETTINGS['path']['OPAL_VIEWS'] = $SETTINGS['path']['APPLICATION'].'/aux/opal_views/json';
 
-// the location of deployment reports (defaults to cenozo/doc/form)
+// the location of deployment reports (defaults to salix/doc/deployment_report)
 $SETTINGS['path']['DEPLOYMENT_REPORT'] = '/path/to/deployment/reports';
 
 // the location of the SSH key file used to communicate with APEX hosts
