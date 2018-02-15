@@ -135,7 +135,7 @@ class dexa_scan
     $opal_source->send( $link, array( 'output' => $filename ) );
 
     // verify the file is non-empty
-    if( !file_exists( $filename ) )
+    if( !file_exists( $filename ) || 0 == filesize( $filename ) )
     {
       write_log( 'WARNING: requested file failed to download' );
       $filename = NULL;
