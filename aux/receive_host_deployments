@@ -180,7 +180,7 @@ foreach( $dexa_data as $scan_type_id => $items )
   $type = $type_data['type'];
   $side = $type_data['side'];
   $str = $ssh_pre . 'ls -l --time-style="long-iso" -d -1 /cygdrive/e/ORIGINAL/' . $type;
-  $str .= ('none' == $side ) ? '/*/*.dcm | ' : ('/' . $side . '/*/*.dcm | ');
+  $str .= ('none' == $side ) ? '/*/*.dcm 2>/dev/null | ' : ('/' . $side . '/*/*.dcm 2>/dev/null | ');
   $str .= "grep -E '[1-9]{1}[0-9]{7}' | ";
   $str .= "awk '{print $6" . '" "$7" "$8 }'. "'";
 

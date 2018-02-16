@@ -74,9 +74,10 @@ if( $last_completed_rank < $rank )
 {
   if( null === $date )
   {
-    // use yesterday's date
+    // use date from 3 weeks ago to allow
+    // for delayed interview exports to Opal
     $date_obj = new DateTime();
-    $date_obj->sub( new DateInterval( 'P1D' ) );
+    $date_obj->sub( new DateInterval( 'P3W' ) );
     $date = $date_obj->format( 'Y-m-d' );
   }
   $opal_curl->set_date( $date );

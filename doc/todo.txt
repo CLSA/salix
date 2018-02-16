@@ -1,1 +1,10 @@
 - scans with availability = 0 should not display in apex deployment and code list in UI
+- add counts in apex host list: pending, completed, exported
+- remove UI Add / create deployment: deployments can only be
+  created by the nightly cron script which downloads and validates
+  scans by dicom tag content (scans are re-downloaded and sent
+  to the deployment host in another scripted procedure)
+- correct timezone of scan datetimes: the serial number, which
+  represents a physical dexa machine, and hence, a site location
+  is known so it is possible to change the default EDT to the
+  correct timezone of the site

@@ -1,0 +1,278 @@
+#!/usr/bin/php
+<?php
+/**
+ * receive_exports.php
+ *
+ * A script that scans e:/OutGoing/* on APEX hosts
+ * to recover export filenames and then update the apex_deployment
+ * status, export_datetime and export_filename columns
+ *
+ *
+ * @author Dean Inglis <inglisd@mcmaster.ca>
+ */
+
+chdir( dirname( __FILE__ ).'/../' );
+require_once 'settings.ini.php';
+require_once 'settings.local.ini.php';
+require_once $SETTINGS['path']['CENOZO'].'/src/initial.class.php';
+$initial = new \cenozo\initial();
+$settings = $initial->get_settings();
+
+define( 'DB_SERVER', $settings['db']['server'] );
+define( 'DB_PREFIX', $settings['db']['database_prefix'] );
+define( 'DB_USERNAME', $settings['db']['username'] );
+define( 'DB_PASSWORD', $settings['db']['password'] );
+define( 'USER', $settings['utility']['username'] );
+define( 'APEX_SSH_KEY', $settings['apex']['apex_ssh_key'] );
+
+// a lite mysqli wrapper
+require_once( $settings['path']['APPLICATION'].'/../php_util/database.class.php' );
+
+// function for writing to the log
+function write_log( $message )
+{
+  file_put_contents(
+    LOG_FILE_PATH,
+    sprintf( "%s  [cron] <%s> %s\n\n", date( 'Y-m-d (D) H:i:s' ), USER, $message ),
+    FILE_APPEND
+  );
+}
+
+// ssh args: apex host address, command arg
+function ssh_command( $address, $arg )
+{
+  return trim( shell_exec( sprintf(
+    'ssh -i ' . APEX_SSH_KEY . ' clsa@%s %s', $address, $arg ) ) );
+}
+
+function is_dicom( $var )
+{
+  return( '.dcm' == substr( $var, -4 ) );
+}
+
+$gdcm_functions = array (
+    'BODYPART' =>
+    "/cygdrive/e/GDCM_2.6/bin/gdcmdump -d %s | grep -E '\(0018,0015\)' | awk '{print $4}'",
+    'MODALITY' =>
+    "/cygdrive/e/GDCM_2.6/bin/gdcmdump -d %s | grep -E '\(0008,0060\)' | awk '{print $4}'",
+    'PATIENT_SEX' =>
+    "/cygdrive/e/GDCM_2.6/bin/gdcmdump -d %s | grep -E '\(0010,0040\)' | awk '{print $4}'",
+    'PATIENT_DOB' =>
+    "/cygdrive/e/GDCM_2.6/bin/gdcmdump -d %s | grep -E '\(0010,0030\)' | awk '{print $4}'",
+    'STUDY_DATE' =>
+    "/cygdrive/e/GDCM_2.6/bin/gdcmdump -d %s | grep -E '\(0008,0020\)' | awk '{print $4}'",
+    'STUDY_TIME' =>
+    "/cygdrive/e/GDCM_2.6/bin/gdcmdump -d %s | grep -E '\(0008,0030\)' | awk '{print $4}'",
+    'SERIAL_NUMBER' =>
+    "/cygdrive/e/GDCM_2.6/bin/gdcmdump -d %s | grep -E '\(0008,1090\)' | awk '{print $4$5$6}'",
+    'LATERALITY' =>
+    "/cygdrive/e/GDCM_2.6/bin/gdcmdump -d %s | grep -E '\(0020,0060\)' | awk '{print $4}'",
+    'PATIENTID' =>
+    "/cygdrive/e/GDCM_2.6/bin/gdcmdump -d %s | grep -E '\(0010,0020\)' | awk '{print $4}'" );
+
+$db_salix = '';
+try
+{
+  $db_salix = new database(
+    DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+}
+catch( Exception $e )
+{
+  write_log( $e->getMessage() );
+  return 0;
+}
+
+$export_limit = 100;
+if( 2 == $argc )
+{
+  $export_limit = $argv[1];
+}
+
+$sql = 'SELECT * FROM apex_host';
+$host_list = $db_salix->get_all( $sql );
+foreach( $host_list as $host_item )
+{
+  $apex_host_id = $host_item['id'];
+  $host_address = $host_item['host'];
+
+  // get completed deployments
+  $sql = sprintf(
+    'SELECT d.id as apex_deployment_id, '.
+    'IF( side="none", '.
+    '  CONCAT_WS( "/", "/cygdrive/e/OutGoing", type, barcode ), '.
+    '  CONCAT_WS( "/", "/cygdrive/e/OutGoing", type, side, barcode ) ) AS path, '.
+    'barcode, '.
+    'rank, '.
+    'type, '.
+    'side, '.
+    'DATE(scan_datetime) AS scan_date, '.
+    'DATE_FORMAT(scan_datetime, "%%H:%%i") AS scan_time, '.
+    'n.id AS serial_number, '.
+    'DATE(b.dob) AS dob, '.
+    'b.sex, '.
+    'b.id AS apex_baseline_id '.
+    'FROM apex_deployment d '.
+    'JOIN apex_host h ON h.id=d.apex_host_id '.
+    'JOIN apex_scan s ON s.id=d.apex_scan_id '.
+    'JOIN apex_exam e ON e.id=s.apex_exam_id '.
+    'JOIN serial_number n ON n.id=e.serial_number_id '.
+    'JOIN scan_type t ON t.id=s.scan_type_id '.
+    'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
+    'WHERE status="completed" '.
+    'AND s.availability=1 '.
+    'AND s.scan_datetime IS NOT NULL '.
+    'AND h.id=%d '.
+    'ORDER BY type, side', $apex_host_id );
+
+  $deployment_list = $db_salix->get_all( $sql );
+  $num_export = 0;
+  if( false === $deployment_list || !is_array( $deployment_list ) ||
+   0 == count( $deployment_list ) )
+  {
+    write_log( sprintf( 'found  0 completed deployments on %s', $host_item['name'] ) );
+    write_log( $sql );
+    continue;
+  }
+
+  foreach( $deployment_list as $deployment_item )
+  {
+    $path = $deployment_item['path'];
+    // get the file create timestamps
+    $res = ssh_command( $host_address, sprintf(
+      'ls -l --time-style="long-iso" -d -1 %s/*.dcm 2>/dev/null | '.
+      "grep -E '[1-9]{1}[0-9]{7}' | ".
+      "awk '{print $6" . '" "$7" "$8 }'. "'", $path ) );
+
+    $type = $deployment_item['type'];
+    $side = $deployment_item['side'];
+    $rank = $deployment_item['rank'];
+    $barcode = $deployment_item['barcode'];
+    $baseline_barcode = null;
+
+    if( false === $res || !is_array( $res ) ||
+      0 == count( $res ) )
+    {
+      // try an alternate path based on baseline barcode
+      $rank = $deployment_item['rank'];
+      if( 1 < $rank )
+      {
+        $apex_baseline_id = $deployment_item['apex_baseline_id'];
+        $sql = sprintf(
+          'SELECT DISTINCT barcode '.
+          'FROM apex_exam e '.
+          'JOIN apex_scan s ON e.id=s.apex_exam_id '.
+          'JOIN scan_type t ON t.id=s.scan_type_id '.
+          'JOIN apex_deployment d ON s.id=d.apex_scan_id '.
+          'JOIN apex_host h ON h.id=d.apex_host_id '.
+          'WHERE rank=1 '.
+          'AND s.availability=1 '.
+          'AND h.id=%d '.
+          'AND type="%s" '.
+          'AND side="%s" '.
+          'AND apex_baseline_id=%d', $apex_host_id, $type, $side, $apex_baseline_id );
+
+        $baseline_barcode = $db_salix->get_one( $sql );
+        if( false !== $baseline_barcode && '' != $baseline_barcode )
+        {
+          $path = 'none' == $side ?
+            sprintf( '/cygdrive/e/OutGoing/%s/%s', $type, $baseline_barcode ) :
+            sprintf( '/cygdrive/e/OutGoing/%s/%s/%s', $type, $side, $baseline_barcode );
+
+          util::out( 'building alternate path: ' . $path );
+
+          $res = ssh_command( $host_address, sprintf(
+            'ls -l --time-style="long-iso" -d -1 %s/*.dcm 2>/dev/null | '.
+            "grep -E '[1-9]{1}[0-9]{7}' | ".
+            "awk '{print $6" . '" "$7" "$8 }'. "'", $path ) );
+        }
+      }
+    }
+
+    // search through the results and find a match
+    $res = array_filter( explode( PHP_EOL, $res ), 'is_dicom' );
+    $export_filename = null;
+    $export_datetime = null;
+    foreach( $res as $data )
+    {
+      $file_date = trim(substr( $data, 0, 10 ));
+      $file_time = trim(substr( $data, 11, 5 ));
+      $file_name = explode( ' ', $data );
+      $file_name = array_pop( $file_name );
+      $parts = explode( '/', $file_name );
+
+      // verify the current file is the one we want
+      $win_file = str_replace( '/cygdrive/e/', 'E:', $file_name );
+      $file_barcode = $parts[4];
+
+      // get the patient ID
+      $str_id = ssh_command( $host_address, sprintf( $gdcm_functions['PATIENTID'], $win_file ) );
+      if( $file_barcode != $str_id )
+      {
+        if( !( $barcode == $str_id || $baseline_barcode != $str_id ) ) continue;
+      }
+
+      // get the DOB
+      $str_dob = ssh_command( $host_address, sprintf( $gdcm_functions['PATIENT_DOB'], $win_file ) );
+      $str_dob = sprintf( '%s-%s-%s',
+        substr($str_dob,0,4),
+        substr($str_dob,4,2),
+        substr($str_dob,-2) );
+      if( $deployment_item['dob'] != $str_dob ) continue;
+
+      // get the sex
+      $str_sex = ssh_command( $host_address, sprintf( $gdcm_functions['PATIENT_SEX'], $win_file ) );
+      if( $deployment_item['sex'] != $str_sex ) continue;
+
+      // get the study date
+      $str_date = ssh_command( $host_address, sprintf( $gdcm_functions['STUDY_DATE'], $win_file ) );
+      $str_date = sprintf( '%s-%s-%s',
+        substr($str_date,0,4),
+        substr($str_date,4,2),
+        substr($str_date,-2) );
+      if( $deployment_item['scan_date'] != $str_date ) continue;
+
+      // get the study time truncated to minutes
+      $str_time = ssh_command( $host_address, sprintf( $gdcm_functions['STUDY_DATE'], $win_file ) );
+      $str_time = sprintf( '%s-%s',
+        substr($str_time,0,4),
+        substr($str_time,4,2) );
+      if( $deployment_item['scan_time'] != $str_time ) continue;
+
+      // get the serial number
+      $str_serial = ssh_command( $host_address, sprintf( $gdcm_functions['SERIAL_NUMBER'], $win_file ) );
+      $str_serial = preg_replace( '/[^0-9]/', '', $str_serial );
+      if( $deployment_item['serial_number'] != $str_serial ) continue;
+
+      // get the body part
+      $str_body = ssh_command( $host_address, sprintf( $gdcm_functions['BODYPART'], $win_file ) );
+      if( 'ARM' == $str_body && 'forearm' != $type  ) continue;
+      else if( 'HIP' == $str_body && 'hip' != $type  ) continue;
+      else if( 'LSPINE' == $str_body && !($type == 'lateral' || $type == 'spine') ) continue;
+
+      if( 'ARM' == $str_body || 'HIP' == $str_body )
+      {
+        // get the laterality
+        $str_side = ssh_command( $host_address, sprintf( $gdcm_functions['LATERALITY'], $win_file ) );
+        if( ('left' == $side ? 'L' : 'R')  != $str_side ) continue;
+      }
+
+      $export_filename = $file_name;
+      $export_datetime = sprintf('%s %s:00', $file_date, $file_time );
+    }
+    if( null !== $export_filename && null !== $export_datetime )
+    {
+      $sql = sprintf(
+        'UPDATE apex_deployment SET '.
+        'status="exported", '.
+        'export_datetime="%s", '.
+        'export_filename="%s" '.
+        'WHERE id=%d', $export_datetime, $export_filename, $deployment_item['apex_deployment_id'] );
+      if( false !== $db_salix->execute( $sql ) ) $num_export++;
+    }
+    if( $num_export >= $export_limit ) break;
+  }
+  write_log( sprintf( 'found %d exports of %d completed deployments on %s',
+    $num_export, count( $deployment_list ), $host_item['name'] ) );
+}
+
+return 1;

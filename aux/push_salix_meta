@@ -321,7 +321,7 @@ foreach( $res as $res_salix )
   }
 }
 
-write_log( 'number of records processed: ' . $total );
+write_log( sprintf( 'number of %s records processed: %d', $dexa_host, $total ) );
 write_log( 'number of host patient records updated: ' . $num_patient_updated );
 write_log( 'number of host patient items updated: ' . $num_patient_item_updated );
 write_log( 'number of host analysis records updated: ' . $num_analysis_updated );
