@@ -99,7 +99,7 @@ class dexa_scan
     $opal_source->send( $link, array( 'output' => $filename ) );
 
     // verify the file is non-empty
-    if( !file_exists( $filename ) )
+    if( !file_exists( $filename ) || 0 == filesize( $filename ) )
     {
       write_log( 'WARNING: requested file failed to download' );
       $filename = NULL;
@@ -265,12 +265,12 @@ $sql = sprintf(
   'JOIN scan_type t ON s.scan_type_id=t.id '.
   'JOIN serial_number n ON e.serial_number_id=n.id '.
   'JOIN apex_baseline b ON e.apex_baseline_id=b.id '.
-  'JOIN ' . DB_PREFIX . 'cenozo.participant p ON b.participant_id=p.id '.
+  'JOIN %scenozo.participant p ON b.participant_id=p.id '.
   'LEFT JOIN apex_deployment d ON d.apex_scan_id=s.id '.
   'WHERE s.availability=1 '.
   'AND rank<=%d '.
   'AND type IN ("hip","wbody") '. // currently only allow hip and wbody scans
-  'ORDER BY uid, side, rank', $max_rank );
+  'ORDER BY uid, side, rank', DB_PREFIX, $max_rank );
 
 $data_list = $db_salix->get_all( $sql );
 $current_uid = NULL;
@@ -294,6 +294,8 @@ foreach( $data_list as $data )
   if( 1 == $item->priority ) $priority_keys[] = $item->uid;
 }
 
+// bump priority scans to the head of the list
+//
 if( 0 < count( $priority_keys ) )
 {
   $priority_keys = array_unique( $priority_keys );
@@ -326,7 +328,15 @@ foreach( $scan_list as $uid => $item_list )
     {
       // wbody scans are sent directly to the priority host
       if( 1 == $item->priority && NULL === $item->apex_host_id )
-        $priority_list[] = $item;
+      {
+        // validate undeployed scans
+        $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
+        if( NULL !== $filename && false === $item->validate( $filename ) )
+        {
+          $priority_list[] = $item;
+          unlink( $filename );
+        }
+      }
     }
   }
 
@@ -340,20 +350,18 @@ foreach( $scan_list as $uid => $item_list )
     $has_priority = false;
     if( 1 < count( $side_item_list ) )
     {
-      // validate scans that have never been assigned to a deployment
+      // validate undeployed scans
       foreach( $side_item_list as $item )
       {
-        if( 1 == $item->priority ) $has_priority = true;
         if( NULL === $item->apex_host_id )
         {
           $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
-          if( NULL !== $filename )
+          if( NULL !== $filename &&
+              false === $item->validate( $filename ) )
           {
-            if( false === $item->validate( $filename ) )
-            {
-              $current_list[] = $item;
-              $rank_list[] = $item->rank;
-            }
+            $current_list[] = $item;
+            $rank_list[] = $item->rank;
+            if( 1 == $item->priority ) $has_priority = true;
             unlink( $filename );
           }
         }
@@ -362,44 +370,56 @@ foreach( $scan_list as $uid => $item_list )
           $current_list[] = $item;
           $host_id_list[] = $item->apex_host_id;
           $rank_list[] = $item->rank;
+          if( 1 == $item->priority ) $has_priority = true;
         }
       }
     }
 
-    // there are enough scans to perform grouped analysis
-    if( 1 < count( $rank_list ) )
+    // group for comparison analysis
+    // verify ranks as sequentially complete
+    $uq_rank_list = array_unique( $rank_list );
+    sort( $uq_rank_list );
+    if( $max_rank == count( $uq_rank_list ) &&
+        $max_rank == max( $uq_rank_list ) )
     {
-      // verify the set of ranks is sequentially complete
-      $rank_list = array_unique( $rank_list );
-      sort( $rank_list );
-      if( $max_rank == count( $rank_list ) &&
-          $max_rank == max( $rank_list ) )
+      $found = true;
+      // enforce host uniformity: supercedes priority host deployment
+      if( 0 < count( $host_id_list ) )
       {
-        // enforce deployment uniformity which supercedes priority
-        // deployment to the preferred host
-        if( 0 < count( $host_id_list ) )
+        $uq_host_id_list = array_unique( $host_id_list );
+        // single unique host id
+        if( 1 == count( $uq_host_id_list ) )
         {
-          $host_id = current( array_unique( $host_id_list ) );
+          $host_id = current( $uq_host_id_list );
           foreach( $current_list as $item )
           {
-            if( $host_id != $item->apex_host_id )
+            if( NULL === $item->apex_host_id )
             {
               $item->apex_host_id = $host_id;
               $pending_list[] = $item;
             }
           }
         }
-        else // none of the scans are deployed
+        else
         {
+          $repeat_list = array();
           foreach( $current_list as $item )
           {
-            // keep prioritized scans and their siblings grouped on the same host
-            $item->apex_host_id = $has_priority ? $priority_host_id : NULL;
+            $repeat_list[] = $item->apex_scan_id;
           }
-          $pending_list = array_merge( $pending_list, $current_list );
+          $repeat_list = array_unique( $repeat_list );
+          write_log( sprintf( 'WARNING: %d repeat %s hip deployments (%s)',
+            count( $host_id_list ), $side, implode( ',', $repeat_list ) ) ) );
         }
-
-        $found = true;
+      }
+      else // none of the scans are deployed
+      {
+        foreach( $current_list as $item )
+        {
+          // keep prioritized scans and their siblings grouped on the same host
+          $item->apex_host_id = $has_priority ? $priority_host_id : NULL;
+        }
+        $pending_list = array_merge( $pending_list, $current_list );
       }
     }
 
@@ -420,27 +440,44 @@ foreach( $host_list as $name => $data )
 {
   $quota = intval( round( $data['allocation']*$total, 0 ) );
   $last_total -= $quota;
-  if( $last_total < 0 ) $quota -= abs( $last_total);
+  if( $last_total < 0 ) $quota -= abs( $last_total );
   $allocation_list[$name] = $quota;
   write_log( $name . ' to receive ' . $quota . ' of ' . $total );
 }
 
+// assign scans by quota for each host
+// maintain groupings by uid
+//
 foreach( $allocation_list as $name => $quota )
 {
   $target = $quota;
   $apex_host_id = $host_list[$name]['id'];
   $current_list = array();
-  // recover scans pre-determined for current host
+  $uid_list = array()
   foreach( $pending_list as $idx => $item )
   {
     if( $apex_host_id == $item->apex_host_id )
     {
       $current_list[] = $item;
+      $uid_list[] = $item->uid;
+      unset( $pending_list[$idx] );
+      $target--;
+    }
+    if( 0 == $target ) break;
+  }
+  $uid_list = array_unique( $uid_list );
+  foreach( $pending_list as $idx => $item )
+  {
+    if( $apex_host_id == $item->apex_host_id &&
+        in_array( $item->uid, $uid_list ) )
+    {
+      $current_list[] = $item;
       unset( $pending_list[$idx] );
     }
   }
-  $target -= count( $current_list );
-  // fill the remaining quota
+
+  $target = count( $current_list ) - $quota;
+  // fill the remaining quota with any unassigned items
   if( $target > 0 )
   {
     foreach( $pending_list as $idx => $item )
@@ -464,6 +501,8 @@ foreach( $allocation_list as $name => $quota )
   write_log( 'host ' . $name . ' received ' . count( $current_list ) . ' of quota ' . $quota );
 }
 
+// priotry list of whole body scans
+//
 foreach( $priority_list as $item )
 {
   $sql = sprintf(

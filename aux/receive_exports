@@ -3,8 +3,8 @@
 /**
  * receive_exports.php
  *
- * A script scan e:/OutGoing/* on the APEX hosts
- * to recover export filenames and update the apex_deployment
+ * A script that scans e:/OutGoing/* on APEX hosts
+ * to recover export filenames and then update the apex_deployment
  * status, export_datetime and export_filename columns
  *
  *
@@ -82,6 +82,12 @@ catch( Exception $e )
   return 0;
 }
 
+$export_limit = 100;
+if( 2 == $argc )
+{
+  $export_limit = $argv[1];
+}
+
 $sql = 'SELECT * FROM apex_host';
 $host_list = $db_salix->get_all( $sql );
 foreach( $host_list as $host_item )
@@ -127,7 +133,7 @@ foreach( $host_list as $host_item )
     write_log( $sql );
     continue;
   }
-  
+
   foreach( $deployment_list as $deployment_item )
   {
     $path = $deployment_item['path'];
@@ -168,7 +174,7 @@ foreach( $host_list as $host_item )
         $baseline_barcode = $db_salix->get_one( $sql );
         if( false !== $baseline_barcode && '' != $baseline_barcode )
         {
-          $path = 'none' == $side ? 
+          $path = 'none' == $side ?
             sprintf( '/cygdrive/e/OutGoing/%s/%s', $type, $baseline_barcode ) :
             sprintf( '/cygdrive/e/OutGoing/%s/%s/%s', $type, $side, $baseline_barcode );
 
@@ -263,6 +269,7 @@ foreach( $host_list as $host_item )
         'WHERE id=%d', $export_datetime, $export_filename, $deployment_item['apex_deployment_id'] );
       if( false !== $db_salix->execute( $sql ) ) $num_export++;
     }
+    if( $num_export >= $export_limit ) break;
   }
   write_log( sprintf( 'found %d exports of %d completed deployments on %s',
     $num_export, count( $deployment_list ), $host_item['name'] ) );

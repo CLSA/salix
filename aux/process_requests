@@ -1,0 +1,250 @@
+#!/usr/bin/php
+<?php
+/**
+ * process_requests.php
+ *
+ * A script that builds redacted jpg reports from dexa hip and wbody scans.
+ * Scans marked as 'priority' are scp'd off the host if a deployment
+ * exists for the scan that has its status as 'exported' and export_filename non-null.
+ * The patient ID and dob fields in the report image are redacted and a custom
+ * disclaimer box is overlaid near the bottom of the report (using imagemagick API).
+ *
+ *
+ * @author Dean Inglis <inglisd@mcmaster.ca>
+ */
+
+chdir( dirname( __FILE__ ).'/../' );
+require_once 'settings.ini.php';
+require_once 'settings.local.ini.php';
+require_once $SETTINGS['path']['CENOZO'].'/src/initial.class.php';
+$initial = new \cenozo\initial();
+$settings = $initial->get_settings();
+
+define( 'DB_SERVER', $settings['db']['server'] );
+define( 'DB_PREFIX', $settings['db']['database_prefix'] );
+define( 'DB_USERNAME', $settings['db']['username'] );
+define( 'DB_PASSWORD', $settings['db']['password'] );
+
+define( 'IMAGE_PATH', $settings['path']['TEMPORARY_FILES'] );
+define( 'USER', $settings['utility']['username'] );
+define( 'APEX_SSH_KEY', $settings['apex']['apex_ssh_key'] );
+define( 'REPORT_PATH', $settings['path']['DEPLOYMENT_REPORT'] );
+
+// a lite mysqli wrapper
+require_once( $settings['path']['APPLICATION'].'/../php_util/database.class.php' );
+
+// function for writing to the log
+function write_log( $message )
+{
+  file_put_contents(
+    LOG_FILE_PATH,
+    sprintf( "%s  [cron] <%s> %s\n\n", date( 'Y-m-d (D) H:i:s' ), USER, $message ),
+    FILE_APPEND
+  );
+}
+
+// scp args: apex host address, outgoing source file, destination file
+function scp_command( $address, $source, $destination )
+{
+  return trim( shell_exec( sprintf(
+    'scp -i ' . APEX_SSH_KEY .
+    ' clsa@%s:%s %s', $address, $source, $destination ) ) );
+}
+
+class rectangle {
+  function __construct( $x0, $y0, $x1, $y1 )
+  {
+    $this->x0 = $x0;
+    $this->x1 = $x1;
+    $this->y0 = $y0;
+    $this->y1 = $y1;
+  }
+
+  public $x0;
+  public $y0;
+  public $x1;
+  public $y1;
+}
+
+class dexa_scan {
+  function __construct( $uid, $type, $rank, $filename, $apex_deployment_id )
+  {
+    self::region_list();
+    self::label_list();
+
+    $this->uid = $uid;
+    $this->apex_deployment_id = $apex_deployment_id;
+    $this->type = $type;
+    $this->rank = $rank;
+    $this->filename = $filename;
+  }
+
+  public function process( $host_address, $temp_path, $save_path )
+  {
+    // get the dicom file off the host
+    $temp_file = sprintf( '%s%s', $temp_path, basename( $this->filename ) );
+
+    scp_command( $host_address, $this->filename, $temp_file );
+    sleep(5);
+    if( !file_exists( $temp_file ) ) return;
+    if( 100 > filesize( $temp_file ) )
+    {
+      unlink( $temp_file );
+      return;
+    }
+
+    $out_file = sprintf( '%s%d.jpg', $save_path, $this->apex_deployment_id );
+
+    $cmd = sprintf( 'convert %s ', $temp_file );
+    // redact the image Patient ID and DOB fields
+    if( array_key_exists( $this->type, static::$region_list ) )
+    {
+      $cmd .= '-flip -fill "rgb(222,222,222)" ';
+      $region_type_list = static::$region_list[$this->type];
+      foreach( $region_type_list as $idx => $rectangle )
+      {
+        $cmd .= sprintf(
+          '-draw "rectangle %d,%d,%d,%d" ',
+          $rectangle->x0, $rectangle->y0, $rectangle->x1, $rectangle->y1 );
+      }
+      // generate a unique disclaimer label
+      $cmd .= '-flip ';
+      if( array_key_exists( $this->type, static::$label_list ) )
+      {
+        $rectangle = static::$label_list[$this->type];
+        $cmd .= sprintf(
+          '-fill red -draw "rectangle %d,%d,%d,%d" ',
+          $rectangle->x0-4,$rectangle->y0-4,
+          $rectangle->x1+2,$rectangle->y1+2 );
+
+        $cmd .= sprintf(
+          '-fill white -draw "rectangle %d,%d,%d,%d" ',
+          $rectangle->x0-2,$rectangle->y0-2,
+          $rectangle->x1,$rectangle->y1 );
+
+        $caption = sprintf( static::$disclaimer, $this->uid, strtoupper( date( 'j-M-Y' ) ) );
+        $cmd .= sprintf(
+          '\( -background white -fill red -font Helvetica-Bold '.
+          '-pointsize 25 -size %dx%d -interline-spacing 7 -gravity NorthWest caption:"%s" \) ',
+          $rectangle->x1-$rectangle->x0+1,
+          $rectangle->y1-$rectangle->y0+1,
+          $caption );
+        $cmd .= sprintf( '-compose Over -geometry +%d+%d -composite ',
+          $rectangle->x0, $rectangle->y0 );
+      }
+    }
+
+    $cmd .= sprintf( '%s', $out_file );
+    $res = shell_exec( $cmd );
+    unlink( $temp_file );
+  }
+
+  public static $region_list = null;
+  public static $label_list = null;
+  public static $disclaimer =
+    'These tests were conducted for research purposes only; '.
+    'these results should not be used as the basis for '.
+    'clinical diagnosis or treatment.\nThese results have '.
+    'been released to Participant %s on %s at their request.\n ';
+
+  public static function label_list()
+  {
+    if( null == self::$label_list )
+    {
+      self::$label_list = array(
+        'hip'=> new rectangle(62,1671,1138,1785),
+        'wbody'=> new rectangle(62,1195,426,1504) );
+    }
+  }
+
+  public static function region_list()
+  {
+    if( null == self::$region_list )
+    {
+      self::$region_list = array(
+        'hip'=>array(
+          new rectangle(170,1614,248,1589),
+          new rectangle(170,1383,248,1358) ),
+        'wbody'=>array(
+          new rectangle(170,1369,248,1344),
+          new rectangle(170,1138,248,1113) ) );
+    }
+  }
+
+  public $uid;
+  public $type;
+  public $filename;
+  public $apex_deployment_id;
+}
+
+$db_salix = '';
+try
+{
+  $db_salix = new database(
+    DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+}
+catch( Exception $e )
+{
+  write_log( $e->getMessage() );
+  return 0;
+}
+
+$sql = 'SELECT * FROM apex_host';
+$host_list = $db_salix->get_all( $sql );
+foreach( $host_list as $host_item )
+{
+  $num_processed = 0;
+  $apex_host_id = $host_item['id'];
+  $host_address = $host_item['host'];
+  // get all the exported priority scans
+  $sql = sprintf(
+    'SELECT d.id AS apex_deployment_id, '.
+    'type, '.
+    'rank, '.
+    'barcode, '.
+    'uid, '.
+    'export_filename '.
+    'FROM apex_deployment d '.
+    'JOIN apex_host h ON h.id=d.apex_host_id '.
+    'JOIN apex_scan s ON s.id=d.apex_scan_id '.
+    'JOIN scan_type t ON t.id=s.scan_type_id '.
+    'JOIN apex_exam e ON e.id=s.apex_exam_id '.
+    'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
+    'JOIN %scenozo.participant p ON p.id=b.participant_id '.
+    'WHERE availability=1 '.
+    'AND export_filename IS NOT NULL '.
+    'AND status="exported" '.
+    'AND priority=1 '.
+    'AND h.id=%d '.
+    'ORDER BY uid', DB_PREFIX, $apex_host_id );
+
+  $file_list = $db_salix->get_all( $sql );
+  if( false === $file_list || !is_array( $file_list ) ||
+    0 == count( $file_list ) ) continue;
+
+  $scan_list = array();
+  foreach( $file_list as $file_item )
+  {
+    $type = $file_item['type'];
+    $scan_list[$type][] = new dexa_scan(
+      $file_item['uid'],
+      $type,
+      $file_item['rank'],
+      $file_item['export_filename'],
+      $file_item['apex_deployment_id'] );
+  }
+
+  foreach( $scan_list as $type=>$item_list)
+  {
+    foreach( $item_list as $item)
+    {
+      $res = $item->process( $host_item['host'], IMAGE_PATH, REPORT_PATH );
+      if( false !== $res ) $num_processed++;
+    }
+  }
+  if( 0 < $num_processed )
+    write_log( sprintf( 'procssed %d priority scans from host %s',
+      $num_processed, $host_item['name'] ) );
+}
+
+return 1;
