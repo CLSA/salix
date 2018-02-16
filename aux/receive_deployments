@@ -409,7 +409,7 @@ foreach( $scan_list as $uid => $item_list )
           }
           $repeat_list = array_unique( $repeat_list );
           write_log( sprintf( 'WARNING: %d repeat %s hip deployments (%s)',
-            count( $host_id_list ), $side, implode( ',', $repeat_list ) ) ) );
+            count( $host_id_list ), $side, implode( ',', $repeat_list ) ) );
         }
       }
       else // none of the scans are deployed
@@ -453,7 +453,8 @@ foreach( $allocation_list as $name => $quota )
   $target = $quota;
   $apex_host_id = $host_list[$name]['id'];
   $current_list = array();
-  $uid_list = array()
+  $uid_list = array();
+  // get all of the assigned deployments
   foreach( $pending_list as $idx => $item )
   {
     if( $apex_host_id == $item->apex_host_id )
@@ -465,32 +466,36 @@ foreach( $allocation_list as $name => $quota )
     }
     if( 0 == $target ) break;
   }
-  $uid_list = array_unique( $uid_list );
-  foreach( $pending_list as $idx => $item )
+  if( 0 < $target )
   {
-    if( $apex_host_id == $item->apex_host_id &&
-        in_array( $item->uid, $uid_list ) )
-    {
-      $current_list[] = $item;
-      unset( $pending_list[$idx] );
-    }
-  }
-
-  $target = count( $current_list ) - $quota;
-  // fill the remaining quota with any unassigned items
-  if( $target > 0 )
-  {
+    // add in unassigned items
     foreach( $pending_list as $idx => $item )
     {
       if( NULL === $item->apex_host_id )
       {
+        $item->apex_host_id = $apex_host_id;
         $current_list[] = $item;
+        $uid_list[] = $item->uid;
         unset( $pending_list[$idx] );
         $target--;
       }
       if( 0 == $target ) break;
     }
   }
+  // maintain grouping by uid
+  $uid_list = array_unique( $uid_list );
+  foreach( $pending_list as $idx => $item )
+  {
+    if( in_array( $item->uid, $uid_list ) &&
+        NULL === $item->apex_host_id ||
+        $apex_host_id == $item->apex_host_id )
+    {
+      $item->apex_host_id = $apex_host_id;
+      $current_list[] = $item;
+      unset( $pending_list[$idx] );
+    }
+  }
+
   foreach( $current_list as $item )
   {
     $sql = sprintf(

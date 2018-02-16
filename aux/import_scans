@@ -226,7 +226,7 @@ class dexa_scan
 $allocation_limit = 100;
 if( 2 == $argc )
 {
-  $allocation_limit = $argv[2];
+  $allocation_limit = $argv[1];
 }
 
 $db_salix = '';
@@ -289,7 +289,7 @@ foreach( $host_list as $name => $host_item )
     'JOIN scan_type t ON s.scan_type_id=t.id '.
     'JOIN serial_number n ON e.serial_number_id=n.id '.
     'JOIN apex_baseline b ON e.apex_baseline_id=b.id '.
-    'JOIN ' . DB_PREFIX . 'cenozo.participant p ON b.participant_id=p.id '.
+    'JOIN %scenozo.participant p ON b.participant_id=p.id '.
     'JOIN apex_deployment d ON d.apex_scan_id=s.id '.
     'JOIN apex_host h ON d.apex_host_id=h.id '.
     'WHERE s.availability=1 '.
@@ -300,7 +300,7 @@ foreach( $host_list as $name => $host_item )
     'AND d.export_datetime IS NULL '.
     ( 0 == $quota ? 'AND priority=1 ' : '' ).
     'AND h.id=%d '.
-    'ORDER BY uid', $apex_host_id );
+    'ORDER BY uid', DB_PREFIX, $apex_host_id );
 
   $data_list = $db_salix->get_all( $sql );
 
