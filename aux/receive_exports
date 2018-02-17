@@ -178,8 +178,6 @@ foreach( $host_list as $host_item )
             sprintf( '/cygdrive/e/OutGoing/%s/%s', $type, $baseline_barcode ) :
             sprintf( '/cygdrive/e/OutGoing/%s/%s/%s', $type, $side, $baseline_barcode );
 
-          util::out( 'building alternate path: ' . $path );
-
           $res = ssh_command( $host_address, sprintf(
             'ls -l --time-style="long-iso" -d -1 %s/*.dcm 2>/dev/null | '.
             "grep -E '[1-9]{1}[0-9]{7}' | ".
