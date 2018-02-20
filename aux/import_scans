@@ -540,6 +540,6 @@ foreach( $scan_list as $name => $identifier_list )
     $name, $num_can, $num_scp, $num_cmv ) );
 }
 
-write_log( 'done!');
+write_log( 'import_scans done!');
 
 return 1;

@@ -93,7 +93,7 @@ if( $total != count( $identifier_list ) )
   return 0;
 }
 
-$db_salix = ''; 
+$db_salix = '';
 try
 {
   $db_salix = new database(
@@ -238,6 +238,6 @@ foreach( $list as $uid => $row )
   }
 }
 
-write_log( 'done updating exam and scan tables with ' . $total . ' identifiers' );
+write_log( 'receive_opal_meta done! Updated exam and scan tables with ' . $total . ' identifiers' );
 
 return 1;

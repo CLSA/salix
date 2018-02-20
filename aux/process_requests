@@ -247,4 +247,6 @@ foreach( $host_list as $host_item )
       $num_processed, $host_item['name'] ) );
 }
 
+write_log( 'process_requests done!' );
+
 return 1;

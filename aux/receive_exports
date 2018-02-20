@@ -122,7 +122,8 @@ foreach( $host_list as $host_item )
     'AND s.availability=1 '.
     'AND s.scan_datetime IS NOT NULL '.
     'AND h.id=%d '.
-    'ORDER BY type, side', $apex_host_id );
+    'ORDER BY type, side '.
+    (0 < $export_limit ? 'LIMIT ' . $export_limit : ''), $apex_host_id );
 
   $deployment_list = $db_salix->get_all( $sql );
   $num_export = 0;
@@ -133,6 +134,7 @@ foreach( $host_list as $host_item )
     write_log( $sql );
     continue;
   }
+  write_log( sprintf( 'found  %d completed deployments on %s', count( $deployment_list ), $host_item['name'] ) );
 
   foreach( $deployment_list as $deployment_item )
   {
@@ -140,8 +142,8 @@ foreach( $host_list as $host_item )
     // get the file create timestamps
     $res = ssh_command( $host_address, sprintf(
       'ls -l --time-style="long-iso" -d -1 %s/*.dcm 2>/dev/null | '.
-      "grep -E '[1-9]{1}[0-9]{7}' | ".
-      "awk '{print $6" . '" "$7" "$8 }'. "'", $path ) );
+      "grep -E '\/[1-9]{1}[0-9]{7}\/' | ".
+      "awk '{print $6" . '" "$7" "$8}'. "'", $path ) );
 
     $type = $deployment_item['type'];
     $side = $deployment_item['side'];
@@ -180,8 +182,8 @@ foreach( $host_list as $host_item )
 
           $res = ssh_command( $host_address, sprintf(
             'ls -l --time-style="long-iso" -d -1 %s/*.dcm 2>/dev/null | '.
-            "grep -E '[1-9]{1}[0-9]{7}' | ".
-            "awk '{print $6" . '" "$7" "$8 }'. "'", $path ) );
+            "grep -E '\/[1-9]{1}[0-9]{7}\/' | ".
+            "awk '{print $6" . '" "$7" "$8}'. "'", $path ) );
         }
       }
     }
@@ -267,10 +269,11 @@ foreach( $host_list as $host_item )
         'WHERE id=%d', $export_datetime, $export_filename, $deployment_item['apex_deployment_id'] );
       if( false !== $db_salix->execute( $sql ) ) $num_export++;
     }
-    if( $num_export >= $export_limit ) break;
   }
   write_log( sprintf( 'found %d exports of %d completed deployments on %s',
     $num_export, count( $deployment_list ), $host_item['name'] ) );
 }
+
+write_log( 'receive_exports done!' );
 
 return 1;
