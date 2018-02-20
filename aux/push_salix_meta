@@ -326,5 +326,6 @@ write_log( 'number of host patient records updated: ' . $num_patient_updated );
 write_log( 'number of host patient items updated: ' . $num_patient_item_updated );
 write_log( 'number of host analysis records updated: ' . $num_analysis_updated );
 write_log( 'number of host analysis items updated: ' . $num_analysis_item_updated );
+write_log( 'push_salix_meta done!' );
 
 return 1;

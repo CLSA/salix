@@ -516,6 +516,6 @@ foreach( $priority_list as $item )
   $db_salix->execute( $sql );
 }
 
-write_log( 'done! ' . count( $pending_list ) . ' remaining items pending' );
+write_log( 'receive_deployments done! ' . count( $pending_list ) . ' remaining items pending' );
 
 return 1;

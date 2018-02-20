@@ -94,6 +94,43 @@ foreach( $host_list as $host_item )
 {
   $apex_host_id = $host_item['id'];
   $host_address = $host_item['host'];
+  $sql = sprintf(
+    'SELECT DISTINCT '.
+    'type, '.
+    'side, '.
+    'IF( side="none", '.
+    '  CONCAT_WS( "/", "/cygdrive/e/OutGoing", type, "*" ), '.
+    '  CONCAT_WS( "/", "/cygdrive/e/OutGoing", type, side, "*" ) ) AS path '.
+    'FROM apex_deployment d '.
+    'JOIN apex_host h ON h.id=d.apex_host_id '.
+    'JOIN apex_scan s ON s.id=d.apex_scan_id '.
+    'JOIN apex_exam e ON e.id=s.apex_exam_id '.
+    'JOIN serial_number n ON n.id=e.serial_number_id '.
+    'JOIN scan_type t ON t.id=s.scan_type_id '.
+    'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
+    'WHERE status="completed" '.
+    'AND s.availability=1 '.
+    'AND s.scan_datetime IS NOT NULL '.
+    'AND h.id=%d', $apex_host_id );
+  $type_list = $db_salix->get_all( $sql );
+  if( false === $type_list || !is_array( $type_list ) ||
+    0 == count( $type_list ) ) continue;
+
+  $dir_list = array();
+  foreach( $type_list as $item )
+  {
+    $res = ssh_command( $host_address, sprintf(
+      'ls -l --time-style="long-iso" -d -1 %s 2>/dev/null | '.
+      "grep -E '\/[1-9]{1}[0-9]{7}' | ".
+      "awk '{print $8}'", $item['path'] ) );
+    $type = $item['type'];
+    $side = $item['side'];
+    foreach( $res as $path_item )
+    {
+      $parts = explode( '/', $path_item );
+      $dir_list[$type][$side][] = array_pop( $parts );
+    }
+  }
 
   // get completed deployments
   $sql = sprintf(
@@ -122,7 +159,8 @@ foreach( $host_list as $host_item )
     'AND s.availability=1 '.
     'AND s.scan_datetime IS NOT NULL '.
     'AND h.id=%d '.
-    'ORDER BY type, side', $apex_host_id );
+    'ORDER BY type, side '.
+    (0 < $export_limit ? 'LIMIT ' . $export_limit : ''), $apex_host_id );
 
   $deployment_list = $db_salix->get_all( $sql );
   $num_export = 0;
@@ -133,21 +171,25 @@ foreach( $host_list as $host_item )
     write_log( $sql );
     continue;
   }
+  write_log( sprintf( 'found  %d completed deployments on %s', count( $deployment_list ), $host_item['name'] ) );
 
   foreach( $deployment_list as $deployment_item )
   {
     $path = $deployment_item['path'];
-    // get the file create timestamps
-    $res = ssh_command( $host_address, sprintf(
-      'ls -l --time-style="long-iso" -d -1 %s/*.dcm 2>/dev/null | '.
-      "grep -E '[1-9]{1}[0-9]{7}' | ".
-      "awk '{print $6" . '" "$7" "$8 }'. "'", $path ) );
-
     $type = $deployment_item['type'];
     $side = $deployment_item['side'];
     $rank = $deployment_item['rank'];
     $barcode = $deployment_item['barcode'];
     $baseline_barcode = null;
+    $res = false;
+    if( in_array( $barcode, $dir_list[$type][$side] ) )
+    {
+      // get the file create timestamps
+      $res = ssh_command( $host_address, sprintf(
+        'ls -l --time-style="long-iso" -d -1 %s/*.dcm 2>/dev/null | '.
+        "grep -E '\/[1-9]{1}[0-9]{7}\/' | ".
+        "awk '{print $6" . '" "$7" "$8}'. "'", $path ) );
+    }
 
     if( false === $res || !is_array( $res ) ||
       0 == count( $res ) )
@@ -172,18 +214,17 @@ foreach( $host_list as $host_item )
           'AND apex_baseline_id=%d', $apex_host_id, $type, $side, $apex_baseline_id );
 
         $baseline_barcode = $db_salix->get_one( $sql );
-        if( false !== $baseline_barcode && '' != $baseline_barcode )
+        if( false !== $baseline_barcode && '' != $baseline_barcode &&
+          in_array( $baseline_barcode, $dir_list[$type][$side] ) )
         {
           $path = 'none' == $side ?
             sprintf( '/cygdrive/e/OutGoing/%s/%s', $type, $baseline_barcode ) :
             sprintf( '/cygdrive/e/OutGoing/%s/%s/%s', $type, $side, $baseline_barcode );
 
-          util::out( 'building alternate path: ' . $path );
-
           $res = ssh_command( $host_address, sprintf(
             'ls -l --time-style="long-iso" -d -1 %s/*.dcm 2>/dev/null | '.
-            "grep -E '[1-9]{1}[0-9]{7}' | ".
-            "awk '{print $6" . '" "$7" "$8 }'. "'", $path ) );
+            "grep -E '\/[1-9]{1}[0-9]{7}\/' | ".
+            "awk '{print $6" . '" "$7" "$8}'. "'", $path ) );
         }
       }
     }
@@ -269,10 +310,11 @@ foreach( $host_list as $host_item )
         'WHERE id=%d', $export_datetime, $export_filename, $deployment_item['apex_deployment_id'] );
       if( false !== $db_salix->execute( $sql ) ) $num_export++;
     }
-    if( $num_export >= $export_limit ) break;
   }
   write_log( sprintf( 'found %d exports of %d completed deployments on %s',
     $num_export, count( $deployment_list ), $host_item['name'] ) );
 }
+
+write_log( 'receive_exports done!' );
 
 return 1;
