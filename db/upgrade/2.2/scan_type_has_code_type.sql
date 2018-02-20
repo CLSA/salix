@@ -42,3 +42,38 @@ INSERT IGNORE INTO scan_type_has_code_type (scan_type_id, code_type_id)
 SELECT @scan_type_id, id
 FROM
 code_type;
+
+SET @scan_type_id:=(SELECT id FROM scan_type WHERE type='wbody' AND side='none');
+INSERT IGNORE INTO scan_type_has_code_type (scan_type_id, code_type_id)
+SELECT @scan_type_id, id
+FROM
+code_type
+WHERE code NOT IN ('Ab','Ad','Erot','Irot');
+
+SET @scan_type_id:=(SELECT id FROM scan_type WHERE type='forearm' AND side='left');
+INSERT IGNORE INTO scan_type_has_code_type (scan_type_id, code_type_id)
+SELECT @scan_type_id, id
+FROM
+code_type
+WHERE code NOT IN ('Ab','Ad','Erot','Irot');
+
+SET @scan_type_id:=(SELECT id FROM scan_type WHERE type='forearm' AND side='right');
+INSERT IGNORE INTO scan_type_has_code_type (scan_type_id, code_type_id)
+SELECT @scan_type_id, id
+FROM
+code_type
+WHERE code NOT IN ('Ab','Ad','Erot','Irot');
+
+SET @scan_type_id:=(SELECT id FROM scan_type WHERE type='spine' AND side='none');
+INSERT IGNORE INTO scan_type_has_code_type (scan_type_id, code_type_id)
+SELECT @scan_type_id, id
+FROM
+code_type
+WHERE code NOT IN ('Ab','Ad','Erot','Irot');
+
+SET @scan_type_id:=(SELECT id FROM scan_type WHERE type='lateral' AND side='none');
+INSERT IGNORE INTO scan_type_has_code_type (scan_type_id, code_type_id)
+SELECT @scan_type_id, id
+FROM
+code_type
+WHERE code NOT IN ('Ab','Ad','Erot','Irot');
