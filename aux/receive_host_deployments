@@ -96,10 +96,10 @@ foreach( $res as $value )
 }
 
 // lookup data for site and serial number information
-$sql = sprintf(
+$sql =
   'SELECT name AS site, n.id AS serial_number_id, s.id AS site_id '.
   'FROM serial_number n '.
-  'JOIN %scenozo.site s ON s.id=n.site_id', DB_PREFIX );
+  'JOIN ' . DB_PREFIX . 'cenozo.site s ON s.id=n.site_id';
 
 $res = $db_salix->get_all( $sql );
 $site_lookup = array();
@@ -165,7 +165,7 @@ $sql_str =
     'ON s.PATIENT_KEY=p.PATIENT_KEY '.
     'WHERE s.SCAN_TYPE=%d';
 
-write_log( sprintf( 'Querying remote SQL server on %s ...', $dexa_host ) );
+write_log( sprintf( 'Querying remote SQL server %s ...', $dexa_host ) );
 
 // get the Apex data by scan type
 $dexa_data = array();
