@@ -274,7 +274,7 @@ foreach( $host_list as $host_item )
     $side = $item['side'];
     $barcode = $item['barcode'];
     $path = $item['path'];
-    write_log( sprintf( 'found %s (side: %s) barcode %s', $type, $side, $barcode ) );
+    write_log( sprintf( 'found %s (side: %s) barcode %s, rank %s', $type, $side, $barcode, $item['rank'] ) );
 
     // get the file create timestamps
     $res = ssh_command( $host_address, sprintf(
