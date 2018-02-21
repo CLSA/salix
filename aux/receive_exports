@@ -108,13 +108,17 @@ foreach( $host_list as $host_item )
     'JOIN serial_number n ON n.id=e.serial_number_id '.
     'JOIN scan_type t ON t.id=s.scan_type_id '.
     'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
-    'WHERE status="completed" '.
+    'WHERE status IN ("completed","exported") '.
     'AND s.availability=1 '.
     'AND s.scan_datetime IS NOT NULL '.
     'AND h.id=%d', $apex_host_id );
   $type_list = $db_salix->get_all( $sql );
   if( false === $type_list || !is_array( $type_list ) ||
-    0 == count( $type_list ) ) continue;
+    0 == count( $type_list ) )
+  {
+    write_log( sprintf( 'WARNING: failed to find types for host %s', $host_item['name'] ) );
+    continue;
+  }
 
   $dir_list = array();
   foreach( $type_list as $item )
@@ -123,13 +127,17 @@ foreach( $host_list as $host_item )
       'ls -l --time-style="long-iso" -d -1 %s 2>/dev/null | '.
       "grep -E '\/[1-9]{1}[0-9]{7}' | ".
       "awk '{print $8}'", $item['path'] ) );
+    $res = explode( PHP_EOL, $res );
     $type = $item['type'];
     $side = $item['side'];
+    $dir_list[$type][$side] = array();
     foreach( $res as $path_item )
     {
       $parts = explode( '/', $path_item );
       $dir_list[$type][$side][] = array_pop( $parts );
     }
+    write_log( sprintf( 'found %d of %s (side: %s) on host %s',
+      count($dir_list[$type][$side]), $type, $side, $host_item['name'] ) );
   }
 
   // get completed deployments
@@ -139,9 +147,12 @@ foreach( $host_list as $host_item )
     '  CONCAT_WS( "/", "/cygdrive/e/OutGoing", type, barcode ), '.
     '  CONCAT_WS( "/", "/cygdrive/e/OutGoing", type, side, barcode ) ) AS path, '.
     'barcode, '.
+    'priority, '.
     'rank, '.
     'type, '.
     'side, '.
+    'uid, '.
+    'status, '.
     'DATE(scan_datetime) AS scan_date, '.
     'DATE_FORMAT(scan_datetime, "%%H:%%i") AS scan_time, '.
     'n.id AS serial_number, '.
@@ -155,12 +166,12 @@ foreach( $host_list as $host_item )
     'JOIN serial_number n ON n.id=e.serial_number_id '.
     'JOIN scan_type t ON t.id=s.scan_type_id '.
     'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
-    'WHERE status="completed" '.
+    'JOIN %scenozo.participant p ON p.id=b.participant_id '.
+    'WHERE status IN ("completed","exported") '.
     'AND s.availability=1 '.
     'AND s.scan_datetime IS NOT NULL '.
     'AND h.id=%d '.
-    'ORDER BY type, side '.
-    (0 < $export_limit ? 'LIMIT ' . $export_limit : ''), $apex_host_id );
+    'ORDER BY uid, type, side', DB_PREFIX, $apex_host_id );
 
   $deployment_list = $db_salix->get_all( $sql );
   $num_export = 0;
@@ -173,64 +184,108 @@ foreach( $host_list as $host_item )
   }
   write_log( sprintf( 'found  %d completed deployments on %s', count( $deployment_list ), $host_item['name'] ) );
 
+  // group by participant, priority scans first
+  $current_uid = NULL;
+  $uid_list = array();
+  $priority_keys = array();
   foreach( $deployment_list as $deployment_item )
   {
-    $path = $deployment_item['path'];
-    $type = $deployment_item['type'];
-    $side = $deployment_item['side'];
-    $rank = $deployment_item['rank'];
-    $barcode = $deployment_item['barcode'];
-    $baseline_barcode = null;
-    $res = false;
-    if( in_array( $barcode, $dir_list[$type][$side] ) )
+    $uid = $deployment_item['uid'];
+    if( $uid != $current_uid )
     {
-      // get the file create timestamps
-      $res = ssh_command( $host_address, sprintf(
-        'ls -l --time-style="long-iso" -d -1 %s/*.dcm 2>/dev/null | '.
-        "grep -E '\/[1-9]{1}[0-9]{7}\/' | ".
-        "awk '{print $6" . '" "$7" "$8}'. "'", $path ) );
+      $current_uid = $uid;
+      $uid_list[$uid] = array();
     }
-
-    if( false === $res || !is_array( $res ) ||
-      0 == count( $res ) )
+    if( $current_uid == $uid )
     {
-      // try an alternate path based on baseline barcode
+      $uid_list[$uid][] = $deployment_item;
+    }
+    if( 1 == $deployment_item['priority'] ) $priority_keys[] = $uid;
+  }
+  if( 0 < count( $priority_keys ) )
+  {
+    $priority_keys = array_unique( $priority_keys );
+    foreach( $priority_keys as $uid )
+    {
+      $uid_list = array( $uid => $uid_list[$uid] ) + $uid_list;
+    }
+  }
+
+  $final_list = array();
+  foreach( $uid_list as $uid => $deployment_list )
+  {
+    $candidate_list = array();
+    $sibling_list = array();
+    $baseline_list = array();
+    foreach( $deployment_list as $deployment_item )
+    {
+      $type = $deployment_item['type'];
+      $side = $deployment_item['side'];
+      $barcode = $deployment_item['barcode'];
       $rank = $deployment_item['rank'];
-      if( 1 < $rank )
+      if( in_array( $barcode, $dir_list[$type][$side] ) )
       {
-        $apex_baseline_id = $deployment_item['apex_baseline_id'];
-        $sql = sprintf(
-          'SELECT DISTINCT barcode '.
-          'FROM apex_exam e '.
-          'JOIN apex_scan s ON e.id=s.apex_exam_id '.
-          'JOIN scan_type t ON t.id=s.scan_type_id '.
-          'JOIN apex_deployment d ON s.id=d.apex_scan_id '.
-          'JOIN apex_host h ON h.id=d.apex_host_id '.
-          'WHERE rank=1 '.
-          'AND s.availability=1 '.
-          'AND h.id=%d '.
-          'AND type="%s" '.
-          'AND side="%s" '.
-          'AND apex_baseline_id=%d', $apex_host_id, $type, $side, $apex_baseline_id );
-
-        $baseline_barcode = $db_salix->get_one( $sql );
-        if( false !== $baseline_barcode && '' != $baseline_barcode &&
-          in_array( $baseline_barcode, $dir_list[$type][$side] ) )
+        $candidate_list[$type][$side][] = $deployment_item;
+        $final_list[] = $deployment_item;
+        if( 1 == $rank )
+          $baseline_list[$type][$side][] = $deployment_item;
+      }
+      else
+      {
+        if( 1 < $rank )
         {
-          $path = 'none' == $side ?
-            sprintf( '/cygdrive/e/OutGoing/%s/%s', $type, $baseline_barcode ) :
-            sprintf( '/cygdrive/e/OutGoing/%s/%s/%s', $type, $side, $baseline_barcode );
-
-          $res = ssh_command( $host_address, sprintf(
-            'ls -l --time-style="long-iso" -d -1 %s/*.dcm 2>/dev/null | '.
-            "grep -E '\/[1-9]{1}[0-9]{7}\/' | ".
-            "awk '{print $6" . '" "$7" "$8}'. "'", $path ) );
+          $sibling_list[$type][$side][] = $deployment_item;
         }
       }
     }
 
+    if( 0 == count( $candidate_list ) ) continue;
+
+    if( 0 < count( $sibling_list ) && 0 < count( $baseline_list ) )
+    {
+      // see if there is at least one baseline barcode to check siblings with
+      foreach( $sibling_list as $type => $side_list )
+      {
+        if( array_key_exists( $type, array_keys( $baseline_list ) ) )
+        {
+          foreach( $side_list as $side => $item_list )
+          {
+            if( array_key_exists( $side, array_keys( $baseline_list[$type] ) ) )
+            {
+              $baseline_item = current($baseline_list[$type][$side]);
+              foreach( $item_list as $item )
+              {
+                $baseline_barcode = $baseline_item['barcode'];
+                $item['path'] = str_replace( $item['barcode'], $baseline_barcode, $item['path'] );
+                $item['barcode'] = $baseline_barcode;
+                $final_list[] = $item;
+              }
+            }
+          }
+        }
+      }
+    } // end sibling processing
+  } // end loop on uids
+
+  foreach( $final_list as $item )
+  {
+    if( 'exported' == $item['status'] ) continue;
+    $type = $item['type'];
+    $side = $item['side'];
+    $barcode = $item['barcode'];
+    $path = $item['path'];
+    write_log( sprintf( 'found %s (side: %s) barcode %s', $type, $side, $barcode ) );
+
+    // get the file create timestamps
+    $res = ssh_command( $host_address, sprintf(
+      'ls -l --time-style="long-iso" -d -1 %s/*.dcm 2>/dev/null | '.
+      "grep -E '\/[1-9]{1}[0-9]{7}\/' | ".
+      "awk '{print $6" . '" "$7" "$8}'. "'", $path ) );
+    if( '' != $res )
+      $res = array_filter( explode( PHP_EOL, $res ), 'is_dicom' );
+
+    if( !is_array( $res ) ) continue;
     // search through the results and find a match
-    $res = array_filter( explode( PHP_EOL, $res ), 'is_dicom' );
     $export_filename = null;
     $export_datetime = null;
     foreach( $res as $data )
@@ -247,9 +302,11 @@ foreach( $host_list as $host_item )
 
       // get the patient ID
       $str_id = ssh_command( $host_address, sprintf( $gdcm_functions['PATIENTID'], $win_file ) );
-      if( $file_barcode != $str_id )
+      if( $barcode != $str_id )
       {
-        if( !( $barcode == $str_id || $baseline_barcode != $str_id ) ) continue;
+        write_log( $win_file );
+        write_log( sprintf( 'verify failed on barcode: "%s" <> %s', $str_id, $barcode ) );
+        continue;
       }
 
       // get the DOB
@@ -258,11 +315,21 @@ foreach( $host_list as $host_item )
         substr($str_dob,0,4),
         substr($str_dob,4,2),
         substr($str_dob,-2) );
-      if( $deployment_item['dob'] != $str_dob ) continue;
+      if( $item['dob'] != $str_dob )
+      {
+        write_log( $win_file );
+        write_log( sprintf( 'verify failed on dob: "%s" <> %s', $str_dob, $item['dob'] ) );
+        continue;
+      }
 
       // get the sex
       $str_sex = ssh_command( $host_address, sprintf( $gdcm_functions['PATIENT_SEX'], $win_file ) );
-      if( $deployment_item['sex'] != $str_sex ) continue;
+      if( $item['sex'] != $str_sex )
+      {
+        write_log( $win_file );
+        write_log( sprintf( 'verify failed on sex: "%s" <> %s', $str_sex, $item['sex'] ) );
+        continue;
+      }
 
       // get the study date
       $str_date = ssh_command( $host_address, sprintf( $gdcm_functions['STUDY_DATE'], $win_file ) );
@@ -270,36 +337,63 @@ foreach( $host_list as $host_item )
         substr($str_date,0,4),
         substr($str_date,4,2),
         substr($str_date,-2) );
-      if( $deployment_item['scan_date'] != $str_date ) continue;
+      if( $item['scan_date'] != $str_date )
+      {
+        write_log( $win_file );
+        write_log( sprintf( 'verify failed on scan date: "%s" <> %s', $str_date, $item['scan_date'] ) );
+        continue;
+      }
 
       // get the study time truncated to minutes
       $str_time = ssh_command( $host_address, sprintf( $gdcm_functions['STUDY_DATE'], $win_file ) );
       $str_time = sprintf( '%s-%s',
         substr($str_time,0,4),
         substr($str_time,4,2) );
-      if( $deployment_item['scan_time'] != $str_time ) continue;
+      if( $item['scan_time'] != $str_time )
+      {
+        write_log( $win_file );
+        write_log( sprintf( 'verify failed on scan time: "%s" <> %s', $str_time, $item['scan_time'] ) );
+        continue;
+      }
 
       // get the serial number
       $str_serial = ssh_command( $host_address, sprintf( $gdcm_functions['SERIAL_NUMBER'], $win_file ) );
       $str_serial = preg_replace( '/[^0-9]/', '', $str_serial );
-      if( $deployment_item['serial_number'] != $str_serial ) continue;
+      if( $item['serial_number'] != $str_serial )
+      {
+        write_log( $win_file );
+        write_log( sprintf( 'verify failed on serial number: "%s" <> %s', $str_serial, $item['serial_number'] ) );
+        continue;
+      }
 
       // get the body part
       $str_body = ssh_command( $host_address, sprintf( $gdcm_functions['BODYPART'], $win_file ) );
-      if( 'ARM' == $str_body && 'forearm' != $type  ) continue;
-      else if( 'HIP' == $str_body && 'hip' != $type  ) continue;
-      else if( 'LSPINE' == $str_body && !($type == 'lateral' || $type == 'spine') ) continue;
+      if( ( 'ARM' == $str_body && 'forearm' != $type  ) ||
+          ( 'HIP' == $str_body && 'hip' != $type  ) ||
+          ( 'LSPINE' == $str_body && !($type == 'lateral' || $type == 'spine') ) )
+      {
+        write_log( $win_file );
+        write_log( sprintf( 'verify failed on body part: "%s" <> %s', $str_body, $type ) );
+        continue;
+      }
 
       if( 'ARM' == $str_body || 'HIP' == $str_body )
       {
         // get the laterality
         $str_side = ssh_command( $host_address, sprintf( $gdcm_functions['LATERALITY'], $win_file ) );
-        if( ('left' == $side ? 'L' : 'R')  != $str_side ) continue;
+        if( ('left' == $side ? 'L' : 'R')  != $str_side )
+        {
+          write_log( $win_file );
+          write_log( sprintf( 'verify failed on side: "%s" <> %s', $str_side, $side ) );
+          continue;
+        }
       }
 
       $export_filename = $file_name;
       $export_datetime = sprintf('%s %s:00', $file_date, $file_time );
-    }
+      break;
+    } // end loop on directory listing
+
     if( null !== $export_filename && null !== $export_datetime )
     {
       $sql = sprintf(
@@ -307,10 +401,13 @@ foreach( $host_list as $host_item )
         'status="exported", '.
         'export_datetime="%s", '.
         'export_filename="%s" '.
-        'WHERE id=%d', $export_datetime, $export_filename, $deployment_item['apex_deployment_id'] );
+        'WHERE id=%d', $export_datetime, $export_filename, $item['apex_deployment_id'] );
       if( false !== $db_salix->execute( $sql ) ) $num_export++;
     }
-  }
+
+    if( $num_export >= $export_limit ) break;
+  } // end loop current host final list
+
   write_log( sprintf( 'found %d exports of %d completed deployments on %s',
     $num_export, count( $deployment_list ), $host_item['name'] ) );
 }
