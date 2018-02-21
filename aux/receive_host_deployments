@@ -20,7 +20,7 @@ $initial = new \cenozo\initial();
 $settings = $initial->get_settings();
 
 define( 'USER', $settings['utility']['username'] );
-
+define( 'APEX_SSH_KEY', $settings['apex']['apex_ssh_key'] );
 define( 'DB_SERVER', $settings['db']['server'] );
 define( 'DB_PREFIX', $settings['db']['database_prefix'] );
 define( 'DB_USERNAME', $settings['db']['username'] );
@@ -39,6 +39,13 @@ function write_log( $message )
     sprintf( "%s  [script] <%s> %s\n\n", date( 'Y-m-d (D) H:i:s' ), USER, $message ),
     FILE_APPEND
   );
+}
+
+// ssh args: apex host address, command arg
+function ssh_command( $address, $arg )
+{
+  return trim( shell_exec( sprintf(
+    'ssh -i ' . APEX_SSH_KEY . ' clsa@%s %s', $address, $arg ) ) );
 }
 
 if( 2 != $argc )
@@ -117,8 +124,6 @@ foreach( $res as $values )
 $sql = 'SELECT * FROM apex_host WHERE name="' . $dexa_host .'"';
 $res = $db_salix->get_row( $sql );
 $dexa_address = $res['host'];
-$ssh_pre = 'ssh -i salix_ssh_key clsa@' . $dexa_address . ' ';
-
 $db_dexa_host = strtoupper( $res['name'] );
 $db_dexa_user = $res['sql_user'];
 $db_dexa_pwd  = $res['sql_pass'];
@@ -160,7 +165,7 @@ $sql_str =
     'ON s.PATIENT_KEY=p.PATIENT_KEY '.
     'WHERE s.SCAN_TYPE=%d';
 
-write_log( 'Querying remote SQL server ...' );
+write_log( sprintf( 'Querying remote SQL server %s ...', $dexa_host ) );
 
 // get the Apex data by scan type
 $dexa_data = array();
@@ -168,7 +173,7 @@ foreach( $types as $scan_type_id => $type_data )
 {
   $sql = sprintf( $sql_str, $scan_type_id );
   $res = $db_dexa->get_all( $sql );
-  if( is_array( $res ) && 0 < count( $res ) )
+  if( false !== $res && is_array( $res ) && 0 < count( $res ) )
     $dexa_data[$scan_type_id] = $res;
 }
 
@@ -179,18 +184,19 @@ foreach( $dexa_data as $scan_type_id => $items )
   $type_data = $types[$scan_type_id];
   $type = $type_data['type'];
   $side = $type_data['side'];
-  $str = $ssh_pre . 'ls -l --time-style="long-iso" -d -1 /cygdrive/e/ORIGINAL/' . $type;
+  $str = 'ls -l --time-style="long-iso" -d -1 /cygdrive/e/ORIGINAL/' . $type;
   $str .= ('none' == $side ) ? '/*/*.dcm 2>/dev/null | ' : ('/' . $side . '/*/*.dcm 2>/dev/null | ');
-  $str .= "grep -E '[1-9]{1}[0-9]{7}' | ";
-  $str .= "awk '{print $6" . '" "$7" "$8 }'. "'";
+  $str .= "grep -E '\/[1-9]{1}[0-9]{7}\/' | ";
+  $str .= "awk '{print $6" . '" "$7" "$8}'. "'";
 
-  write_log( 'Retrieving import datetimes...' );
-  $res = shell_exec($str);
+  write_log( sprintf( 'Retrieving %s (side: %s) import datetimes...', $type, $side ) );
+  $res = ssh_command( $dexa_address, $str );
 
-  if( ''==$res || false === $res || 0 == strlen($res) )
+  if( '' == $res || false === $res || 0 == strlen( $res ) )
   {
-    write_log('WARNING: failed to retrieve '. $type .
+    write_log( 'WARNING: failed to retrieve '. $type .
       ' (' . $side . ') import datetimes from ' . $dexa_host );
+    write_log( $str );
     continue;
   }
 
@@ -208,6 +214,11 @@ foreach( $dexa_data as $scan_type_id => $items )
   }
 }
 
+if( 0 == count( $import_datetimes ) )
+{
+  write_log( sprintf( 'WARNING: no import datetimes found on %s', $dexa_host ) );
+  return 1;
+}
 // sprintf template to get the salix baseline, rank and scan data
 $sql_str =
   'SELECT s.id AS apex_scan_id, '.
@@ -590,4 +601,4 @@ foreach( $res as $values )
   }
 }
 
-write_log( 'done' );
+write_log( 'receive_host_deployments done!' );

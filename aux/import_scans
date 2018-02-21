@@ -29,9 +29,7 @@ define( 'DB_USERNAME', $settings['db']['username'] );
 define( 'DB_PASSWORD', $settings['db']['password'] );
 
 define( 'IMAGE_PATH', $settings['path']['TEMPORARY_FILES'] );
-
 define( 'USER', $settings['utility']['username'] );
-
 define( 'APEX_SSH_KEY', $settings['apex']['apex_ssh_key'] );
 
 // a lite mysqli wrapper
