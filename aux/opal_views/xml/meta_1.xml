@@ -92,8 +92,6 @@ if(0&lt;a.length) {
   if(q.isNull().not().value() &amp;&amp; a.indexOf(q.value())&lt;0) {
     res=res.concat(&apos;/&apos;).concat(q)
   }
-} else {
-  res=q
 }
 res</attribute>
         </attributes>
@@ -156,5 +154,5 @@ v.isNull().value()?0:1</attribute>
     </variables>
   </variables>
   <created valueType="datetime">2018-01-02T14:33:34.552-05</created>
-  <updated valueType="datetime">2018-01-04T11:02:01.931-05</updated>
+  <updated valueType="datetime">2018-02-22T10:53:33.926-05</updated>
 </org.obiba.magma.views.View>
