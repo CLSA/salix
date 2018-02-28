@@ -68,3 +68,28 @@ else
   }
 }
 curl_close( $curl );
+
+/*
+#!/bin/bash
+set -e
+if [[ -z "$1" ]]; then
+  echo "Missing input maximum rank" 1>&2
+  exit 1
+fi
+
+RANK=$1
+declare -a instance_list=("ghost" "live")
+
+for instance in "${instance_list[@]}"; do
+  echo "Processing $instance"
+    cd /usr/local/lib/salix-${instance}/aux
+    ./receive_opal_meta $RANK
+    ./receive_deployments $RANK
+    if [ "live" = "$instance" ]; then
+      ./import_scans
+      ./push_salix_meta
+      ./receive_exports
+    fi
+  echo
+done
+*/

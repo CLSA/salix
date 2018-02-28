@@ -30,7 +30,6 @@ define( 'DB_USERNAME', $settings['db']['username'] );
 define( 'DB_PASSWORD', $settings['db']['password'] );
 
 define( 'IMAGE_PATH', $settings['path']['TEMPORARY_FILES'] );
-
 define( 'USER', $settings['utility']['username'] );
 
 // a lite mysqli wrapper
