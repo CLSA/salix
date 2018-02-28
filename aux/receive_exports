@@ -342,7 +342,7 @@ foreach( $host_list as $host_item )
 
       // get the study time truncated to minutes
       $str_time = ssh_command( $host_address, sprintf( $gdcm_functions['STUDY_TIME'], $win_file ) );
-      $str_time = sprintf( '%s-%s',
+      $str_time = sprintf( '%s:%s',
         substr($str_time,0,2),
         substr($str_time,2,2) );
       if( $item['scan_time'] != $str_time )
