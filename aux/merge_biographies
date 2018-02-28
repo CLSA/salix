@@ -1,0 +1,346 @@
+#!/usr/bin/php
+<?php
+/**
+ * merge_biographies.php
+ *
+ * A script that merges patient followup into baseline biographies
+ * for hip comparison re-analysis on APEX hosts.
+ *
+ *
+ * @author Dean Inglis <inglisd@mcmaster.ca>
+ */
+
+chdir( dirname( __FILE__ ).'/../' );
+require_once 'settings.ini.php';
+require_once 'settings.local.ini.php';
+require_once $SETTINGS['path']['CENOZO'].'/src/initial.class.php';
+$initial = new \cenozo\initial();
+$settings = $initial->get_settings();
+
+define( 'DB_SERVER', $settings['db']['server'] );
+define( 'DB_PREFIX', $settings['db']['database_prefix'] );
+define( 'DB_USERNAME', $settings['db']['username'] );
+define( 'DB_PASSWORD', $settings['db']['password'] );
+define( 'USER', $settings['utility']['username'] );
+define( 'APEX_SSH_KEY', $settings['apex']['apex_ssh_key'] );
+
+// a lite mysqli wrapper
+require_once( $settings['path']['APPLICATION'].'/../php_util/database.class.php' );
+require_once( $settings['path']['APPLICATION'].'/../php_util/odbc.class.php' );
+
+// function for writing to the log
+function write_log( $message )
+{
+  file_put_contents(
+    LOG_FILE_PATH,
+    sprintf( "%s  [cron] <%s> %s\n\n", date( 'Y-m-d (D) H:i:s' ), USER, $message ),
+    FILE_APPEND
+  );
+}
+
+// ssh args: apex host address, command arg
+function ssh_command( $address, $arg )
+{
+  return trim( shell_exec( sprintf(
+    'ssh -i ' . APEX_SSH_KEY . ' clsa@%s %s', $address, $arg ) ) );
+}
+
+$db_salix = '';
+try
+{
+  $db_salix = new database(
+    DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+}
+catch( Exception $e )
+{
+  write_log( $e->getMessage() );
+  return 0;
+}
+
+// auxilliary APEX db tables that have patient_key indices
+$aux_host_tables = array(
+  'hip' =>
+    array( 'HipHSA' ),
+  'wbody' =>
+    array( 'WbodyComposition', 'SubRegionBone', 'SubRegionComposition',
+           'ObesityIndices', 'AndroidGynoidComposition' ) );
+
+$sql = 'SELECT * FROM apex_host';
+$host_list = $db_salix->get_all( $sql );
+foreach( $host_list as $host_item )
+{
+  $db_dexa = '';
+  try
+  {
+    $db_dexa = new odbc(
+      strtoupper( $host_item['name'] ), $host_item['sql_user'], $host_item['sql_pass'] );
+  }
+  catch( Exception $e )
+  {
+    write_log( sprintf( 'ERROR: failed to connect to host %s: %s',
+      $host_item['name'], $e->getMessage() ) );
+    continue;
+  }
+
+  $apex_host_id = $host_item['id'];
+  $host_address = $host_item['host'];
+  $sql = sprintf(
+    'SELECT '.
+    'b.id AS apex_baseline_id, '.
+    'type, '.
+    'side, '.
+    't.id AS scan_type_id, '.
+    'GROUP_CONCAT(d.id ORDER BY rank ASC) AS deployment_id_list, '.
+    'GROUP_CONCAT(rank ORDER BY rank ASC) AS rank_list, '.
+    'GROUP_CONCAT(barcode ORDER BY rank ASC) AS barcode_list, '.
+    'GROUP_CONCAT(patient_key ORDER BY rank ASC) AS patient_key_list, '.
+    'GROUP_CONCAT(scanid ORDER BY rank ASC) AS scanid_list, '.
+    'GROUP_CONCAT(serial_number_id ORDER BY rank ASC) AS serial_number_list '.
+    'FROM apex_deployment d '.
+    'JOIN apex_host h ON h.id=d.apex_host_id '.
+    'JOIN apex_scan s ON s.id=d.apex_scan_id '.
+    'JOIN apex_exam e ON e.id=s.apex_exam_id '.
+    'JOIN scan_type t ON t.id=s.scan_type_id '.
+    'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
+    'WHERE '.
+    '('.
+      '(merged=0 AND rank>1) '.
+      'OR '.
+      '(rank=1 AND pass IS NOT NULL AND status IN ("completed","exported"))'.
+    ') '.
+    'AND availability=1 '.
+    'AND scanid IS NOT NULL '.
+    'AND patient_key IS NOT NULL '.
+    'AND scan_datetime IS NOT NULL '.
+    'AND h.id=%d '.
+    'GROUP BY b.id, t.id '.
+    'HAVING COUNT(rank)>1 '.
+    'ORDER BY type, side', $apex_host_id );
+
+  // update the APEX db auxialliary patient_keys eg., hip => HSA
+
+  $merge_list = $db_salix->get_all( $sql );
+  if( false === $merge_list || !is_array( $merge_list ) ||
+    0 == count( $merge_list ) )
+  {
+    write_log( sprintf( 'No merge candidates on host %s', $host_item['name'] ) );
+    continue;
+  }
+
+  // post-merge patient_key removals
+  $remove_list = array();
+  $update_deployment_list = array();
+
+  // for each merge candidate row
+  foreach( $merge_list as $merge_item )
+  {
+    $type = $merge_item['type'];
+    $side = $merge_item['side'];
+    $rank_list = explode( ',' , $merge_item['rank_list'] );
+    if( 1 != min( $rank_list ) )
+    {
+      write_log( sprintf( 'WARNING: incomplete rank list (%s (side: %s) barcodes: %s)',
+        $type, $side, $merge_item['barcode_list'] ) );
+      continue;
+    }
+
+    $scan_type_id = $merge_item['scan_type_id'];
+    $host_tables = array( ucfirst( $type ) );
+    if( array_key_exists( $type, $aux_host_tables ) )
+      $host_tables = array_merge( $host_tables, $aux_host_tables[$type] );
+
+    $deployment_id_list = explode( ',' , $merge_item['deployment_id_list'] );
+    $barcode_list = explode( ',' , $merge_item['barcode_list'] );
+    $patient_key_list = explode( ',', $merge_item['patient_key_list'] );
+    $scanid_list = explode( ',', $merge_item['scanid_list'] );
+    $serial_number_list = explode( ',', $merge_item['serial_number_list'] );
+
+    // we update the ScanAnalysis records to reference the baseline patient_key
+    // then we update any auxiliary tables holding analysis results to also
+    // reference the baseline patient_key
+    // if there are no further references to the follow-up patient_key
+    // we delete the corresponding record from the PATIENT table
+
+    $base_deployment_id = array_shift($deployment_id_list);
+    $base_barcode = array_shift($barcode_list);
+    $base_scanid = array_shift($scanid_list);
+    $base_serial_number = array_shift($serial_number_list);
+    $base_patient_key = array_shift($patient_key_list);
+
+    $current_remove_list = array();
+    $current_deployment_list= array();
+
+    $barcode = current($barcode_list);
+    $serial_number = current($serial_number_list);
+    $scanid = current($scanid_list);
+    $patient_key = current($patient_key_list);
+    $deployment_id = current($deployment_id_list);
+    while( false !== $barcode &&
+           false !== $serial_number &&
+           false !== $scanid &&
+           false !== $patient_key &&
+           false !== $deployment_id )
+    {
+      $sql = sprintf(
+        'UPDATE s '.
+        "SET PATIENT_KEY='%s' ".
+        'FROM PatScan.dbo.ScanAnalysis s '.
+        'JOIN PatScan.dbo.PATIENT p ON p.PATIENT_KEY=s.PATIENT_KEY '.
+        "WHERE p.IDENTIFIER1='%s' ".
+        'AND s.SCAN_TYPE=%d '.
+        "AND s.SERIAL_NUMBER='%s' ".
+        "AND s.SCANID='%s';", $base_patient_key,
+        $barcode, $scan_type_id, $serial_number, $scanid );
+
+      foreach( $host_tables as $table )
+      {
+        $sql .= sprintf(
+          'UPDATE t '.
+          "SET PATIENT_KEY='%s' ".
+          'FROM PatScan.dbo.%s t '.
+          'JOIN PatScan.dbo.PATIENT p ON p.PATIENT_KEY=t.PATIENT_KEY '.
+          "WHERE p.IDENTIFIER1='%s' ".
+          "AND t.SERIAL_NUMBER='%s' ".
+          "AND t.SCANID='%s';", $base_patient_key, $table,
+          $barcode, $serial_number, $scanid );
+      }
+
+      if( false === $db_dexa->execute( $sql ) )
+      {
+        write_log( sprintf( 'ERROR: failed merge into patient_key %s on host %s',
+          $base_patient_key, $host_item['name'] ) );
+        write_log( $sql );
+      }
+      else
+      {
+        $current_remove_list[] = $patient_key;
+        $current_deployment_list[] = $deployment_id;
+      }
+      $barcode = next($barcode_list);
+      $serial_number = next($serial_number_list);
+      $scanid = next($scanid_list);
+      $patient_key = next($patient_key_list);
+      $deployment_id = next($deployment_id_list);
+    } // end patient_key list
+
+    if( 0 < count( $current_remove_list ) )
+    {
+      $current_deployment_list[] = $base_deployment_id;
+      if( !array_key_exists( $type, $remove_list ) )
+      {
+        $remove_list[$type] = array();
+      }
+      $remove_list[$type] = array_merge( $remove_list[$type], $current_remove_list );
+      $update_deployment_list = array_merge( $update_deployment_list, $current_deployment_list );
+    }
+  }// end host merge list
+
+  foreach( $remove_list as $type => $item_list )
+  {
+    if( 0 == count( $item_list ) ) continue;
+
+    $item_list = array_unique( $item_list );
+
+    $host_tables = array( ucfirst( $type ) );
+    if( array_key_exists( $type, $aux_host_tables ) )
+      $host_tables = array_merge( $host_tables, $aux_host_tables[$type] );
+
+    // get all the table names other than the ones we are merging
+    //
+    $str = "'". implode( "','", $host_tables ) . "'";
+    $sql = sprintf(
+      'SELECT '.
+      't.name AS table_name '.
+      'FROM PatScan.sys.columns c '.
+      'JOIN PatScan.sys.tables t ON c.object_id=t.object_id '.
+      "WHERE c.name IN ('PATIENT_KEY', 'SCANID', 'SERIAL_NUMBER' ) ".
+      "AND t.name NOT IN ('PATIENT', 'QcParam', 'ScanAnalysis', 'Rulers', 'TenYearFxRisk', 'ReferenceResults', %s) ".
+      'GROUP BY t.name '.
+      'HAVING COUNT(*)=3', $str );
+
+    $table_list = $db_dexa->get_all( $sql );
+    array_walk( $table_list, function( &$item ) { $item = $item['name']; } );
+
+    // next set of statements must be appended to maintain scope of the temporary table
+    //
+    $sql =
+      'CREATE TABLE #patient_key_totals ( '.
+      'PATIENT_KEY NVARCHAR(24) NOT NULL, '.
+      'TOTAL INT DEFAULT 0 );';
+
+    $sql .=
+      'INSERT into #patient_key_totals (PATIENT_KEY) '.
+      'SELECT DISTINCT PATIENT_KEY FROM PatScan.dbo.PATIENT;';
+
+    $sql_pre =
+      'UPDATE t1 '.
+      'SET t1.TOTAL=t1.TOTAL+1 '.
+      'FROM #patient_key_totals AS t1 '.
+      'INNER JOIN PatScan.dbo.ScanAnalysis AS s1 '.
+      'ON t1.PATIENT_KEY=s1.PATIENT_KEY '.
+      'INNER JOIN PatScan.dbo.%s AS t2 '.
+      'ON t2.PATIENT_KEY=s1.PATIENT_KEY '.
+      'AND t2.SCANID=s1.SCANID '.
+      'AND t2.SERIAL_NUMBER=s1.SERIAL_NUMBER;';
+
+    foreach( $table_list as $table )
+    {
+      $sql .= sprintf( $sql_pre, $table );
+    }
+
+    $sql .=
+      'SELECT PATIENT_KEY FROM #patient_key_totals WHERE TOTAL>0;';
+
+    $res = $db_dexa->get_all( $sql );
+
+    // remove keys targeted for deletion that are in use by other scan types
+    //
+    if( false !== $res && is_array( $res ) && 0 < count( $res ) )
+    {
+      array_walk( $res, function( &$item ) { $item = $item['PATIENT_KEY']; } );
+      $item_list = array_diff( $item_list, $res );
+    }
+
+    write_log( sprintf( '%s remove %s patient key count: %s',
+      $host_item['name'], $type, count( $item_list ) ) );
+
+    $num_remove = count( $item_list );
+    if( 0 < $num_remove )
+    {
+      $sql =
+       'DELETE FROM '.
+       'PatScan.dbo.PATIENT WHERE PATIENT_KEY ';
+      if( 1 < $num_remove )
+        $sql .= "IN ('". implode( "','", $item_list ) . "')";
+      else
+        $sql .= "='" . current( $item_list ) . "'";
+
+      if( false === $db_dexa->execute( $sql ) )
+      {
+        write_log( sprintf( 'ERROR: failed to delete %s patient_key(s)', $type ) );
+        write_log( $sql );
+      }
+    }
+  } // end remove patient_keys by type
+
+  $num_update = count( $update_deployment_list );
+  if( 0 < $num_update )
+  {
+    $sql =
+      'UPDATE apex_deployment '.
+      'SET merged=1 '.
+      'WHERE id ';
+    if( 1 < $num_update )
+      $sql .= "IN ('". implode( "','", $update_deployment_list ) . "')";
+    else
+      $sql .= "='" . current( $update_deployment_list ) . "'";
+
+    if( false === $db_salix->execute( $sql ) )
+    {
+      write_log( sprintf( 'ERROR: failed to update %s merge status', $type ) );
+      write_log( $sql );
+    }
+  }
+}
+
+return 1;
