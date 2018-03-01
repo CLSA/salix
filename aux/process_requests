@@ -28,7 +28,7 @@ define( 'DB_PASSWORD', $settings['db']['password'] );
 define( 'IMAGE_PATH', $settings['path']['TEMPORARY_FILES'] );
 define( 'USER', $settings['utility']['username'] );
 define( 'APEX_SSH_KEY', $settings['apex']['apex_ssh_key'] );
-define( 'REPORT_PATH', $settings['path']['DEPLOYMENT_REPORT'] );
+define( 'DXA_REPORT_PATH', $settings['path']['DEPLOYMENT_REPORT'] );
 
 // a lite mysqli wrapper
 require_once( $settings['path']['APPLICATION'].'/../php_util/database.class.php' );
@@ -82,18 +82,18 @@ class dexa_scan {
   public function process( $host_address, $temp_path, $save_path )
   {
     // get the dicom file off the host
-    $temp_file = sprintf( '%s%s', $temp_path, basename( $this->filename ) );
+    $temp_file = sprintf( '%s/%s', $temp_path, basename( $this->filename ) );
 
     scp_command( $host_address, $this->filename, $temp_file );
     sleep(5);
-    if( !file_exists( $temp_file ) ) return;
+    if( !file_exists( $temp_file ) ) return false;
     if( 100 > filesize( $temp_file ) )
     {
       unlink( $temp_file );
-      return;
+      return false;
     }
 
-    $out_file = sprintf( '%s%d.jpg', $save_path, $this->apex_deployment_id );
+    $out_file = sprintf( '%s/%d.jpg', $save_path, $this->apex_deployment_id );
 
     $cmd = sprintf( 'convert %s ', $temp_file );
     // redact the image Patient ID and DOB fields
@@ -137,6 +137,7 @@ class dexa_scan {
     $cmd .= sprintf( '%s', $out_file );
     $res = shell_exec( $cmd );
     unlink( $temp_file );
+    return true;
   }
 
   public static $region_list = null;
@@ -239,12 +240,12 @@ foreach( $host_list as $host_item )
   {
     foreach( $item_list as $item)
     {
-      $res = $item->process( $host_item['host'], IMAGE_PATH, REPORT_PATH );
+      $res = $item->process( $host_item['host'], IMAGE_PATH, DXA_REPORT_PATH );
       if( false !== $res ) $num_processed++;
     }
   }
   if( 0 < $num_processed )
-    write_log( sprintf( 'procssed %d priority scans from host %s',
+    write_log( sprintf( 'processed %d priority scans from host %s',
       $num_processed, $host_item['name'] ) );
 }
 
