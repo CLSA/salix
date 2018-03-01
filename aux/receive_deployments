@@ -269,39 +269,20 @@ $sql = sprintf(
   'WHERE s.availability=1 '.
   'AND rank<=%d '.
   'AND type IN ("hip","wbody") '. // currently only allow hip and wbody scans
-  'ORDER BY uid, side, rank', DB_PREFIX, $max_rank );
+  'ORDER BY priority DESC, uid, side, rank ASC', DB_PREFIX, $max_rank );
 
 $data_list = $db_salix->get_all( $sql );
-$current_uid = NULL;
+if( false === $data_list || !is_array( $data_list ) ||
+  0 == count( $data_list ) ) return 1;
+
 $scan_list = array();
-$priority_keys = array();
 foreach( $data_list as $data )
 {
   $item = new dexa_scan( $data['uid'], $data['type'], $data['side'],
     $data['rank'], $data['barcode'], $data['serial_number'],
     $data['apex_scan_id'], $data['priority'], $data['apex_host_id'] );
 
-  if( $item->uid != $current_uid )
-  {
-    $current_uid = $item->uid;
-    $scan_list[$item->uid] = array();
-  }
-  if( $current_uid == $item->uid )
-  {
-    $scan_list[$item->uid][] = $item;
-  }
-  if( 1 == $item->priority ) $priority_keys[] = $item->uid;
-}
-
-// bump priority scans to the head of the list
-//
-if( 0 < count( $priority_keys ) )
-{
-  $priority_keys = array_unique( $priority_keys );
-  foreach( $priority_keys as $uid )
-  {
-    $scan_list = array( $uid => $scan_list[$uid] ) + $scan_list;
-  }
+  $scan_list[$item->uid][] = $item;
 }
 
 // connect to opal source to download scans using curl
@@ -316,6 +297,7 @@ $pending_list = array();
 $priority_list = array();
 foreach( $scan_list as $uid => $item_list )
 {
+  // prefer left groupings first
   $group_list = array( 'left' => array(), 'right' => array() );
   foreach( $item_list as $item )
   {
@@ -340,7 +322,6 @@ foreach( $scan_list as $uid => $item_list )
     }
   }
 
-  // prefer left groupings first
   $found = false;
   foreach( $group_list as $side => $side_item_list )
   {
@@ -444,7 +425,7 @@ foreach( $host_list as $name => $data )
   $last_total -= $quota;
   if( $last_total < 0 ) $quota -= abs( $last_total );
   $allocation_list[$name] = $quota;
-  write_log( $name . ' to receive ' . $quota . ' of ' . $total );
+  write_log( sprintf( '%s to receive %d of %d', $name, $quota, $total ) );
 }
 
 // assign scans by quota for each host
@@ -498,26 +479,34 @@ foreach( $allocation_list as $name => $quota )
     }
   }
 
+  $num_deploy = 0;
   foreach( $current_list as $item )
   {
     $sql = sprintf(
       'INSERT INTO apex_deployment (apex_scan_id, apex_host_id) '.
       'VALUES (%d, %d) ', $item->apex_scan_id, $apex_host_id );
-    $db_salix->execute( $sql );
+    if( false !== $db_salix->execute( $sql ) ) $num_deploy++;
   }
-  write_log( 'host ' . $name . ' received ' . count( $current_list ) . ' of quota ' . $quota );
+  write_log( sprintf( 'host %s received %d new deployments of %d candidates in quota of %d',
+    $name, $num_deploy, count( $current_list ), $quota );
 }
 
 // priotry list of whole body scans
 //
+$num_deploy = 0;
 foreach( $priority_list as $item )
 {
   $sql = sprintf(
     'INSERT INTO apex_deployment (apex_scan_id, apex_host_id) '.
     'VALUES (%d, %d)', $item->apex_scan_id, $priority_host_id );
-  $db_salix->execute( $sql );
+  if( false !== $db_salix->execute( $sql ) ) $num_deploy++;
 }
 
-write_log( 'receive_deployments done! ' . count( $pending_list ) . ' remaining items pending' );
+if( 0 < count( $priority_list ) )
+  write_log( sprintf( 'priority host received %d new deployments of %d priority candidates outside of quota',
+    $num_deploy, count( $priority_list ) ) );
+
+write_log( sprintf( 'receive_deployments done! %d remaining items to deploy',
+  count( $pending_list ) );
 
 return 1;

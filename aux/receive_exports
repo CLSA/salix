@@ -178,26 +178,17 @@ foreach( $host_list as $host_item )
   if( false === $deployment_list || !is_array( $deployment_list ) ||
    0 == count( $deployment_list ) )
   {
-    write_log( sprintf( 'found  0 completed deployments on %s', $host_item['name'] ) );
+    write_log( sprintf( 'found 0 completed deployments on %s', $host_item['name'] ) );
     continue;
   }
   $num_deployment = count( $deployment_list );
-  write_log( sprintf( 'found  %d candidate deployments on %s', $num_deployment, $host_item['name'] ) );
+  write_log( sprintf( 'found %d candidate deployments on %s', $num_deployment, $host_item['name'] ) );
 
-  $current_uid = NULL;
   $uid_list = array();
   foreach( $deployment_list as $deployment_item )
   {
     $uid = $deployment_item['uid'];
-    if( $uid != $current_uid )
-    {
-      $current_uid = $uid;
-      $uid_list[$uid] = array();
-    }
-    if( $current_uid == $uid )
-    {
-      $uid_list[$uid][] = $deployment_item;
-    }
+    $uid_list[$uid][] = $deployment_item;
   }
 
   $final_list = array();
@@ -254,6 +245,7 @@ foreach( $host_list as $host_item )
       if( 'exported' == $item['status'] ) continue;
       $type = $item['type'];
       $side = $item['side'];
+      $rank = $item['rank'];
       $barcode = $item['barcode'];
       $path = $item['path'];
 
@@ -265,7 +257,11 @@ foreach( $host_list as $host_item )
       if( '' != $res )
         $res = array_filter( explode( PHP_EOL, $res ), 'is_dicom' );
 
-      if( !is_array( $res ) ) continue;
+      if( !is_array( $res ) )
+      {
+        write_log( sprintf( 'WARNING: no files found in path %s', $path) );
+        continue;
+      }
 
       // search through the results and find a match
       $export_filename = null;
@@ -384,7 +380,13 @@ foreach( $host_list as $host_item )
           'export_datetime="%s", '.
           'export_filename="%s" '.
           'WHERE id=%d', $export_datetime, $export_filename, $item['apex_deployment_id'] );
-        if( false !== $db_salix->execute( $sql ) ) $num_export++;
+        if( false !== $db_salix->execute( $sql ) )
+        {
+          write_log(
+            sprintf( 'found export barcode %s, type %s (side %s), rank %d',
+              $barcode, $type, $side, $rank ) );
+          $num_export++;
+        }
       }
     } // end current uid list
     if( $num_export >= $export_limit ) break;
