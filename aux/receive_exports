@@ -285,11 +285,7 @@ foreach( $host_list as $host_item )
           substr($str_date,4,2),
           substr($str_date,-2) );
         if( $item['scan_date'] != $str_date )
-        {
-          write_log( $win_file );
-          write_log( sprintf( 'verify failed on scan date: "%s" <> %s', $str_date, $item['scan_date'] ) );
           continue;
-        }
 
         // get the study time truncated to minutes
         $str_time = ssh_command( $host_address, sprintf( $gdcm_functions['STUDY_TIME'], $win_file ) );
@@ -297,20 +293,12 @@ foreach( $host_list as $host_item )
           substr($str_time,0,2),
           substr($str_time,2,2) );
         if( $item['scan_time'] != $str_time )
-        {
-          write_log( $win_file );
-          write_log( sprintf( 'verify failed on scan time: "%s" <> %s', $str_time, $item['scan_time'] ) );
           continue;
-        }
 
         // get the patient ID
         $str_id = ssh_command( $host_address, sprintf( $gdcm_functions['PATIENTID'], $win_file ) );
         if( $barcode != $str_id )
-        {
-          write_log( $win_file );
-          write_log( sprintf( 'verify failed on barcode: "%s" <> %s', $str_id, $barcode ) );
           continue;
-        }
 
         // get the DOB
         $str_dob = ssh_command( $host_address, sprintf( $gdcm_functions['PATIENT_DOB'], $win_file ) );
@@ -319,52 +307,32 @@ foreach( $host_list as $host_item )
           substr($str_dob,4,2),
           substr($str_dob,-2) );
         if( $item['dob'] != $str_dob )
-        {
-          write_log( $win_file );
-          write_log( sprintf( 'verify failed on dob: "%s" <> %s', $str_dob, $item['dob'] ) );
           continue;
-        }
 
         // get the sex
         $str_sex = ssh_command( $host_address, sprintf( $gdcm_functions['PATIENT_SEX'], $win_file ) );
         if( $item['sex'] != $str_sex )
-        {
-          write_log( $win_file );
-          write_log( sprintf( 'verify failed on sex: "%s" <> %s', $str_sex, $item['sex'] ) );
           continue;
-        }
 
         // get the serial number
         $str_serial = ssh_command( $host_address, sprintf( $gdcm_functions['SERIAL_NUMBER'], $win_file ) );
         $str_serial = preg_replace( '/[^0-9]/', '', $str_serial );
         if( $item['serial_number'] != $str_serial )
-        {
-          write_log( $win_file );
-          write_log( sprintf( 'verify failed on serial number: "%s" <> %s', $str_serial, $item['serial_number'] ) );
           continue;
-        }
 
         // get the body part
         $str_body = ssh_command( $host_address, sprintf( $gdcm_functions['BODYPART'], $win_file ) );
         if( ( 'ARM' == $str_body && 'forearm' != $type  ) ||
             ( 'HIP' == $str_body && 'hip' != $type  ) ||
             ( 'LSPINE' == $str_body && !($type == 'lateral' || $type == 'spine') ) )
-        {
-          write_log( $win_file );
-          write_log( sprintf( 'verify failed on body part: "%s" <> %s', $str_body, $type ) );
           continue;
-        }
 
         if( 'ARM' == $str_body || 'HIP' == $str_body )
         {
           // get the laterality
           $str_side = ssh_command( $host_address, sprintf( $gdcm_functions['LATERALITY'], $win_file ) );
           if( ('left' == $side ? 'L' : 'R')  != $str_side )
-          {
-            write_log( $win_file );
-            write_log( sprintf( 'verify failed on side: "%s" <> %s', $str_side, $side ) );
             continue;
-          }
         }
 
         $export_filename = $file_name;

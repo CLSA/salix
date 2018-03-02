@@ -43,13 +43,25 @@ function write_log( $message )
   );
 }
 
-if( 2 != $argc )
+$QUOTED_FIELDS = array(
+  'SEX',
+  'BIRTHDATE',
+  'ETHNICITY'
+);
+
+$PRECISION_FIELDS = array(
+  'ADJUSTED_AGE' => 2,
+  'BMI' => 1,
+  'HEIGHT' => 1,
+  'WEIGHT' => 1
+);
+
+$dexa_host_option = NULL;
+if( 2 == $argc )
 {
-  write_log( 'incorrect arguments: ' .  implode( ',', $argv ) );
-  return 0;
+  $dexa_host_option = $argv[1];
 }
 
-$dexa_host = $argv[1];
 $db_salix = '';
 try
 {
@@ -62,67 +74,40 @@ catch( Exception $e )
   return 0;
 }
 
-$sql = 'SELECT name FROM apex_host';
-$host_names = $db_salix->get_all( $sql );
-if( false === $host_names || !is_array( $host_names ) )
+$sql = 'SELECT * FROM apex_host';
+$host_list = $db_salix->get_all( $sql );
+if( false === $host_list || !is_array( $host_list ) ||
+  0 == count( $host_list ) )
 {
-  write_log( 'ERROR: failed to retrieve host names' );
-  return 0;
-}
-array_walk( $host_names, function( &$item ) { $item = $item['name']; } );
-
-if( !in_array( $dexa_host, $host_names) )
-{
-  write_log( 'ERROR: invalid dexa host ' . $dexa_host );
+  write_log( 'ERROR: no host data available' );
   return 0;
 }
 
-$sql = 'SELECT * FROM apex_host WHERE name="' . $dexa_host .'"';
-$res = $db_salix->get_row( $sql );
-
-$db_apex_server = strtoupper( $res['name'] );
-$db_apex_username = $res['sql_user'];
-$db_apex_password  = $res['sql_pass'];
-$apex_host_id = $res['id'];
-
-$db_apex = '';
-try
+foreach( $host_list as $host_item )
 {
-  $db_apex = new odbc( $db_apex_server, $db_apex_username, $db_apex_password );
-}
-catch( Exception $e )
-{
-  write_log( $e->getMessage() );
-  return 0;
-}
+  if( NULL != $dexa_host_option && $dexa_host_option != $host_item['name'] )
+    continue;
 
-// Anonymize all patient biography data populated from the dicom image import
-//
-$sql =
-  'SELECT COUNT(*) '.
-  'FROM PatScan.dbo.PATIENT '.
-  'WHERE DATALENGTH(LAST_NAME)>0 '.
-  'OR DATALENGTH(FIRST_NAME)>0 '.
-  'OR DATALENGTH(MID_INITIAL)>0 '.
-  'OR DATALENGTH(PAT_COMMENT)>0 '.
-  'OR DATALENGTH(REF_PHYSICIAN)>0 '.
-  'OR DATALENGTH(STUDY)>0 '.
-  'OR DATALENGTH(ADDRESS1)>0 '.
-  'OR DATALENGTH(ADDRESS2)>0 '.
-  'OR DATALENGTH(CITY)>0 '.
-  'OR DATALENGTH(STATE)>0 '.
-  'OR DATALENGTH(POSTAL)>0 '.
-  'OR DATALENGTH(COUNTRY)>0';
+  $db_dexa_server = strtoupper( $host_item['name'] );
+  $db_dexa_username = $host_item['sql_user'];
+  $db_dexa_password  = $host_item['sql_pass'];
 
-$res = $db_apex->get_one( $sql );
-if( false !== $res && 0 < $res )
-{
+  $db_dexa = '';
+  try
+  {
+    $db_dexa = new odbc( $db_dexa_server, $db_dexa_username, $db_dexa_password );
+  }
+  catch( Exception $e )
+  {
+    write_log( $e->getMessage() );
+    continue;
+  }
+
+  // Anonymize all patient biography data populated from the dicom image import
+  //
   $sql =
-    'UPDATE PatScan.dbo.PATIENT '.
-    'SET FIRST_NAME=null, LAST_NAME=null, '.
-    'MID_INITIAL=null, PAT_COMMENT=null, REF_PHYSICIAN=null, '.
-    'STUDY=null, ADDRESS1=null, ADDRESS2=null, CITY=null, '.
-    'STATE=null, POSTAL=null, COUNTRY=null '.
+    'SELECT COUNT(*) '.
+    'FROM PatScan.dbo.PATIENT '.
     'WHERE DATALENGTH(LAST_NAME)>0 '.
     'OR DATALENGTH(FIRST_NAME)>0 '.
     'OR DATALENGTH(MID_INITIAL)>0 '.
@@ -136,196 +121,206 @@ if( false !== $res && 0 < $res )
     'OR DATALENGTH(POSTAL)>0 '.
     'OR DATALENGTH(COUNTRY)>0';
 
-  $db_apex->execute( $sql );
-}
-
-// Retrieve all of the correct meta data from salix
-//
-$sql =
-  'SELECT e.id AS apex_exam_id, '.
-  's.id AS apex_scan_id, '.
-  'b.id AS apex_baseline_id, '.
-  'DATE_FORMAT(b.dob, "%Y-%m-%d") AS BIRTHDATE, '.
-  'b.sex as SEX, '.
-  'b.ethnicity as ETHNICITY, '.
-  's.scan_datetime, '.
-  's.scanid, '.
-  's.patient_key, '.
-  's.scan_type_id, '.
-  't.type, '.
-  'e.height as HEIGHT, '.
-  'e.weight as WEIGHT, '.
-  'e.rank, '.
-  'e.barcode, '.
-  'n.id AS serial_number '.
-  'FROM apex_deployment d '.
-  'JOIN apex_host h ON h.id=d.apex_host_id '.
-  'JOIN apex_scan s ON s.id=d.apex_scan_id '.
-  'JOIN apex_exam e ON e.id=s.apex_exam_id '.
-  'JOIN scan_type t ON t.id=s.scan_type_id '.
-  'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
-  'JOIN serial_number n ON n.id=e.serial_number_id '.
-  'WHERE h.name="' . $dexa_host . '" '.
-  'AND s.scan_datetime IS NOT NULL '.
-  'AND s.scanid IS NOT NULL '.
-  'AND s.availability=1 '.
-  'AND d.status="pending" '.
-  'AND s.patient_key IS NOT NULL';
-
-$res = $db_salix->get_all( $sql );
-if( false === $res || !is_array( $res ) ||
-  0 == count( $res ) )
-{
-  write_log( sprintf( 'done. No meta data to push (%s)', $dexa_host ) );
-  return 1;
-}
-
-$quotable_fields = array(
-  'SEX',
-  'BIRTHDATE',
-  'ETHNICITY'
-);
-
-$precision_fields = array(
-  'ADJUSTED_AGE' => 2,
-  'BMI' => 1,
-  'HEIGHT' => 1,
-  'WEIGHT' => 1
-);
-
-// Loop over the salix records, searching the APEX host db for
-// corresponding records
-//
-$total = count( $res );
-$num_patient_updated = 0;
-$num_patient_item_updated = 0;
-$num_analysis_updated = 0;
-$num_analysis_item_updated = 0;
-foreach( $res as $res_salix )
-{
-  $type = $res_salix['type'];
-  $bday = new DateTime( $res_salix['BIRTHDATE'] );
-  $sday = new DateTime( $res_salix['scan_datetime'] );
-  $diff = $sday->diff( $bday );
-  $rank = $res_salix['rank'];
-
-  $res_salix['ADJUSTED_AGE'] = $diff->y + $diff->m / 12.0 + $diff->d / 365.25;
-
-  $res_salix['BMI'] = 0 < $res_salix['HEIGHT'] ?
-    $res_salix['WEIGHT']/(0.0001*$res_salix['HEIGHT']*$res_salix['HEIGHT']) : -1;
-
-  $res_host_patient = null;
-  if( 1 == $rank )
+  $res = $db_dexa->get_one( $sql );
+  if( false !== $res && 0 < $res )
   {
-    // get the info from PATIENT table
-    $sql = sprintf(
-      "SELECT FORMAT(BIRTHDATE, 'yyyy-MM-dd') BIRTHDATE, SEX, ETHNICITY, WEIGHT, HEIGHT, BMI ".
-      'FROM PatScan.dbo.PATIENT '.
-      "WHERE PATIENT_KEY='%s'", $res_salix['patient_key'] );
-    $res_host_patient = $db_apex->get_row( $sql );
-    if( '' == $res_host_patient || !is_array( $res_host_patient ) )
-      $res_host_patient = null;
+    $sql =
+      'UPDATE PatScan.dbo.PATIENT '.
+      'SET FIRST_NAME=null, LAST_NAME=null, '.
+      'MID_INITIAL=null, PAT_COMMENT=null, REF_PHYSICIAN=null, '.
+      'STUDY=null, ADDRESS1=null, ADDRESS2=null, CITY=null, '.
+      'STATE=null, POSTAL=null, COUNTRY=null '.
+      'WHERE DATALENGTH(LAST_NAME)>0 '.
+      'OR DATALENGTH(FIRST_NAME)>0 '.
+      'OR DATALENGTH(MID_INITIAL)>0 '.
+      'OR DATALENGTH(PAT_COMMENT)>0 '.
+      'OR DATALENGTH(REF_PHYSICIAN)>0 '.
+      'OR DATALENGTH(STUDY)>0 '.
+      'OR DATALENGTH(ADDRESS1)>0 '.
+      'OR DATALENGTH(ADDRESS2)>0 '.
+      'OR DATALENGTH(CITY)>0 '.
+      'OR DATALENGTH(STATE)>0 '.
+      'OR DATALENGTH(POSTAL)>0 '.
+      'OR DATALENGTH(COUNTRY)>0';
+
+    $db_dexa->execute( $sql );
   }
-  // always get the info from the ScanAnalysis table
+
+  // retrieve correct meta data from salix
+  //
   $sql = sprintf(
-    'SELECT WEIGHT, HEIGHT, BMI, ADJUSTED_AGE '.
-    'FROM PatScan.dbo.ScanAnalysis '.
-    "WHERE PATIENT_KEY='%s' ".
-    "AND SCANID='%s' ".
-    "AND SERIAL_NUMBER='%s'",
-    $res_salix['patient_key'], $res_salix['scanid'], $res_salix['serial_number'] );
+    'SELECT '.
+    'DATE_FORMAT(b.dob, "%%Y-%%m-%%d") AS BIRTHDATE, '.
+    'b.sex as SEX, '.
+    'b.ethnicity as ETHNICITY, '.
+    's.scan_datetime, '.
+    's.scanid, '.
+    's.patient_key, '.
+    'e.height as HEIGHT, '.
+    'e.weight as WEIGHT, '.
+    'e.rank, '.
+    'n.id AS serial_number '.
+    'FROM apex_deployment d '.
+    'JOIN apex_host h ON h.id=d.apex_host_id '.
+    'JOIN apex_scan s ON s.id=d.apex_scan_id '.
+    'JOIN apex_exam e ON e.id=s.apex_exam_id '.
+    'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
+    'JOIN serial_number n ON n.id=e.serial_number_id '.
+    'WHERE h.id=%d '.
+    'AND s.scan_datetime IS NOT NULL '.
+    'AND s.scanid IS NOT NULL '.
+    'AND s.patient_key IS NOT NULL '.
+    'AND s.availability=1 '.
+    'AND d.status="pending"', $host_item['id'] );
 
-  $res_host_analysis = $db_apex->get_row( $sql );
-  if( '' == $res_host_analysis || !is_array( $res_host_analysis ) )
-    $res_host_analysis = null;
-
-  if( 1 == $rank && null !== $res_host_patient )
+  $deployment_list = $db_salix->get_all( $sql );
+  if( false === $deployment_list || !is_array( $deployment_list ) ||
+    0 == count( $deployment_list ) )
   {
-    $diff = array();
-    $diff_keys = array( 'SEX', 'ETHNICITY', 'BIRTHDATE' );
-    foreach( $diff_keys as $key )
-    {
-      if( $res_salix[$key] != $res_host_patient[$key] )
-        $diff[$key] = array(
-          $res_salix[$key],
-          $res_host_patient[$key] );
-    }
-
-    $diff_keys = array( 'WEIGHT', 'HEIGHT', 'BMI' );
-    foreach( $diff_keys as $key )
-    {
-      $precision = $precision_fields[$key];
-      if( 0 < $res_salix[$key] && round( $res_salix[$key], $precision ) !=
-        round( $res_host_patient[$key], $precision ) )
-      $diff[$key] = array(
-        round( $res_salix[$key], $precision ),
-        round( $res_host_patient[$key], $precision ) );
-    }
-
-    if( 0 < count( $diff ) )
-    {
-      $sql = 'UPDATE PatScan.dbo.PATIENT SET ';
-      foreach( $diff as $key => $data )
-      {
-        $sql .= sprintf(
-          ( in_array( $key, $quotable_fields ) ? "%s='%s', " : '%s=%s, ' ), $key, $data[0] );
-      }
-      $sql = rtrim( $sql, ', ' ) .
-        sprintf(
-          " WHERE PATIENT_KEY='%s'", $res_salix['patient_key'] );
-
-      $db_apex->execute( $sql );
-
-      $num_patient_updated++;
-      $num_patient_item_updated += count( $diff );
-    }
+    write_log( sprintf( 'No meta data to push to %s', $host_item['name'] ) );
+    continue;
   }
 
-  if( null !== $res_host_analysis )
+  // Loop over the salix records, searching the APEX host db for
+  // corresponding records
+  //
+  $total = count( $deployment_list );
+  $num_patient_updated = 0;
+  $num_patient_item_updated = 0;
+  $num_analysis_updated = 0;
+  $num_analysis_item_updated = 0;
+  foreach( $deployment_list as $deployment_item )
   {
-    $diff = array();
-    $diff_keys = array( 'ADJUSTED_AGE', 'WEIGHT', 'HEIGHT', 'BMI' );
-    foreach( $diff_keys as $key )
+    $bday = new DateTime( $deployment_item['BIRTHDATE'] );
+    $sday = new DateTime( $deployment_item['scan_datetime'] );
+    $diff = $sday->diff( $bday );
+    $rank = $deployment_item['rank'];
+
+    $deployment_item['ADJUSTED_AGE'] = $diff->y + $diff->m / 12.0 + $diff->d / 365.25;
+
+    $deployment_item['BMI'] = 0 < $deployment_item['HEIGHT'] ?
+      $deployment_item['WEIGHT']/(0.0001*$deployment_item['HEIGHT']*$deployment_item['HEIGHT']) : -1;
+
+    $dexa_patient = null;
+    if( 1 == $rank )
     {
-      $precision = $precision_fields[$key];
-      if( 0 < $res_salix[$key] &&
-        round( $res_salix[$key], $precision ) !=
-        round( $res_host_analysis[$key], $precision ) )
+      // get the info from PATIENT table
+      $sql = sprintf(
+        "SELECT FORMAT(BIRTHDATE, 'yyyy-MM-dd') BIRTHDATE, SEX, ETHNICITY, WEIGHT, HEIGHT, BMI ".
+        'FROM PatScan.dbo.PATIENT '.
+        "WHERE PATIENT_KEY='%s'", $deployment_item['patient_key'] );
+      $dexa_patient = $db_dexa->get_row( $sql );
+      if( false === $dexa_patient || !is_array( $dexa_patient ) )
+        $dexa_patient = null;
+    }
+    // always get the info from the ScanAnalysis table
+    $sql = sprintf(
+      'SELECT WEIGHT, HEIGHT, BMI, ADJUSTED_AGE '.
+      'FROM PatScan.dbo.ScanAnalysis '.
+      "WHERE PATIENT_KEY='%s' ".
+      "AND SCANID='%s' ".
+      "AND SERIAL_NUMBER='%s'",
+      $deployment_item['patient_key'],
+      $deployment_item['scanid'],
+      $deployment_item['serial_number'] );
+
+    $dexa_analysis = $db_dexa->get_row( $sql );
+    if( false === $dexa_analysis || !is_array( $dexa_analysis ) )
+      $dexa_analysis = null;
+
+    if( 1 == $rank && null !== $dexa_patient )
+    {
+      $diff = array();
+      $diff_keys = array( 'SEX', 'ETHNICITY', 'BIRTHDATE' );
+      foreach( $diff_keys as $key )
       {
+        if( $deployment_item[$key] != $dexa_patient[$key] )
+          $diff[$key] = array(
+            $deployment_item[$key],
+            $dexa_patient[$key] );
+      }
+
+      $diff_keys = array( 'WEIGHT', 'HEIGHT', 'BMI' );
+      foreach( $diff_keys as $key )
+      {
+        $precision = $PRECISION_FIELDS[$key];
+        if( 0 < $deployment_item[$key] && round( $deployment_item[$key], $precision ) !=
+          round( $dexa_patient[$key], $precision ) )
         $diff[$key] = array(
-          round( $res_salix[$key], $precision ),
-          round( $res_host_analysis[$key], $precision ) );
+          round( $deployment_item[$key], $precision ),
+          round( $dexa_patient[$key], $precision ) );
       }
-    }
 
-    if( 0 < count( $diff ) )
-    {
-      $sql = 'UPDATE PatScan.dbo.ScanAnalysis SET ';
-      foreach( $diff as $key => $data )
+      if( 0 < count( $diff ) )
       {
-        $sql .= sprintf(
-          ( in_array( $key, $quotable_fields ) ? "%s='%s', " : '%s=%s, ' ), $key, $data[0] );
+        $sql = 'UPDATE PatScan.dbo.PATIENT SET ';
+        foreach( $diff as $key => $data )
+        {
+          $sql .= sprintf(
+            ( in_array( $key, $QUOTED_FIELDS ) ? "%s='%s', " : '%s=%s, ' ), $key, $data[0] );
+        }
+        $sql = rtrim( $sql, ', ' ) .
+          sprintf(
+            " WHERE PATIENT_KEY='%s'", $deployment_item['patient_key'] );
+
+        if( false !== $db_dexa->execute( $sql ) )
+        {
+          $num_patient_updated++;
+          $num_patient_item_updated += count( $diff );
+        }
       }
-      $sql = rtrim( $sql, ', ' ) .
-        sprintf(
-          " WHERE PATIENT_KEY='%s' ".
-          "AND SCANID='%s' ".
-          "AND SERIAL_NUMBER='%s'",
-          $res_salix['patient_key'], $res_salix['scanid'], $res_salix['serial_number'] );
+    } // end patient data correction
 
-      $db_apex->execute( $sql );
+    if( null !== $dexa_analysis )
+    {
+      $diff = array();
+      $diff_keys = array( 'ADJUSTED_AGE', 'WEIGHT', 'HEIGHT', 'BMI' );
+      foreach( $diff_keys as $key )
+      {
+        $precision = $PRECISION_FIELDS[$key];
+        if( 0 < $deployment_item[$key] &&
+          round( $deployment_item[$key], $precision ) !=
+          round( $dexa_analysis[$key], $precision ) )
+        {
+          $diff[$key] = array(
+            round( $deployment_item[$key], $precision ),
+            round( $dexa_analysis[$key], $precision ) );
+        }
+      }
 
-      $num_analysis_updated++;
-      $num_analysis_item_updated += count( $diff );
+      if( 0 < count( $diff ) )
+      {
+        $sql = 'UPDATE PatScan.dbo.ScanAnalysis SET ';
+        foreach( $diff as $key => $data )
+        {
+          $sql .= sprintf(
+            ( in_array( $key, $QUOTED_FIELDS ) ? "%s='%s', " : '%s=%s, ' ), $key, $data[0] );
+        }
+        $sql = rtrim( $sql, ', ' ) .
+          sprintf(
+            " WHERE PATIENT_KEY='%s' ".
+            "AND SCANID='%s' ".
+            "AND SERIAL_NUMBER='%s'",
+            $deployment_item['patient_key'],
+            $deployment_item['scanid'],
+            $deployment_item['serial_number'] );
+
+        if( false !== $db_dexa->execute( $sql ) )
+        {
+          $num_analysis_updated++;
+          $num_analysis_item_updated += count( $diff );
+        }
+      }
     }
-  }
+  } // end scan data correction
+
+  write_log( sprintf( 'number of %s records processed: %d', $host_item['name'], $total ) );
+  write_log( 'number of host patient records updated: ' . $num_patient_updated );
+  write_log( 'number of host patient items updated: ' . $num_patient_item_updated );
+  write_log( 'number of host analysis records updated: ' . $num_analysis_updated );
+  write_log( 'number of host analysis items updated: ' . $num_analysis_item_updated );
 }
 
-write_log( sprintf( 'number of %s records processed: %d', $dexa_host, $total ) );
-write_log( 'number of host patient records updated: ' . $num_patient_updated );
-write_log( 'number of host patient items updated: ' . $num_patient_item_updated );
-write_log( 'number of host analysis records updated: ' . $num_analysis_updated );
-write_log( 'number of host analysis items updated: ' . $num_analysis_item_updated );
 write_log( 'push_salix_meta done!' );
 
 return 1;

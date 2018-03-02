@@ -26,3 +26,6 @@ $SETTINGS['path']['DEPLOYMENT_REPORT'] = '/path/to/deployment/reports';
 
 // the location of the SSH key file used to communicate with APEX hosts
 $SETTINGS['apex']['apex_ssh_key'] = '/path/to/ssh/key';
+
+// the maximum rank to receive and process deployments
+$SETTINGS['apex']['maximum_rank'] = 'put the maximum rank here';
