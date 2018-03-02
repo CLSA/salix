@@ -167,8 +167,8 @@ class dexa_scan {
           new rectangle(170,1614,248,1589),
           new rectangle(170,1383,248,1358) ),
         'wbody'=>array(
-          new rectangle(170,1369,248,1344),
-          new rectangle(170,1138,248,1113) ) );
+          new rectangle(170,1545,248,1520),
+          new rectangle(170,1314,248,1289) ) );
     }
   }
 
