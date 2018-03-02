@@ -81,6 +81,10 @@ class dexa_scan {
 
   public function process( $host_address, $temp_path, $save_path )
   {
+    // do not re-process
+    $out_file = sprintf( '%s/%d.jpg', $save_path, $this->apex_deployment_id );
+    if( file_exists( $out_file ) && 0 < filesize( $out_file ) ) return false;
+
     // get the dicom file off the host
     $temp_file = sprintf( '%s/%s', $temp_path, basename( $this->filename ) );
 
@@ -92,8 +96,6 @@ class dexa_scan {
       unlink( $temp_file );
       return false;
     }
-
-    $out_file = sprintf( '%s/%d.jpg', $save_path, $this->apex_deployment_id );
 
     $cmd = sprintf( 'convert %s ', $temp_file );
     // redact the image Patient ID and DOB fields

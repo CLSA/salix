@@ -68,3 +68,11 @@ else
   }
 }
 curl_close( $curl );
+
+// run the daily php scripts
+exec( sprintf( '%s %d', $settings['path']['APPLICATION'].'/aux/receive_opal_meta', $settings['apex']['maximum_rank'] ) );
+exec( sprintf( '%s %d', $settings['path']['APPLICATION'].'/aux/receive_deployments', $settings['apex']['maximum_rank'] ) );
+exec( sprintf( '%s', $settings['path']['APPLICATION'].'/aux/import_scans' ) );
+exec( sprintf( '%s', $settings['path']['APPLICATION'].'/aux/push_salix_meta' ) );
+exec( sprintf( '%s', $settings['path']['APPLICATION'].'/aux/receive_exports' ) );
+exec( sprintf( '%s', $settings['path']['APPLICATION'].'/aux/process_requests' ) );
