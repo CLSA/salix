@@ -1,0 +1,65 @@
+Setting up remote access to Windows 7 APEX MSSQL Server 2012 from linux:
+
+1) set up TCP/IP access through the Windows 7 firewall and configure SQL Server
+[ref. https://www.sqlshack.com/how-to-connect-to-a-remote-sql-server/]
+
+Ensure that SQL Server Browser is set to automatically start always and that
+the service is running prior to following the instructions in the pdf
+how_to_connect_to_remote_SQL_server.pdf
+
+In SQL Server Configuration Manager, under Protocols for SQLEXPRESS, right
+click on TCP/IP properties, IP Addresses tab and note the IPAll TCP
+Dynamic Ports value: this value is required for port configuration of
+FreeTDS and odbc.
+
+2) apt-get install unixodbc unixodbc-dev php5-odbc freetds-dev freetds-common freetds-bin tdsodbc
+
+3) configure /etc/freetds/freetds.conf (see freetds.conf.sample for connection to bluet)
+[ref. http://www.freetds.org/userguide/odbcdiagnose.html]
+
+test the connection with
+tsql -S BLUET -U my_windows_login -P my_password
+
+if connected, at the command prompt enter a query, then "go", then "quit"
+
+locale is "en_CA.UTF-8"
+locale charset is "UTF-8"
+using default charset "UTF-8"
+1> select count(*) from PatScan.dbo.PATIENT
+2> go
+
+11145
+(1 row affected)
+1> quit
+
+
+4) configure /etc/odbcinst.ini by creating tds.driver.template and running (as root) to register
+the odbc driver:
+odbcinst -i -d -f tds.driver.template
+
+5) for user level connection, create an odbc datasource for the target APEX workstation by
+creating tds.datasource.template and running (not as root):
+odbcinst -i -s -f tds.datasource.template
+
+this will create a .odbc.ini file in the user home directory
+otherwise, for root or system level access, running as root
+
+odbcinst -i -s -f tds.driver.template -l
+
+[ref. http://www.unixodbc.org/Manuals How to use unixODBC with FreeTDS]
+
+6) test with isql:
+isql -v BLUET my_windows_login my_password
+
+if connected, you will see for example:
++---------------------------------------+
+| Connected!                            |
+|                                       |
+| sql-statement                         |
+| help [tablename]                      |
+| quit                                  |
+|                                       |
++---------------------------------------+
+SQL>
+
+enter a query directly then return
