@@ -202,17 +202,16 @@ foreach( $host_list as $host_item )
       $side = $deployment_item['side'];
       $barcode = $deployment_item['barcode'];
       $rank = $deployment_item['rank'];
-      if( 1 < $rank )
+      if( in_array( $barcode, $dir_list[$type][$side] ) )
       {
-        $sibling_list[$type][$side][] = $deployment_item;
+        $final_list[$uid][] = $deployment_item;
+        if( 1 == $rank )
+          $baseline_list[$type][$side][] = $deployment_item;
       }
       else
       {
-        if( in_array( $barcode, $dir_list[$type][$side] ) )
-        {
-          $final_list[$uid][] = $deployment_item;
-          $baseline_list[$type][$side][] = $deployment_item;
-        }
+        if( 1 < $rank )
+          $sibling_list[$type][$side][] = $deployment_item;
       }
     }
 
