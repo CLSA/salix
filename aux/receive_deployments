@@ -488,7 +488,7 @@ foreach( $allocation_list as $name => $quota )
     if( false !== $db_salix->execute( $sql ) ) $num_deploy++;
   }
   write_log( sprintf( 'host %s received %d new deployments of %d candidates in quota of %d',
-    $name, $num_deploy, count( $current_list ), $quota );
+    $name, $num_deploy, count( $current_list ), $quota ) );
 }
 
 // priotry list of whole body scans
@@ -507,6 +507,6 @@ if( 0 < count( $priority_list ) )
     $num_deploy, count( $priority_list ) ) );
 
 write_log( sprintf( 'receive_deployments done! %d remaining items to deploy',
-  count( $pending_list ) );
+  count( $pending_list ) ) );
 
 return 1;
