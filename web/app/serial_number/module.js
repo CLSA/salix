@@ -7,8 +7,7 @@ define( function() {
     name: {
       singular: 'serial number',
       plural: 'serial numbers',
-      possessive: 'serial number\'s',
-      pluralPossessive: 'serial numbers\''
+      possessive: 'serial number\'s'
     },
     columnList: {
       id: {

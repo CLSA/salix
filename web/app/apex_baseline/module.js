@@ -7,8 +7,7 @@ define( function() {
     name: {
       singular: 'apex baseline',
       plural: 'apex baselines',
-      possessive: 'apex baseline\'s',
-      pluralPossessive: 'apex baselines\''
+      possessive: 'apex baseline\'s'
     },
     columnList: {
       uid: {

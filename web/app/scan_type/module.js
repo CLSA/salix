@@ -7,8 +7,7 @@ define( function() {
     name: {
       singular: 'scan type',
       plural: 'scan types',
-      possessive: 'scan type\'s',
-      pluralPossessive: 'scan types\''
+      possessive: 'scan type\'s'
     },
     columnList: {
       type: {

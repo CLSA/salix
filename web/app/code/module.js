@@ -7,8 +7,7 @@ define( function() {
     name: {
       singular: 'code',
       plural: 'codes',
-      possessive: 'code\'s',
-      pluralPossessive: 'codes\''
+      possessive: 'code\'s'
     },
     columnList: {
       code_type: {

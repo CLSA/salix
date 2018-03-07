@@ -7,8 +7,7 @@ define( function() {
     name: {
       singular: 'apex host',
       plural: 'apex hosts',
-      possessive: 'apex host\'s',
-      pluralPossessive: 'apex hosts\''
+      possessive: 'apex host\'s'
     },
     columnList: {
       name: {

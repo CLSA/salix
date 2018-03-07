@@ -12,8 +12,7 @@ define( function() {
     name: {
       singular: 'apex scan',
       plural: 'apex scans',
-      possessive: 'apex scan\'s',
-      pluralPossessive: 'apex scans\''
+      possessive: 'apex scan\'s'
     },
     columnList: {
       uid: {

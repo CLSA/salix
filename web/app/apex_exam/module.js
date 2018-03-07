@@ -13,7 +13,6 @@ define( function() {
       singular: 'apex exam',
       plural: 'apex exams',
       possessive: 'apex exam\'s',
-      pluralPossessive: 'apex exams\'',
       friendlyColumn: 'rank'
     },
     columnList: {
