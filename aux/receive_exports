@@ -66,6 +66,8 @@ $gdcm_functions = array (
     "/cygdrive/e/GDCM_2.6/bin/gdcmdump -d %s | grep -E '\(0008,0030\)' | awk '{print $4}'",
     'SERIAL_NUMBER' =>
     "/cygdrive/e/GDCM_2.6/bin/gdcmdump -d %s | grep -E '\(0008,1090\)' | awk '{print $4$5$6}'",
+    'SERIES_NUMBER' =>
+    "/cygdrive/e/GDCM_2.6/bin/gdcmdump -d %s | grep -E '\(0020,0011\)' | awk '{print $4}'",
     'LATERALITY' =>
     "/cygdrive/e/GDCM_2.6/bin/gdcmdump -d %s | grep -E '\(0020,0060\)' | awk '{print $4}'",
     'PATIENTID' =>
@@ -320,18 +322,27 @@ foreach( $host_list as $host_item )
           continue;
 
         // get the body part
-        $str_body = ssh_command( $host_address, sprintf( $gdcm_functions['BODYPART'], $win_file ) );
-        if( ( 'ARM' == $str_body && 'forearm' != $type  ) ||
-            ( 'HIP' == $str_body && 'hip' != $type  ) ||
-            ( 'LSPINE' == $str_body && !($type == 'lateral' || $type == 'spine') ) )
-          continue;
-
-        if( 'ARM' == $str_body || 'HIP' == $str_body )
+        if( 'wbody' == $type )
         {
-          // get the laterality
-          $str_side = ssh_command( $host_address, sprintf( $gdcm_functions['LATERALITY'], $win_file ) );
-          if( ('left' == $side ? 'L' : 'R')  != $str_side )
+          $str_series = intval( ssh_command( $host_address, sprintf( $gdcm_functions['SERIES_NUMBER'], $win_file ) ) );
+          if( 1 < $str_series )
             continue;
+        }
+        else
+        {
+          $str_body = ssh_command( $host_address, sprintf( $gdcm_functions['BODYPART'], $win_file ) );
+          if( ( 'ARM' == $str_body && 'forearm' != $type  ) ||
+              ( 'HIP' == $str_body && 'hip' != $type  ) ||
+              ( 'LSPINE' == $str_body && !($type == 'lateral' || $type == 'spine') ) )
+            continue;
+
+          if( 'ARM' == $str_body || 'HIP' == $str_body )
+          {
+            // get the laterality
+            $str_side = ssh_command( $host_address, sprintf( $gdcm_functions['LATERALITY'], $win_file ) );
+            if( ('left' == $side ? 'L' : 'R')  != $str_side )
+              continue;
+          }
         }
 
         $export_filename = $file_name;
