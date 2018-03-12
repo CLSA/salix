@@ -18,8 +18,17 @@ $SETTINGS['general']['build'] = '689f8e4';
 // the location of salix internal path
 $SETTINGS['path']['APPLICATION'] = str_replace( '/settings.ini.php', '', __FILE__ );
 
+// the location of opal views in json format
+$SETTINGS['path']['OPAL_VIEWS'] = $SETTINGS['path']['APPLICATION'].'/aux/opal_views/json';
+
 // the location of deployment reports (defaults to salix/doc/deployment_report)
 $SETTINGS['path']['DEPLOYMENT_REPORT'] = str_replace( 'settings.ini.php', 'doc/deployment_report', __FILE__ );
+
+// the location of the SSH key file used to communicate with APEX hosts (defaults to salix/doc/key)
+$SETTINGS['apex']['apex_ssh_key'] = str_replace( 'settings.ini.php', 'doc/key', __FILE__ );
+
+// the maximum rank to receive and process deployments
+$SETTINGS['apex']['maximum_rank'] = 1;
 
 // Salix does not use VOIP
 $SETTINGS['voip']['enabled'] = false;
