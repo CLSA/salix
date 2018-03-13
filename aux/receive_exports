@@ -154,6 +154,7 @@ foreach( $host_list as $host_item )
     'type, '.
     'side, '.
     'uid, '.
+    'merged, '.
     'status, '.
     'DATE(scan_datetime) AS scan_date, '.
     'DATE_FORMAT(scan_datetime, "%%H:%%i") AS scan_time, '.
@@ -183,8 +184,6 @@ foreach( $host_list as $host_item )
     write_log( sprintf( 'found 0 completed deployments on %s', $host_item['name'] ) );
     continue;
   }
-  $num_deployment = count( $deployment_list );
-  write_log( sprintf( 'found %d candidate deployments on %s', $num_deployment, $host_item['name'] ) );
 
   $uid_list = array();
   foreach( $deployment_list as $deployment_item )
@@ -204,6 +203,7 @@ foreach( $host_list as $host_item )
       $side = $deployment_item['side'];
       $barcode = $deployment_item['barcode'];
       $rank = $deployment_item['rank'];
+      $merged = $deployment_item['merged'];
       if( in_array( $barcode, $dir_list[$type][$side] ) )
       {
         $final_list[$uid][] = $deployment_item;
@@ -212,7 +212,7 @@ foreach( $host_list as $host_item )
       }
       else
       {
-        if( 1 < $rank )
+        if( 1 < $rank && 1 == $merged )
           $sibling_list[$type][$side][] = $deployment_item;
       }
     }
@@ -225,7 +225,7 @@ foreach( $host_list as $host_item )
         {
           if( array_key_exists( $side, $baseline_list[$type] ) )
           {
-            $baseline_item = current($baseline_list[$type][$side]);
+            $baseline_item = current( $baseline_list[$type][$side] );
             foreach( $item_list as $item )
             {
               $baseline_barcode = $baseline_item['barcode'];
@@ -239,11 +239,14 @@ foreach( $host_list as $host_item )
     } // end sibling processing
   } // end loop on uids
 
+  $num_final = 0;
   foreach( $final_list as $uid => $item_list )
   {
+    $last_series = PHP_INT_MAX;
     foreach( $item_list as $item )
     {
       if( 'exported' == $item['status'] ) continue;
+      $num_final++;
       $type = $item['type'];
       $side = $item['side'];
       $rank = $item['rank'];
@@ -252,7 +255,7 @@ foreach( $host_list as $host_item )
 
       // get the file create timestamps
       $res = ssh_command( $host_address, sprintf(
-        'ls -l --time-style="long-iso" -d -1 %s/*.dcm 2>/dev/null | '.
+        'ls -l -tr --time-style="long-iso" -d -1 %s/*.dcm 2>/dev/null | '.
         "grep -E '\/[1-9]{1}[0-9]{7}\/' | ".
         "awk '{print $6" . '" "$7" "$8}'. "'", $path ) );
       if( '' != $res )
@@ -260,7 +263,7 @@ foreach( $host_list as $host_item )
 
       if( !is_array( $res ) )
       {
-        write_log( sprintf( 'WARNING: no files found in path %s', $path) );
+        write_log( sprintf( 'WARNING: no files found in path %s', $path ) );
         continue;
       }
 
@@ -269,8 +272,8 @@ foreach( $host_list as $host_item )
       $export_datetime = null;
       foreach( $res as $data )
       {
-        $file_date = trim(substr( $data, 0, 10 ));
-        $file_time = trim(substr( $data, 11, 5 ));
+        $file_date = trim( substr( $data, 0, 10 ) );
+        $file_time = trim( substr( $data, 11, 5 ) );
         $file_name = explode( ' ', $data );
         $file_name = array_pop( $file_name );
         $parts = explode( '/', $file_name );
@@ -282,17 +285,17 @@ foreach( $host_list as $host_item )
         // get the study date
         $str_date = ssh_command( $host_address, sprintf( $gdcm_functions['STUDY_DATE'], $win_file ) );
         $str_date = sprintf( '%s-%s-%s',
-          substr($str_date,0,4),
-          substr($str_date,4,2),
-          substr($str_date,-2) );
+          substr( $str_date, 0, 4 ),
+          substr( $str_date, 4, 2 ),
+          substr( $str_date, -2 ) );
         if( $item['scan_date'] != $str_date )
           continue;
 
         // get the study time truncated to minutes
         $str_time = ssh_command( $host_address, sprintf( $gdcm_functions['STUDY_TIME'], $win_file ) );
         $str_time = sprintf( '%s:%s',
-          substr($str_time,0,2),
-          substr($str_time,2,2) );
+          substr( $str_time, 0, 2 ),
+          substr( $str_time, 2, 2 ) );
         if( $item['scan_time'] != $str_time )
           continue;
 
@@ -304,9 +307,9 @@ foreach( $host_list as $host_item )
         // get the DOB
         $str_dob = ssh_command( $host_address, sprintf( $gdcm_functions['PATIENT_DOB'], $win_file ) );
         $str_dob = sprintf( '%s-%s-%s',
-          substr($str_dob,0,4),
-          substr($str_dob,4,2),
-          substr($str_dob,-2) );
+          substr( $str_dob, 0, 4 ),
+          substr( $str_dob, 4, 2 ),
+          substr( $str_dob, -2 ) );
         if( $item['dob'] != $str_dob )
           continue;
 
@@ -325,8 +328,13 @@ foreach( $host_list as $host_item )
         if( 'wbody' == $type )
         {
           $str_series = intval( ssh_command( $host_address, sprintf( $gdcm_functions['SERIES_NUMBER'], $win_file ) ) );
-          if( 1 < $str_series )
-            continue;
+          if( $str_series < $last_series )
+          {
+            $export_filename = $file_name;
+            $export_datetime = sprintf( '%s %s:00', $file_date, $file_time );
+            $last_series = $str_series;
+          }
+          continue;
         }
         else
         {
@@ -346,7 +354,7 @@ foreach( $host_list as $host_item )
         }
 
         $export_filename = $file_name;
-        $export_datetime = sprintf('%s %s:00', $file_date, $file_time );
+        $export_datetime = sprintf( '%s %s:00', $file_date, $file_time );
         break;
       } // end loop on directory listing
 
@@ -371,7 +379,7 @@ foreach( $host_list as $host_item )
   } // end loop current host final list
 
   write_log( sprintf( 'found %d exports of %d candidate deployments on %s',
-    $num_export, $num_deployment, $host_item['name'] ) );
+    $num_export, $num_final, $host_item['name'] ) );
 }
 
 write_log( 'receive_exports done!' );
