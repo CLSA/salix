@@ -385,14 +385,26 @@ foreach( $scan_list as $uid => $item_list )
         }
         else
         {
-          $repeat_list = array();
+          $unassigned = false;
           foreach( $current_list as $item )
           {
-            $repeat_list[] = $item->apex_scan_id;
+            if( NULL === $item->apex_host_id )
+            {
+              $unassigned = true;
+              break;
+            }
           }
-          $repeat_list = array_unique( $repeat_list );
-          write_log( sprintf( 'WARNING: %d repeat %s hip deployments (%s)',
-            count( $host_id_list ), $side, implode( ',', $repeat_list ) ) );
+          if( $unassigned )
+          {
+            $repeat_list = array();
+            foreach( $current_list as $item )
+            {
+              $repeat_list[] = $item->apex_scan_id;
+            }
+            $repeat_list = array_unique( $repeat_list );
+            write_log( sprintf( 'WARNING: %d repeat %s hip deployments (%s)',
+              count( $host_id_list ), $side, implode( ',', $repeat_list ) ) );
+          }
         }
       }
       else // none of the scans are deployed
