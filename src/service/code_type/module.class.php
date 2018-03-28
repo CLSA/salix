@@ -14,7 +14,7 @@ use cenozo\lib, cenozo\log, salix\util;
  */
 class module extends \cenozo\service\module
 {
-  /** 
+  /**
    * Extend parent method
    */
   public function prepare_read( $select, $modifier )
@@ -56,15 +56,16 @@ class module extends \cenozo\service\module
         'code_type.id',
         'apex_deployment_outer_join.code_type_id' );
       $select->add_column( 'apex_deployment_count', 'apex_deployment_count', false );
-    }   
+    }
 
     // add the total number of scan_types
-    if( $select->has_column( 'scan_type_count' ) )
+    if( $select->has_column( 'scan_type_count' ) || $select->has_column( 'scan_type_id_list' ) )
     {
       // to accomplish this we need to create two sub-joins, so start by creating the inner join
       $inner_join_sel = lib::create( 'database\select' );
       $inner_join_sel->from( 'scan_type_has_code_type' );
       $inner_join_sel->add_column( 'code_type_id' );
+      $inner_join_sel->add_column( 'GROUP_CONCAT( scan_type_id )', 'scan_type_id_list', false );
       $inner_join_sel->add_column( 'COUNT(*)', 'scan_type_count', false );
 
       $inner_join_mod = lib::create( 'database\modifier' );
@@ -74,6 +75,7 @@ class module extends \cenozo\service\module
       $scan_type_outer_join_sel = lib::create( 'database\select' );
       $scan_type_outer_join_sel->from( 'code_type' );
       $scan_type_outer_join_sel->add_column( 'id', 'code_type_id' );
+      $scan_type_outer_join_sel->add_table_column( 'inner_join', 'scan_type_id_list' );
       $scan_type_outer_join_sel->add_column(
         'IF( code_type_id IS NOT NULL, scan_type_count, 0 )', 'scan_type_count', false );
 
@@ -92,7 +94,10 @@ class module extends \cenozo\service\module
         ),
         'code_type.id',
         'scan_type_outer_join.code_type_id' );
-      $select->add_column( 'scan_type_count', 'scan_type_count', false );
-    }   
+      if( $select->has_column( 'scan_type_count' ) )
+        $select->add_column( 'scan_type_count', 'scan_type_count', false );
+      if( $select->has_column( 'scan_type_id_list' ) )
+        $select->add_table_column( 'scan_type_outer_join', 'scan_type_id_list' );
+    }
   }
 }

@@ -27,7 +27,7 @@
               <label class="col-sm-3 control-label">Codes</label>
               <div class="col-sm-9">
                 <div class="row">
-                  <div class="col-sm-2" ng-repeat="codeType in model.metadata.codeTypeList">
+                  <div class="col-sm-2" ng-repeat="codeType in model.viewModel.codeTypeList">
                     <label class="checkbox"
                            style="left: 25px"
                            for="codeType{{ codeType.id }}"
@@ -43,7 +43,7 @@
                   </div>
                 </div>
                 <div class="row">
-                  <div class="col-sm-2" ng-repeat="codeType in model.metadata.codeTypeList">
+                  <div class="col-sm-2" ng-repeat="codeType in model.viewModel.codeTypeList">
                     <label class="checkbox"
                            style="left: 25px"
                            for="{{ codeType.code }}"
@@ -59,11 +59,43 @@
                   </div>
                 </div>
                 <div class="row">
-                  <div class="col-sm-2" ng-repeat="codeType in model.metadata.codeTypeList">
+                  <div class="col-sm-2" ng-repeat="codeType in model.viewModel.codeTypeList">
                     <label class="checkbox"
                            style="left: 25px"
                            for="{{ codeType.code }}"
-                           ng-if="12 <= $index"
+                           ng-if="12 <= $index && $index < 18"
+                           uib-tooltip="{{ codeType.description }}">
+                      <input type="checkbox"
+                             ng-attr-id="codeType{{ codeType.id }}"
+                             name="codeType{{ codeType.id }}"
+                             ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
+                             ng-model="model.viewModel.record['codeType'+codeType.id]">
+                      </input> {{ codeType.code }}
+                    </label>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-sm-2" ng-repeat="codeType in model.viewModel.codeTypeList">
+                    <label class="checkbox"
+                           style="left: 25px"
+                           for="{{ codeType.code }}"
+                           ng-if="18 <= $index && $index < 24"
+                           uib-tooltip="{{ codeType.description }}">
+                      <input type="checkbox"
+                             ng-attr-id="codeType{{ codeType.id }}"
+                             name="codeType{{ codeType.id }}"
+                             ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
+                             ng-model="model.viewModel.record['codeType'+codeType.id]">
+                      </input> {{ codeType.code }}
+                    </label>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-sm-2" ng-repeat="codeType in model.viewModel.codeTypeList">
+                    <label class="checkbox"
+                           style="left: 25px"
+                           for="{{ codeType.code }}"
+                           ng-if="24 <= $index && $index < 30"
                            uib-tooltip="{{ codeType.description }}">
                       <input type="checkbox"
                              ng-attr-id="codeType{{ codeType.id }}"

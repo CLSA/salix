@@ -92,7 +92,8 @@ define( function() {
       constant: true
     },
     pass: { type: 'boolean', exclude: true }, // used by CnApexDeploymentViewFactory::patch
-    note: { type: 'hidden' }
+    note: { type: 'hidden' },
+    scan_type_id: { column: 'apex_scan.scan_type_id', type: 'hidden' } // used to restrict code types
   } );
 
   module.addInputGroup( 'Additional Details', {
@@ -264,10 +265,13 @@ define( function() {
                                             : function() { return self.parentModel.$$getEditEnabled(); };
 
             return self.parentModel.metadata.getPromise().then( function() {
+              // get a limited list of code types which apply to this deployment's scan type
+              self.codeTypeList = self.parentModel.metadata.codeTypeList.filter(
+                codeType => 0 <= codeType.scan_type_id_list.indexOf( self.record.scan_type_id )
+              );
+
               self.isComplete = true;
-              self.parentModel.metadata.codeTypeList.forEach( function( codeType ) {
-                self.record['codeType'+codeType.id] = false;
-              } );
+              self.codeTypeList.forEach( function( codeType ) { self.record['codeType'+codeType.id] = false; } );
               return $q.all( [
                 // set all code values to false then get the scan's codes
                 CnHttpFactory.instance( {
@@ -408,10 +412,14 @@ define( function() {
               CnHttpFactory.instance( {
                 path: 'code_type',
                 data: {
-                  select: { column: [ 'id', 'code', 'description' ] },
+                  select: { column: [ 'id', 'code', 'description', 'scan_type_id_list' ] },
                   modifier: { order: 'code' }
                 }
               } ).query().then( function( response ) {
+                // convert the id list into an array if integers
+                response.data.forEach(
+                  item => item.scan_type_id_list = item.scan_type_id_list.split( ',' ).map( id => parseInt(id) )
+                );
                 self.metadata.codeTypeList = response.data;
               } )
             ] );
