@@ -180,7 +180,9 @@ class dexa_scan {
   public $apex_deployment_id;
 }
 
-$db_salix = '';
+/*-------------MAIN PROGRAM-----------*/
+
+$db_salix = null;
 try
 {
   $db_salix = new database(
@@ -192,8 +194,66 @@ catch( Exception $e )
   return 0;
 }
 
+$deployment_id = null;
+if( 2 == $argc )
+{
+  $deployment_id = ctype_digit( $argv[1] ) ? $argv[1] : null;
+  if( null === $deployment_id )
+    return 0;
+  $file_name = sprintf( '%s/%s.jpg', DXA_REPORT_PATH, $deployment_id );
+  if( file_exists( $file_name ) )
+    unlink( $file_name );
+  else
+    return 0;
+}
+
+// single deployment refresh
+if( null !== $deployment_id )
+{
+  $sql = sprintf(
+    'SELECT '.
+    'type, '.
+    'rank, '.
+    'uid, '.
+    'export_filename, '.
+    'h.host '.
+    'FROM apex_deployment d '.
+    'JOIN apex_host h ON h.id=d.apex_host_id '.
+    'JOIN apex_scan s ON s.id=d.apex_scan_id '.
+    'JOIN scan_type t ON t.id=s.scan_type_id '.
+    'JOIN apex_exam e ON e.id=s.apex_exam_id '.
+    'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
+    'JOIN %scenozo.participant p ON p.id=b.participant_id '.
+    'WHERE availability=1 '.
+    'AND export_filename IS NOT NULL '.
+    'AND pass=1 '.
+    'AND status="exported" '.
+    'AND priority=1 '.
+    'AND d.id=%d',
+    DB_PREFIX, $deployment_id );
+
+  $res = $db_salix->get_row( $sql );
+  if( false === $res || !is_array( $res ) )
+    return 0;
+
+  $scan_item = new dexa_scan(
+    $res['uid'],
+    $res['type'],
+    $res['rank'],
+    $res['export_filename'],
+    $deployment_id );
+  $res = $scan_item->process( $res['host'], IMAGE_PATH, DXA_REPORT_PATH );
+
+  write_log( sprintf( '%s refresh %s report image %d',
+    ( false === $res ? 'WARNING: failed' : 'successful' ), $scan_item->type, $deployment_id ) );
+
+  return false === $res ? 0 : 1;
+}
+
+// new deployment creation
 $sql = 'SELECT * FROM apex_host';
 $host_list = $db_salix->get_all( $sql );
+$process_list = array();
 foreach( $host_list as $host_item )
 {
   $num_processed = 0;
@@ -247,8 +307,16 @@ foreach( $host_list as $host_item )
     }
   }
   if( 0 < $num_processed )
-    write_log( sprintf( 'processed %d priority scans from host %s',
-      $num_processed, $host_item['name'] ) );
+  {
+    $process_list[$host_item['name']] = $num_processed;
+  }
+}
+
+if( 0 < count( array_keys( $process_list ) ) )
+{
+  write_log( sprintf( 'hosts [%s] priority scan requests [%s]', 
+    implode( '/', array_values( $process_list ) ),
+    implode( '/', array_keys( $process_list ) ) ) );
 }
 
 write_log( 'process_requests done!' );

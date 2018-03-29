@@ -19,6 +19,7 @@ SOURCE serial_number.sql
 SOURCE scan_type.sql
 SOURCE apex_exam.sql
 SOURCE apex_scan.sql
+SOURCE apex_scan.post.sql
 SOURCE apex_deployment.sql
 SOURCE code_type.sql
 SOURCE scan_type_has_code_type.sql

@@ -217,17 +217,19 @@ class dexa_scan
   public $import_datetime;
 }
 
+/*-------------MAIN PROGRAM-----------*/
+
 // optional argument: limit on number of scans
 // to direct to only one host, set the allocation
 // ratios in the salix UI
 
-$allocation_limit = 100;
+$allocation_limit = 200;
 if( 2 == $argc )
 {
   $allocation_limit = $argv[1];
 }
 
-$db_salix = '';
+$db_salix = null;
 try
 {
   $db_salix = new database(
@@ -388,6 +390,12 @@ foreach( $verify_host_list as $name )
 }
 
 // loop over hosts
+$process_list = array(
+  'name' => array(),
+  'num_transfer' => array(),
+  'num_candidate' => array(),
+  'num_verify' => array()
+  );
 foreach( $scan_list as $name => $identifier_list )
 {
   $db_dexa_server = strtoupper( $name );
@@ -395,7 +403,7 @@ foreach( $scan_list as $name => $identifier_list )
   $db_dexa_password = $host_list[$name]['sql_pass'];
   $host_address = $host_list[$name]['host'];
 
-  $db_dexa = '';
+  $db_dexa = null;
   try
   {
     $db_dexa = new odbc( $db_dexa_server, $db_dexa_username, $db_dexa_password );
@@ -406,14 +414,14 @@ foreach( $scan_list as $name => $identifier_list )
     return 0;
   }
 
-  $num_scp = 0;
-  $num_can = 0;
+  $num_transfer = 0;
+  $num_candidate = 0;
   foreach( $identifier_list as $uid => $item_list )
   {
     foreach( $item_list as $item )
     {
       $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
-      $num_can++;
+      $num_candidate++;
       if( NULL !== $filename )
       {
         // run gdcmconv -E -w the_file.dcm the_file.dcm
@@ -437,7 +445,7 @@ foreach( $scan_list as $name => $identifier_list )
         $item->copy_to = '/cygdrive/e/ORIGINAL/' . $subpath . '/' . $base;
 
         unlink( $filename );
-        $num_scp++;
+        $num_transfer++;
       }
     }
   }
@@ -479,7 +487,7 @@ foreach( $scan_list as $name => $identifier_list )
       "AND p.IDENTIFIER1='%s'";
 
   // reloop through this host's set of scan items
-  $num_cmv = 0;
+  $num_verify = 0;
   foreach( $identifier_list as $uid => $item_list )
   {
     foreach( $item_list as $item )
@@ -530,13 +538,21 @@ foreach( $scan_list as $name => $identifier_list )
         $dir = str_replace( '/cygdrive/e/ORIGINAL/', '/cygdrive/e/InComing/', $dir );
         $res = ssh_command( $host_address, 'rm -rf ' . $dir );
 
-        $num_cmv++;
+        $num_verify++;
       }
     }
   }
-  write_log( sprintf( '%s: N candidates %d, N scp transfers %d, N verified %d',
-    $name, $num_can, $num_scp, $num_cmv ) );
+  $process_list['name'][] = $name;
+  $process_list['num_transfer'][] = $num_transfer;
+  $process_list['num_candidate'][] = $num_candidate;
+  $process_list['num_verify'][] = $num_verify;
 }
+
+write_log( sprintf( 'hosts [%s] candidates [%s] transfers [%s] verified [%s]',
+    implode( '/', $process_list['name'] ),
+    implode( '/', $process_list['num_candidate'] ),
+    implode( '/', $process_list['num_transfer'] ),
+    implode( '/', $process_list['num_verify'] ) ) );
 
 write_log( 'import_scans done!');
 

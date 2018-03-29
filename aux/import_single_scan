@@ -217,6 +217,7 @@ class dexa_scan
   public $import_datetime;
 }
 
+/*-------------MAIN PROGRAM-----------*/
 
 // arguments: host, UID, barcode, rank, type, side
 if( 7 != $argc )
@@ -226,7 +227,7 @@ if( 7 != $argc )
   return 0;
 }
 
-$db_salix = '';
+$db_salix = null;
 try
 {
   $db_salix = new database(

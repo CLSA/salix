@@ -56,13 +56,15 @@ $PRECISION_FIELDS = array(
   'WEIGHT' => 1
 );
 
+/*-------------MAIN PROGRAM-----------*/
+
 $dexa_host_option = NULL;
 if( 2 == $argc )
 {
   $dexa_host_option = $argv[1];
 }
 
-$db_salix = '';
+$db_salix = null;
 try
 {
   $db_salix = new database(
@@ -83,6 +85,14 @@ if( false === $host_list || !is_array( $host_list ) ||
   return 0;
 }
 
+$process_list = array(
+  'name' => array(),
+  'total' => array(),
+  'num_patient' => array(),
+  'num_patient_item' => array(),
+  'num_analysis' => array(),
+  'num_analysis_item' => array()
+  );
 foreach( $host_list as $host_item )
 {
   if( NULL != $dexa_host_option && $dexa_host_option != $host_item['name'] )
@@ -92,7 +102,7 @@ foreach( $host_list as $host_item )
   $db_dexa_username = $host_item['sql_user'];
   $db_dexa_password  = $host_item['sql_pass'];
 
-  $db_dexa = '';
+  $db_dexa = null;
   try
   {
     $db_dexa = new odbc( $db_dexa_server, $db_dexa_username, $db_dexa_password );
@@ -185,10 +195,10 @@ foreach( $host_list as $host_item )
   // corresponding records
   //
   $total = count( $deployment_list );
-  $num_patient_updated = 0;
-  $num_patient_item_updated = 0;
-  $num_analysis_updated = 0;
-  $num_analysis_item_updated = 0;
+  $num_patient = 0;
+  $num_patient_item = 0;
+  $num_analysis = 0;
+  $num_analysis_item = 0;
   foreach( $deployment_list as $deployment_item )
   {
     $bday = new DateTime( $deployment_item['BIRTHDATE'] );
@@ -265,8 +275,8 @@ foreach( $host_list as $host_item )
 
         if( false !== $db_dexa->execute( $sql ) )
         {
-          $num_patient_updated++;
-          $num_patient_item_updated += count( $diff );
+          $num_patient++;
+          $num_patient_item += count( $diff );
         }
       }
     } // end patient data correction
@@ -307,19 +317,31 @@ foreach( $host_list as $host_item )
 
         if( false !== $db_dexa->execute( $sql ) )
         {
-          $num_analysis_updated++;
-          $num_analysis_item_updated += count( $diff );
+          $num_analysis++;
+          $num_analysis_item += count( $diff );
         }
       }
     }
   } // end scan data correction
 
-  write_log( sprintf( 'number of %s records processed: %d', $host_item['name'], $total ) );
-  write_log( 'number of host patient records updated: ' . $num_patient_updated );
-  write_log( 'number of host patient items updated: ' . $num_patient_item_updated );
-  write_log( 'number of host analysis records updated: ' . $num_analysis_updated );
-  write_log( 'number of host analysis items updated: ' . $num_analysis_item_updated );
+  $process_item['name'[] = $host_item['name'];
+  $process_item['total'[] = $total;
+  $process_item['num_patient'[] = $num_patient;
+  $process_item['num_patient_item'[] = $num_patient_item;
+  $process_item['num_analysis'[] = $num_analysis;
+  $process_item['num_analysi_item'[] = $num_analysis_item;
 }
+
+write_log( sprintf(
+  'hosts [%s] total updates [%s] '.
+  'patients [%s] patient items [%s] '.
+  'analysis [%s] analysis items [%s]',
+  implode( '/', $process_item['name'] ),
+  implode( '/', $process_item['total'] ),
+  implode( '/', $process_item['num_patient'] ),
+  implode( '/', $process_item['num_patient_item'] ),
+  implode( '/', $process_item['num_analysis'] ),
+  implode( '/', $process_item['num_analysis_item'] ) ) );
 
 write_log( 'push_salix_meta done!' );
 
