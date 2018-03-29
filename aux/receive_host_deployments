@@ -48,6 +48,8 @@ function ssh_command( $address, $arg )
     'ssh -i ' . APEX_SSH_KEY . ' clsa@%s %s', $address, $arg ) ) );
 }
 
+/*-------------MAIN PROGRAM-----------*/
+
 if( 2 != $argc )
 {
   write_log( 'incorrect arguments: ' .  implode( ',', $argv ) );
@@ -55,7 +57,7 @@ if( 2 != $argc )
 }
 
 $dexa_host = $argv[1];
-$db_salix = '';
+$db_salix = null;
 try
 {
   $db_salix = new database(

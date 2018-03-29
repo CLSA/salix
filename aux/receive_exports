@@ -73,7 +73,9 @@ $gdcm_functions = array (
     'PATIENTID' =>
     "/cygdrive/e/GDCM_2.6/bin/gdcmdump -d %s | grep -E '\(0010,0020\)' | awk '{print $4}'" );
 
-$db_salix = '';
+/*-------------MAIN PROGRAM-----------*/
+
+$db_salix = null;
 try
 {
   $db_salix = new database(
@@ -85,7 +87,7 @@ catch( Exception $e )
   return 0;
 }
 
-$export_limit = 100;
+$export_limit = 200;
 if( 2 == $argc )
 {
   $export_limit = $argv[1];
@@ -93,6 +95,11 @@ if( 2 == $argc )
 
 $sql = 'SELECT * FROM apex_host';
 $host_list = $db_salix->get_all( $sql );
+$process_list = array(
+  'name' => array()
+  'num_export' => array(),
+  'num_candidate' => array()
+  );
 foreach( $host_list as $host_item )
 {
   $apex_host_id = $host_item['id'];
@@ -239,14 +246,14 @@ foreach( $host_list as $host_item )
     } // end sibling processing
   } // end loop on uids
 
-  $num_final = 0;
+  $num_candidate = 0;
   foreach( $final_list as $uid => $item_list )
   {
     $last_series = PHP_INT_MAX;
     foreach( $item_list as $item )
     {
       if( 'exported' == $item['status'] ) continue;
-      $num_final++;
+      $num_candidate++;
       $type = $item['type'];
       $side = $item['side'];
       $rank = $item['rank'];
@@ -378,9 +385,15 @@ foreach( $host_list as $host_item )
     if( $num_export >= $export_limit ) break;
   } // end loop current host final list
 
-  write_log( sprintf( 'found %d exports of %d candidate deployments on %s',
-    $num_export, $num_final, $host_item['name'] ) );
+  $process_list['name'][] = $host_item['name'];
+  $process_list['num_export'][] = $num_export;
+  $process_list['num_candidate'][] = $num_candidate;
 }
+
+write_log( sprintf( 'hosts [%s] candidates [%s] exports [%s]',
+  implode( '/', $process_list['name'] ),
+  implode( '/', $process_list['num_candidate'] ),
+  implode( '/', $process_list['num_export'] ) ) );
 
 write_log( 'receive_exports done!' );
 

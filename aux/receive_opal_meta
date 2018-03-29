@@ -47,6 +47,8 @@ function write_log( $message )
   );
 }
 
+/*-------------MAIN PROGRAM-----------*/
+
 $last_completed_rank = 1;  // consider making a setting in the application ini file
 $rank = $last_completed_rank;
 $date = null;
@@ -93,7 +95,7 @@ if( $total != count( $identifier_list ) )
   return 0;
 }
 
-$db_salix = '';
+$db_salix = null;
 try
 {
   $db_salix = new database(

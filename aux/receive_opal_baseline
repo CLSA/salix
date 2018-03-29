@@ -44,6 +44,8 @@ function write_log( $message )
   );
 }
 
+/*-------------MAIN PROGRAM-----------*/
+
 $opal_curl = new opalcurl(
   OPAL_SERVER, OPAL_PORT, OPAL_USERNAME, OPAL_PASSWORD, 'salix', 'baseline' );
 
@@ -57,7 +59,7 @@ if( $total != count( $identifier_list ) )
   return 0;
 }
 
-$db_salix = '';
+$db_salix = null;
 try
 {
   $db_salix = new database(
