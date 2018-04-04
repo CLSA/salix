@@ -48,6 +48,8 @@ function ssh_command( $address, $arg )
     'ssh -i ' . APEX_SSH_KEY . ' clsa@%s %s', $address, $arg ) ) );
 }
 
+/*-------------MAIN PROGRAM-----------*/
+
 if( 2 != $argc )
 {
   write_log( 'incorrect arguments: ' .  implode( ',', $argv ) );
@@ -55,7 +57,7 @@ if( 2 != $argc )
 }
 
 $dexa_host = $argv[1];
-$db_salix = '';
+$db_salix = null;
 try
 {
   $db_salix = new database(
@@ -459,8 +461,13 @@ foreach( $dexa_data as $scan_type_id => $items )
       'INSERT INTO apex_deployment '.
       '(apex_host_id, apex_scan_id, merged, status, comp_scanid, analysis_datetime, import_datetime ) '.
       'VALUES (%d, %d, %d, "%s", %s, "%s", %s ) ON DUPLICATE KEY UPDATE '.
-      'apex_host_id = VALUES(apex_host_id), '.
-      'apex_scan_id = VALUES(apex_scan_id)',
+      'apex_host_id = VALUES( apex_host_id ), '.
+      'apex_scan_id = VALUES( apex_scan_id ), '.
+      'merged = VALUES( merged ), '.
+      'status = VALUES( status ), '.
+      'comp_scanid = VALUES( comp_scanid ), '.
+      'analysis_datetime = VALUES( analysis_datetime ), '.
+      'import_datetime = VALUES( import_datetime )',
       $apex_host_id, $apex_scan_id, $merged, $status, $comp_scanid,
       $values['analysis_datetime'], $import_datetime );
 

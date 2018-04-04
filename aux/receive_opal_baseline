@@ -44,6 +44,8 @@ function write_log( $message )
   );
 }
 
+/*-------------MAIN PROGRAM-----------*/
+
 $opal_curl = new opalcurl(
   OPAL_SERVER, OPAL_PORT, OPAL_USERNAME, OPAL_PASSWORD, 'salix', 'baseline' );
 
@@ -57,7 +59,7 @@ if( $total != count( $identifier_list ) )
   return 0;
 }
 
-$db_salix = '';
+$db_salix = null;
 try
 {
   $db_salix = new database(
@@ -73,9 +75,15 @@ foreach( $list as $uid => $row )
 {
   $dob = $row['dob'];
   if( '' == $dob ) continue;
-  $sql_p = 'SELECT DISTINCT id FROM ' . DB_PREFIX . 'cenozo.participant WHERE uid="' . $uid . '"';
+
+  $sql_p = sprintf(
+    'SELECT DISTINCT id '.
+    'FROM %scenozo.participant '.
+    'WHERE uid="%s"', DB_PREFIX, $uid );
+
   $res = $db_salix->get_one( $sql_p );
   if( false === $res ) continue;
+
   $id = $res;
   $eth = '' == $row['ethnicity'] ? 'W' : $row['ethnicity'];
   $sex = '' == $row['sex'] ? 'F' : $row['sex'];
@@ -83,7 +91,10 @@ foreach( $list as $uid => $row )
   $sql = 'INSERT INTO apex_baseline (participant_id,dob,ethnicity,sex) VALUES '.
     '(' . $id . ',"' . implode( '","', array( $dob, $eth, $sex) ) . '") '.
     'ON DUPLICATE KEY UPDATE '.
-    'participant_id = VALUES(participant_id)';
+    'participant_id = VALUES( participant_id ), '.
+    'dob = VALUES( dob ), '.
+    'ethnicity = VALUES( ethnicity ), '.
+    'sex = VALUES( sex )';
 
   $db_salix->execute( $sql );
 }
