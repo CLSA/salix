@@ -47,6 +47,8 @@ function write_log( $message )
   );
 }
 
+/*-------------MAIN PROGRAM-----------*/
+
 $last_completed_rank = 1;  // consider making a setting in the application ini file
 $rank = $last_completed_rank;
 $date = null;
@@ -93,7 +95,7 @@ if( $total != count( $identifier_list ) )
   return 0;
 }
 
-$db_salix = '';
+$db_salix = null;
 try
 {
   $db_salix = new database(
@@ -136,10 +138,10 @@ foreach( $res as $value )
 // every Apex system has a unique serial number and runs at a specific site...
 // create a convenience lookup between site names and the serial number and site ids
 //
-$sql =
+$sql = sprintf(
   'SELECT name AS site, n.id AS serial_number_id, s.id AS site_id '.
   'FROM serial_number n '.
-  'JOIN ' . DB_PREFIX . 'cenozo.site s ON s.id=n.site_id';
+  'JOIN %scenozo.site s ON s.id=n.site_id', DB_PREFIX );
 
 $res = $db_salix->get_all( $sql );
 $site_lookup = array();
@@ -154,11 +156,11 @@ foreach( $list as $uid => $row )
 {
   if( '' == $row['barcode'] || '' == $row['site'] ) continue;
 
-  $sql_p =
+  $sql_p = sprintf(
     'SELECT DISTINCT b.id '.
     'FROM apex_baseline b '.
-    'JOIN ' . DB_PREFIX . 'cenozo.participant p ON p.id=b.participant_id '.
-    'WHERE uid="' . $uid . '"';
+    'JOIN %scenozo.participant p ON p.id=b.participant_id '.
+    'WHERE uid="%s"', DB_PREFIX, $uid );
   $res = $db_salix->get_one( $sql_p );
   if( false === $res || '' == $res ) continue;
   $apex_baseline_id = $res;
@@ -186,10 +188,17 @@ foreach( $list as $uid => $row )
   $sql_dup =
     'ON DUPLICATE KEY UPDATE '.
     'apex_baseline_id = VALUES( apex_baseline_id ), '.
-    'serial_number_id = VALUES( serial_number_id )';
+    'serial_number_id = VALUES( serial_number_id ), '.
+    'barcode = VALUES( barcode ), '.
+    'rank = VALUES( rank ), '.
+    'height = VALUES( height ), '.
+    'weight = VALUES( weight ), '.
+    'age = VALUES( age ), '.
+    'technician = VALUES( technician )';
 
   $sql = $sql_col . $sql_val . $sql_dup;
-  $db_salix->execute( $sql );
+  if( false === $db_salix->execute( $sql ) )
+    write_log( sprintf( 'WARNING: failed to update apex_exam for %s / %s', $uid, $row['barcode']  ) );
 
   $sql = sprintf(
     'SELECT id FROM apex_exam '.
@@ -198,16 +207,16 @@ foreach( $list as $uid => $row )
     'AND rank=%d '.
     'AND barcode="%s"', $apex_baseline_id, $serial_number_id, $rank, $row['barcode'] );
   $apex_exam_id = $db_salix->get_one( $sql );
-  if( false === $apex_exam_id || 0 == $apex_exam_id )
+  if( false === $apex_exam_id || '' == $apex_exam_id )
   {
     $dup_val = array_combine( $columns, $data );
     $sql = sprintf(
-      'SELECT id FROM apex_exam WHERE '.
-      'apex_baseline_id=%d AND '.
-      'serial_number_id=%d AND '.
-      'barcode=%s AND '.
-      'rank=%d',
-      $apex_baseline_id, $serial_number_id, $dup_val['barcode'], $dup_val['rank'] );
+      'SELECT id FROM apex_exam '.
+      'WHERE apex_baseline_id=%d '.
+      'AND serial_number_id=%d '.
+      'AND rank=%d '.
+      'AND barcode=%s',
+      $apex_baseline_id, $serial_number_id, $dup_val['rank'], $dup_val['barcode'] );
 
     $apex_exam_id = $db_salix->get_one( $sql );
   }
@@ -228,13 +237,13 @@ foreach( $list as $uid => $row )
       $availability = $row[$key];
     $availability = '' == $availability ? 0 : $availability;
 
-    $sql .= sprintf( ' %d, %d, %d )', $apex_exam_id, $scan_type_id, $availability );
+    $sql .= sprintf( ' %d, %d, %d ) ', $apex_exam_id, $scan_type_id, $availability );
     $sql .=
       'ON DUPLICATE KEY UPDATE ' .
-      'apex_exam_id = VALUES( apex_exam_id ), '.
-      'scan_type_id = VALUES( scan_type_id )';
+      'availability = VALUES( availability )';
 
-    $db_salix->execute( $sql );
+    if( false === $db_salix->execute( $sql ) )
+      write_log( sprintf( 'WARNING: failed to update apex_scan for %s / %s', $uid, $row['barcode']  ) );
   }
 }
 

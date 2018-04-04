@@ -45,7 +45,9 @@ function ssh_command( $address, $arg )
     'ssh -i ' . APEX_SSH_KEY . ' clsa@%s %s', $address, $arg ) ) );
 }
 
-$db_salix = '';
+/*-------------MAIN PROGRAM-----------*/
+
+$db_salix = null;
 try
 {
   $db_salix = new database(
@@ -69,7 +71,7 @@ $sql = 'SELECT * FROM apex_host';
 $host_list = $db_salix->get_all( $sql );
 foreach( $host_list as $host_item )
 {
-  $db_dexa = '';
+  $db_dexa = null;
   try
   {
     $db_dexa = new odbc(

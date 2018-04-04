@@ -121,9 +121,11 @@ class dexa_scan
         $laterality = 'left' == $this->side ? 'L' : 'R';
         if( $laterality != $res )
         {
+          /*
           write_log( sprintf(
            'WARNING: laterality expected %s received %s in file %s',
            $laterality, $res, $filename ) );
+          */
           $file_error = true;
         }
       }
@@ -131,9 +133,11 @@ class dexa_scan
       {
         if( $this->barcode != $res )
         {
+          /*
           write_log( sprintf(
             'WARNING: barcode expected: %s, received: %s in file %s',
             $this->barcode, $res, $filename ) );
+          */
           $file_error = true;
         }
       }
@@ -142,9 +146,11 @@ class dexa_scan
         $res = preg_replace( '/[^0-9]/', '', $res );
         if( $this->serial_number != $res )
         {
+          /*
           write_log( sprintf(
             'WARNING: serial number expected: %s, received: %s in file %s',
             $this->serial_number, $res, $filename ) );
+          */
           $file_error = true;
         }
       }
@@ -178,6 +184,8 @@ class dexa_scan
   public $apex_host_id;
 }
 
+/*----------------MAIN PROGRAM----------------*/
+
 if( $argc < 2 )
 {
   write_log('ERROR: invalid args ' . implode( ',', $argv ) );
@@ -185,13 +193,13 @@ if( $argc < 2 )
 }
 $max_rank = $argv[1];
 
-$allocation_limit = 100;
+$deployment_total = 200;
 if( 3 == $argc )
 {
-  $allocation_limit = $argv[2];
+  $deployment_total = $argv[2];
 }
 
-$db_salix = '';
+$db_salix = null;
 try
 {
   $db_salix = new database(
@@ -232,11 +240,11 @@ if( 1.0 != round( $allocation_sum, 1 ) )
 }
 
 // get the preferred host for priority scans
-$sql =
+$sql = sprintf(
   'SELECT setting.priority_apex_host_id '.
   'FROM setting '.
-  'JOIN ' . DB_PREFIX . 'cenozo.site ON setting.site_id=site.id '.
-  'WHERE site.name="NCC"';
+  'JOIN %scenozo.site ON setting.site_id=site.id '.
+  'WHERE site.name="NCC"', DB_PREFIX);
 $priority_host_id = $db_salix->get_one( $sql );
 
 if( false === $priority_host_id || '' == $priority_host_id )
@@ -267,6 +275,7 @@ $sql = sprintf(
   'JOIN %scenozo.participant p ON b.participant_id=p.id '.
   'LEFT JOIN apex_deployment d ON d.apex_scan_id=s.id '.
   'WHERE s.availability=1 '.
+  'AND (invalid IS NULL OR invalid=1) '.
   'AND rank<=%d '.
   'AND type IN ("hip","wbody") '. // currently only allow hip and wbody scans
   'ORDER BY priority DESC, uid, side, rank ASC', DB_PREFIX, $max_rank );
@@ -295,6 +304,7 @@ $opal_curl->set_datasource( 'salix' );
 //
 $pending_list = array();
 $priority_list = array();
+$invalid_scan_list = array();
 foreach( $scan_list as $uid => $item_list )
 {
   // prefer left groupings first
@@ -316,6 +326,8 @@ foreach( $scan_list as $uid => $item_list )
         {
           if( false === $item->validate( $filename ) )
             $priority_list[] = $item;
+          else
+            $invalid_scan_list[] = $item->apex_scan_id;
           unlink( $filename );
         }
       }
@@ -344,6 +356,10 @@ foreach( $scan_list as $uid => $item_list )
               $current_list[] = $item;
               $rank_list[] = $item->rank;
               if( 1 == $item->priority ) $has_priority = true;
+            }
+            else
+            {
+              $invalid_scan_list[] = $item->apex_scan_id;
             }
             unlink( $filename );
           }
@@ -421,7 +437,7 @@ foreach( $scan_list as $uid => $item_list )
     if( $found ) break;
   }
 
-  if( count( $pending_list ) >= $allocation_limit ) break;
+  if( count( $pending_list ) >= $deployment_total ) break;
 }
 
 // apportion out to the hosts and update the apex_deployment table
@@ -443,6 +459,13 @@ foreach( $host_list as $name => $data )
 // assign scans by quota for each host
 // maintain groupings by uid
 //
+$process_list = array(
+  'name' => array(),
+  'num_deploy' => array(),
+  'num_candidate' => array(),
+  'num_quota' => array()
+  );
+$valid_scan_list = array();
 foreach( $allocation_list as $name => $quota )
 {
   $target = $quota;
@@ -497,13 +520,25 @@ foreach( $allocation_list as $name => $quota )
     $sql = sprintf(
       'INSERT INTO apex_deployment (apex_scan_id, apex_host_id) '.
       'VALUES (%d, %d) ', $item->apex_scan_id, $apex_host_id );
-    if( false !== $db_salix->execute( $sql ) ) $num_deploy++;
+    if( false !== $db_salix->execute( $sql ) )
+    {
+      $valid_scan_list[] = $item->apex_scan_id;
+      $num_deploy++;
+    }
   }
-  write_log( sprintf( 'host %s received %d new deployments of %d candidates in quota of %d',
-    $name, $num_deploy, count( $current_list ), $quota ) );
+  $process_list['name'][] = $name;
+  $process_list['num_deploy'][] = $num_deploy;
+  $process_list['num_candidate'][] = count( $current_list );
+  $process_list['num_quota'][] = $quota;
 }
 
-// priotry list of whole body scans
+write_log( sprintf( 'hosts [%s] deployments [%s] candidates [%s] quotas [%s]',
+    implode( '/', $process_list['name'] ),
+    implode( '/', $process_list['num_deploy'] ),
+    implode( '/', $process_list['num_candidate'] ),
+    implode( '/', $process_list['num_quota'] ) ) );
+
+// priority list of whole body scans
 //
 $num_deploy = 0;
 foreach( $priority_list as $item )
@@ -511,7 +546,35 @@ foreach( $priority_list as $item )
   $sql = sprintf(
     'INSERT INTO apex_deployment (apex_scan_id, apex_host_id) '.
     'VALUES (%d, %d)', $item->apex_scan_id, $priority_host_id );
-  if( false !== $db_salix->execute( $sql ) ) $num_deploy++;
+  if( false !== $db_salix->execute( $sql ) )
+  {
+    $valid_scan_list[] = $item->apex_scan_id;
+    $num_deploy++;
+  }
+}
+
+if( 0 < count( $invalid_scan_list ) )
+{
+  $sql =  sprintf(
+    'UPDATE apex_scan '.
+    'SET invalid=1 '.
+    'WHERE id IN ( %s )', implode( ',', $invalid_scan_list ) );
+  if( false === $db_salix->execute( $sql ) )
+    write_log( sprintf(
+      'WARNING: failed to set invalid state to 1 in %d apex_scan records', count( $invalid_scan_list ) )
+     );
+}
+
+if( 0 < count( $valid_scan_list ) )
+{
+  $sql =  sprintf(
+    'UPDATE apex_scan '.
+    'SET invalid=0 '.
+    'WHERE id IN ( %s )', implode( ',', $valid_scan_list ) );
+  if( false === $db_salix->execute( $sql ) )
+    write_log( sprintf(
+      'WARNING: failed to set invalid state to 0 in %d apex_scan records', count( $valid_scan_list ) )
+     );
 }
 
 if( 0 < count( $priority_list ) )
