@@ -71,6 +71,7 @@ class dexa_scan {
   {
     self::region_list();
     self::label_list();
+    self::disclaimer_list();
 
     $this->uid = $uid;
     $this->apex_deployment_id = $apex_deployment_id;
@@ -125,7 +126,7 @@ class dexa_scan {
           $rectangle->x0-2,$rectangle->y0-2,
           $rectangle->x1,$rectangle->y1 );
 
-        $caption = sprintf( static::$disclaimer[$this->language], $this->uid );
+        $caption = sprintf( static::$disclaimer_list[$this->language], $this->uid );
         $cmd .= sprintf(
           '\( -background white -fill red -font Helvetica-Bold '.
           '-pointsize 25 -size %dx%d -interline-spacing 7 -gravity NorthWest caption:"%s" \) ',
@@ -145,37 +146,42 @@ class dexa_scan {
 
   public static $region_list = null;
   public static $label_list = null;
-  public static $disclaimer = array(
-    'en' =>
-      'These tests were conducted for research purposes only; '.
-      'these results should not be used as the basis for '.
-      'clinical diagnosis or treatment.\nThese results have '.
-      'been released to Participant %s at their request.\n ',
-    'fr' =>
-      'Les mesures effectuées au Site de collecte de données ne sont utilisées qu’à des fins de recherche. '.
-      'Les résultats qui en découlent n\'ont pas de valeur diagnostique ou thérapeutique.\n'.
-      'Les résultats ont été envoyés au participant %s à sa demande.\n '
-    );
+  public static $disclaimer_list = null;
+
+  public static function disclaimer_list()
+  {
+    if( null === self::$disclaimer_list )
+    {
+      self::$disclaimer_list = array(
+        'en' => 'These tests were conducted for research purposes only; '.
+                'these results should not be used as the basis for '.
+                'clinical diagnosis or treatment.\nThese results have '.
+                'been released to Participant %s at their request.',
+        'fr' => 'Les mesures effectuées au Site de collecte de données ne sont utilisées qu’à des fins de recherche.  '.
+                "Les résultats qui en découlent n'ont pas de valeur diagnostique ou thérapeutique.  ".
+                'Les résultats ont été envoyés au participant %s à sa demande.' );
+    }
+  }
 
   public static function label_list()
   {
-    if( null == self::$label_list )
+    if( null === self::$label_list )
     {
       self::$label_list = array(
-        'hip'=> new rectangle(62,1671,1138,1785),
-        'wbody'=> new rectangle(62,1195,426,1504) );
+        'hip' => new rectangle(62,1671,1138,1785),
+        'wbody' => new rectangle(62,1195,426,1504) );
     }
   }
 
   public static function region_list()
   {
-    if( null == self::$region_list )
+    if( null === self::$region_list )
     {
       self::$region_list = array(
-        'hip'=>array(
+        'hip' => array(
           new rectangle(170,1614,248,1589),
           new rectangle(170,1383,248,1358) ),
-        'wbody'=>array(
+        'wbody' => array(
           new rectangle(170,1545,248,1520),
           new rectangle(170,1314,248,1289) ) );
     }
@@ -240,7 +246,7 @@ if( null !== $deployment_id )
     'AND status="exported" '.
     'AND priority=1 '.
     'AND d.id=%d',
-    DB_PREFIX, $deployment_id );
+    DB_PREFIX, DB_PREFIX, $deployment_id );
 
   $res = $db_salix->get_row( $sql );
   if( false === $res || !is_array( $res ) )
@@ -293,7 +299,7 @@ foreach( $host_list as $host_item )
     'AND status="exported" '.
     'AND priority=1 '.
     'AND h.id=%d '.
-    'ORDER BY uid', DB_PREFIX, $apex_host_id );
+    'ORDER BY uid', DB_PREFIX, DB_PREFIX, $apex_host_id );
 
   $file_list = $db_salix->get_all( $sql );
   if( false === $file_list || !is_array( $file_list ) ||
