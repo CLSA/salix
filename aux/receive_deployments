@@ -275,7 +275,7 @@ $sql = sprintf(
   'JOIN %scenozo.participant p ON b.participant_id=p.id '.
   'LEFT JOIN apex_deployment d ON d.apex_scan_id=s.id '.
   'WHERE s.availability=1 '.
-  'AND (invalid IS NULL OR invalid=1) '.
+  'AND (invalid IS NULL OR invalid=0) '.
   'AND rank<=%d '.
   'AND type IN ("hip","wbody") '. // currently only allow hip and wbody scans
   'ORDER BY priority DESC, uid, side, rank ASC', DB_PREFIX, $max_rank );
