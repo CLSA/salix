@@ -324,12 +324,12 @@ foreach( $host_list as $host_item )
     }
   } // end scan data correction
 
-  $process_item['name'[] = $host_item['name'];
-  $process_item['total'[] = $total;
-  $process_item['num_patient'[] = $num_patient;
-  $process_item['num_patient_item'[] = $num_patient_item;
-  $process_item['num_analysis'[] = $num_analysis;
-  $process_item['num_analysi_item'[] = $num_analysis_item;
+  $process_item['name'][] = $host_item['name'];
+  $process_item['total'][] = $total;
+  $process_item['num_patient'][] = $num_patient;
+  $process_item['num_patient_item'][] = $num_patient_item;
+  $process_item['num_analysis'][] = $num_analysis;
+  $process_item['num_analysis_item'][] = $num_analysis_item;
 }
 
 write_log( sprintf(

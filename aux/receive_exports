@@ -96,7 +96,7 @@ if( 2 == $argc )
 $sql = 'SELECT * FROM apex_host';
 $host_list = $db_salix->get_all( $sql );
 $process_list = array(
-  'name' => array()
+  'name' => array(),
   'num_export' => array(),
   'num_candidate' => array()
   );
@@ -145,8 +145,10 @@ foreach( $host_list as $host_item )
       $parts = explode( '/', $path_item );
       $dir_list[$type][$side][] = array_pop( $parts );
     }
+    /*
     write_log( sprintf( 'found %d of %s (side: %s) on host %s',
       count($dir_list[$type][$side]), $type, $side, $host_item['name'] ) );
+    */
   }
 
   // get completed deployments
@@ -188,7 +190,6 @@ foreach( $host_list as $host_item )
   if( false === $deployment_list || !is_array( $deployment_list ) ||
    0 == count( $deployment_list ) )
   {
-    write_log( sprintf( 'found 0 completed deployments on %s', $host_item['name'] ) );
     continue;
   }
 
@@ -375,9 +376,11 @@ foreach( $host_list as $host_item )
           'WHERE id=%d', $export_datetime, $export_filename, $item['apex_deployment_id'] );
         if( false !== $db_salix->execute( $sql ) )
         {
+          /*
           write_log(
             sprintf( 'found export barcode %s, type %s (side %s), rank %d',
               $barcode, $type, $side, $rank ) );
+          */
           $num_export++;
         }
       }
