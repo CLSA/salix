@@ -29,3 +29,6 @@ $SETTINGS['apex']['apex_ssh_key'] = '/path/to/ssh/key';
 
 // the maximum rank to receive and process deployments
 $SETTINGS['apex']['maximum_rank'] = 'put the maximum rank here';
+
+// the number of deployments to disperse among APEX hosts via nightly cron
+$SETTINGS['apex']['deployment_total'] = 'put the total number of deployments here';
