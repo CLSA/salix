@@ -57,4 +57,22 @@ BEGIN
 SET NEW.create_timestamp = NOW();
 END$$
 
+DROP TRIGGER IF EXISTS apex_exam_AFTER_INSERT $$
+CREATE DEFINER = CURRENT_USER TRIGGER apex_exam_AFTER_INSERT AFTER INSERT ON apex_exam FOR EACH ROW
+BEGIN
+  CALL update_apex_baseline_first_apex_exam( NEW.apex_baseline_id );
+END$$
+
+DROP TRIGGER IF EXISTS apex_exam_AFTER_UPDATE $$
+CREATE DEFINER = CURRENT_USER TRIGGER apex_exam_AFTER_UPDATE AFTER UPDATE ON apex_exam FOR EACH ROW
+BEGIN
+  CALL update_apex_baseline_first_apex_exam( NEW.apex_baseline_id );
+END$$
+
+DROP TRIGGER IF EXISTS apex_exam_AFTER_DELETE $$
+CREATE DEFINER = CURRENT_USER TRIGGER apex_exam_AFTER_DELETE AFTER DELETE ON apex_exam FOR EACH ROW
+BEGIN
+  CALL update_apex_baseline_first_apex_exam( OLD.apex_baseline_id );
+END$$
+
 DELIMITER ;

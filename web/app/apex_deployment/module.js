@@ -24,6 +24,10 @@ define( function() {
         title: 'Wave Rank',
         type: 'rank'
       },
+      first_barcode: {
+        column: 'first_apex_exam.barcode',
+        title: 'First Barcode'
+      },
       barcode: {
         column: 'apex_exam.barcode',
         title: 'Barcode'
@@ -236,10 +240,14 @@ define( function() {
             path: 'apex_host/' + self.record.apex_host_id + '/apex_deployment',
             // get the highest priority record
             data: {
-              select: { column: 'id' },
+              select: { column: [ 'id', { table: 'first_apex_exam', column: 'barcode' } ] },
               modifier: {
                 where: [ { column: 'status', operator: '=', value: 'pending' } ],
-                order: [ { 'apex_scan.priority': true }, { 'apex_exam.rank': false } ],
+                order: [
+                  { 'apex_scan.priority': true },
+                  { 'apex_exam.rank': false },
+                  { 'first_apex_exam.barcode': false }
+                ],
                 limit: 1
               }
             }

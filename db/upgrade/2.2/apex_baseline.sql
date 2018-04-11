@@ -45,4 +45,10 @@ BEGIN
 SET NEW.create_timestamp = NOW();
 END$$
 
+DROP TRIGGER IF EXISTS apex_baseline_AFTER_INSERT $$
+CREATE DEFINER = CURRENT_USER TRIGGER apex_baseline_AFTER_INSERT AFTER INSERT ON apex_baseline FOR EACH ROW
+BEGIN
+  CALL update_apex_baseline_first_apex_exam( NEW.id );
+END$$
+
 DELIMITER ;

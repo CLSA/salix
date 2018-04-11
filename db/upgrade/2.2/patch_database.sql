@@ -27,6 +27,8 @@ SOURCE setting.sql
 
 SOURCE apex_deployment_code_summary.sql
 SOURCE update_apex_deployment_code_summary.sql
+SOURCE apex_baseline_first_apex_exam.sql
+SOURCE update_apex_baseline_first_apex_exam.sql
 
 SOURCE update_version_number.sql
 

@@ -62,5 +62,20 @@ class module extends \cenozo\service\module
 
     if( $select->has_column( 'scan_type_side' ) )
       $select->add_column( 'CONCAT( IF( side="none","",CONCAT( side, " " ) ), type )', 'scan_type_side', false );
+
+    if( $select->has_table_columns( 'first_apex_exam' ) )
+    {
+      $modifier->join(
+        'apex_baseline_first_apex_exam',
+        'apex_baseline.id',
+        'apex_baseline_first_apex_exam.apex_baseline_id'
+      );
+      $modifier->left_join(
+        'apex_exam',
+        'apex_baseline_first_apex_exam.apex_exam_id',
+        'first_apex_exam.id',
+        'first_apex_exam'
+      );
+    }
   }
 }
