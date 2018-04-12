@@ -32,10 +32,7 @@
     </list>
   </from>
   <select class="org.obiba.magma.views.support.NoneClause"/>
-  <where class="org.obiba.magma.js.views.JavascriptClause">
-    <scriptName>customScript</scriptName>
-    <script>$lastupdate().after(newValue(&apos;2018-02-01&apos;, &apos;date&apos;))</script>
-  </where>
+  <where class="org.obiba.magma.views.support.AllClause"/>
   <variables class="org.obiba.magma.js.views.VariablesClause">
     <variables class="linked-hash-set">
       <variable name="barcode" valueType="text" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
@@ -143,31 +140,29 @@ res=res.map({
       <variable name="hip_left_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
         <attributes>
           <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_2/variable/hip_left_availability</attribute>
-          <attribute name="script" valueType="text">var v=$group(&apos;Measure.OUTPUT_HIP_SIDE&apos;,&apos;LEFT&apos;,&apos;Measure.RES_HIP_DICOM&apos;).asSequence().last()
-v.isNull().value()?0:1</attribute>
+          <attribute name="script" valueType="text">$group(&apos;Measure.OUTPUT_HIP_SIDE&apos;,&apos;LEFT&apos;,&apos;Measure.RES_HIP_DICOM&apos;).asSequence().last().isNull().value()?0:1</attribute>
         </attributes>
       </variable>
       <variable name="forearm_left_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
         <attributes>
           <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_2/variable/forearm_left_availability</attribute>
-          <attribute name="script" valueType="text">$(&apos;OUTPUT_FA_SIDE&apos;).any(&apos;LEFT&apos;).value()?1:0</attribute>
+          <attribute name="script" valueType="text">$(&apos;OUTPUT_FA_SIDE&apos;).any(&apos;LEFT&apos;).and($(&apos;RES_FA_DICOM&apos;).isNull().not()).value()?1:0</attribute>
         </attributes>
       </variable>
       <variable name="forearm_right_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
         <attributes>
           <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_2/variable/forearm_right_availability</attribute>
-          <attribute name="script" valueType="text">$(&apos;OUTPUT_FA_SIDE&apos;).any(&apos;RIGHT&apos;).value()?1:0</attribute>
+          <attribute name="script" valueType="text">$(&apos;OUTPUT_FA_SIDE&apos;).any(&apos;RIGHT&apos;).and($(&apos;RES_FA_DICOM&apos;).isNull().not()).value()?1:0</attribute>
         </attributes>
       </variable>
       <variable name="hip_right_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
         <attributes>
           <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_2/variable/hip_right_availability</attribute>
-          <attribute name="script" valueType="text">var v=$group(&apos;Measure.OUTPUT_HIP_SIDE&apos;,&apos;RIGHT&apos;,&apos;Measure.RES_HIP_DICOM&apos;).asSequence().last()
-v.isNull().value()?0:1</attribute>
+          <attribute name="script" valueType="text">$group(&apos;Measure.OUTPUT_HIP_SIDE&apos;,&apos;RIGHT&apos;,&apos;Measure.RES_HIP_DICOM&apos;).asSequence().last().isNull().value()?0:1</attribute>
         </attributes>
       </variable>
     </variables>
   </variables>
   <created valueType="datetime">2017-12-14T15:24:51.618-05</created>
-  <updated valueType="datetime">2018-02-22T10:53:59.521-05</updated>
+  <updated valueType="datetime">2018-04-12T12:48:22.868-04</updated>
 </org.obiba.magma.views.View>

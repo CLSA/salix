@@ -230,7 +230,7 @@
           },
           {
             "name": "script",
-            "value": "var v=$group('Measure.OUTPUT_HIP_SIDE','LEFT','Measure.RES_HIP_DICOM').asSequence().last()\nv.isNull().value()?0:1"
+            "value": "$group('Measure.OUTPUT_HIP_SIDE','LEFT','Measure.RES_HIP_DICOM').asSequence().last().isNull().value()?0:1"
           }
         ],
         "entityType": "Participant",
@@ -252,7 +252,7 @@
           },
           {
             "name": "script",
-            "value": "$('OUTPUT_FA_SIDE').any('LEFT').value()?1:0"
+            "value": "$('OUTPUT_FA_SIDE').any('LEFT').and($('RES_FA_DICOM').isNull().not()).value()?1:0"
           }
         ],
         "entityType": "Participant",
@@ -274,7 +274,7 @@
           },
           {
             "name": "script",
-            "value": "$('OUTPUT_FA_SIDE').any('RIGHT').value()?1:0"
+            "value": "$('OUTPUT_FA_SIDE').any('RIGHT').and($('RES_FA_DICOM').isNull().not()).value()?1:0"
           }
         ],
         "entityType": "Participant",
@@ -296,7 +296,7 @@
           },
           {
             "name": "script",
-            "value": "var v=$group('Measure.OUTPUT_HIP_SIDE','RIGHT','Measure.RES_HIP_DICOM').asSequence().last()\nv.isNull().value()?0:1"
+            "value": "$group('Measure.OUTPUT_HIP_SIDE','RIGHT','Measure.RES_HIP_DICOM').asSequence().last().isNull().value()?0:1"
           }
         ],
         "entityType": "Participant",

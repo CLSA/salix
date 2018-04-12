@@ -123,27 +123,25 @@ res</attribute>
       <variable name="hip_left_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
         <attributes>
           <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_1/variable/hip_left_availability</attribute>
-          <attribute name="script" valueType="text">var v=$group(&apos;Measure.OUTPUT_HIP_SIDE&apos;,&apos;LEFT&apos;,&apos;Measure.RES_HIP_DICOM&apos;).asSequence().last()
-v.isNull().value()?0:1</attribute>
+          <attribute name="script" valueType="text">$group(&apos;Measure.OUTPUT_HIP_SIDE&apos;,&apos;LEFT&apos;,&apos;Measure.RES_HIP_DICOM&apos;).asSequence().last().isNull().value()?0:1</attribute>
         </attributes>
       </variable>
       <variable name="hip_right_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
         <attributes>
           <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_1/variable/hip_availability</attribute>
-          <attribute name="script" valueType="text">var v=$group(&apos;Measure.OUTPUT_HIP_SIDE&apos;,&apos;RIGHT&apos;,&apos;Measure.RES_HIP_DICOM&apos;).asSequence().last()
-v.isNull().value()?0:1</attribute>
+          <attribute name="script" valueType="text">$group(&apos;Measure.OUTPUT_HIP_SIDE&apos;,&apos;RIGHT&apos;,&apos;Measure.RES_HIP_DICOM&apos;).asSequence().last().isNull().value()?0:1</attribute>
         </attributes>
       </variable>
       <variable name="forearm_left_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
         <attributes>
           <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_1/variable/forearm_left_availability</attribute>
-          <attribute name="script" valueType="text">$(&apos;OUTPUT_FA_SIDE&apos;).any(&apos;LEFT&apos;).value()?1:0</attribute>
+          <attribute name="script" valueType="text">$(&apos;OUTPUT_FA_SIDE&apos;).any(&apos;LEFT&apos;).and($(&apos;RES_FA_DICOM&apos;).isNull().not()).value()?1:0</attribute>
         </attributes>
       </variable>
       <variable name="forearm_right_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
         <attributes>
           <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_1/variable/forearm_right_availability</attribute>
-          <attribute name="script" valueType="text">$(&apos;OUTPUT_FA_SIDE&apos;).any(&apos;RIGHT&apos;).value()?1:0</attribute>
+          <attribute name="script" valueType="text">$(&apos;OUTPUT_FA_SIDE&apos;).any(&apos;RIGHT&apos;).and($(&apos;RES_FA_DICOM&apos;).isNull().not()).value()?1:0</attribute>
         </attributes>
       </variable>
       <variable name="spine_availability" valueType="integer" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
@@ -154,5 +152,5 @@ v.isNull().value()?0:1</attribute>
     </variables>
   </variables>
   <created valueType="datetime">2018-01-02T14:33:34.552-05</created>
-  <updated valueType="datetime">2018-02-22T10:53:33.926-05</updated>
+  <updated valueType="datetime">2018-04-12T11:18:45.769-04</updated>
 </org.obiba.magma.views.View>
