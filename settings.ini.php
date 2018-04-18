@@ -29,6 +29,3 @@ $SETTINGS['apex']['apex_ssh_key'] = str_replace( 'settings.ini.php', 'doc/key', 
 
 // the maximum rank to receive and process deployments
 $SETTINGS['apex']['maximum_rank'] = 1;
-
-// Salix does not use VOIP
-$SETTINGS['voip']['enabled'] = false;

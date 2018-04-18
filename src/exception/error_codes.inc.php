@@ -16,7 +16,6 @@ define( 'NOTICE_SALIX_BASE_ERRNO',     480000 );
 define( 'PERMISSION_SALIX_BASE_ERRNO', 580000 );
 define( 'RUNTIME_SALIX_BASE_ERRNO',    680000 );
 define( 'SYSTEM_SALIX_BASE_ERRNO',     780000 );
-define( 'VOIP_SALIX_BASE_ERRNO',       980000 );
 
 /**
  * "argument" error codes
@@ -62,9 +61,5 @@ define( 'VOIP_SALIX_BASE_ERRNO',       980000 );
  *    256: user error,
  *    512: user warning,
  *   1024: user notice
- */
-
-/**
- * "voip" error codes
  */
 
