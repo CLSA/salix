@@ -25,8 +25,8 @@ define( 'USER', $settings['utility']['username'] );
 define( 'APEX_SSH_KEY', $settings['apex']['apex_ssh_key'] );
 
 // a lite mysqli wrapper
-require_once( $settings['path']['APPLICATION'].'/../php_util/database.class.php' );
-require_once( $settings['path']['APPLICATION'].'/../php_util/odbc.class.php' );
+require_once( $settings['path']['PHP_UTIL'].'/database.class.php' );
+require_once( $settings['path']['PHP_UTIL'].'/odbc.class.php' );
 
 // function for writing to the log
 function write_log( $message )

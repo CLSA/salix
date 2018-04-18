@@ -29,9 +29,9 @@ define( 'DB_USERNAME', $settings['db']['username'] );
 define( 'DB_PASSWORD', $settings['db']['password'] );
 
 // lite wrapper for mysqli
-require_once( $settings['path']['APPLICATION'].'/../php_util/database.class.php' );
+require_once( $settings['path']['PHP_UTIL'].'/database.class.php' );
 // lite wrapper for MS SQL
-require_once( $settings['path']['APPLICATION'].'/../php_util/odbc.class.php' );
+require_once( $settings['path']['PHP_UTIL'].'/odbc.class.php' );
 
 // function for writing to the log
 function write_log( $message )
