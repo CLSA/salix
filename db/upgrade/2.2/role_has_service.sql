@@ -46,7 +46,7 @@ CREATE PROCEDURE patch_role_has_service()
     EXECUTE statement;
     DEALLOCATE PREPARE statement;
 
-    -- administrator
+    -- typist
     SET @sql = CONCAT(
       "INSERT INTO role_has_service( role_id, service_id ) ",
       "SELECT role.id, service.id ",
@@ -55,7 +55,8 @@ CREATE PROCEDURE patch_role_has_service()
       "AND service.restricted = 1 ",
       "AND ( ",
         "( service.subject = 'apex_deployment' AND service.method = 'PATCH' ) OR ",
-        "( service.subject = 'code' ) ",
+        "( service.subject = 'report_restriction' AND service.method = 'GET' ) OR ",
+        "( service.subject IN( 'code', 'report', 'report_type' )  ) ",
       ")" );
     PREPARE statement FROM @sql;
     EXECUTE statement;

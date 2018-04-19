@@ -12,6 +12,10 @@ SOURCE access.sql
 SOURCE service.sql
 SOURCE role_has_service.sql
 SOURCE writelog.sql
+SOURCE report_type.sql
+SOURCE report_restriction.sql
+SOURCE application_type_has_report_type.sql
+SOURCE role_has_report_type.sql
 
 SOURCE apex_host.sql
 SOURCE apex_baseline.sql
