@@ -54,7 +54,7 @@
           },
           {
             "name": "script",
-            "value": "var res=$('Admin.ApplicationConfiguration.siteName')\nres=res.map({\n  'British Columbia':'University of BC DCS',\n  'Calgary':'Calgary DCS',\n  'Dalhousie':'Dalhousie DCS',\n  'Hamilton':'Hamilton DCS',\n  'Manitoba':'Manitoba DCS',\n  'McGill':'McGill DCS',\n  'McMaster':'Hamilton DCS',\n  'Memorial University':'Memorial DCS',\n  'Ottawa':'Ottawa DCS',\n  'Sherbrooke':'Sherbrooke DCS',\n  'Simon Fraser':'Simon Fraser DCS',\n  'SimonFraser':'Simon Fraser DCS',\n  'University of Manitoba':'Manitoba DCS',\n  'University of Victoria':'Victoria DCS',\n  'Victoria':'Victoria DCS'},res,null) "
+            "value": "$('Admin.ApplicationConfiguration.siteName').map({\n  'BritishColumbia':'University of BC DCS',\n  'British Columbia':'University of BC DCS',\n  'Calgary':'Calgary DCS',\n  'Dalhousie':'Dalhousie DCS',\n  'Hamilton':'Hamilton DCS',\n  'Manitoba':'Manitoba DCS',\n  'McGill':'McGill DCS',\n  'McMaster':'Hamilton DCS',\n  'Memorial':'Memorial DCS',\n  'Memorial University':'Memorial DCS',\n  'Ottawa':'Ottawa DCS',\n  'Sherbrooke':'Sherbrooke DCS',\n  'Simon Fraser':'Simon Fraser DCS',\n  'SimonFraser':'Simon Fraser DCS',\n  'UniversityofBC':'University of BC DCS',\n  'University of Manitoba':'Manitoba DCS',\n  'University of Victoria':'Victoria DCS',\n  'Victoria':'Victoria DCS'},null) "
           }
         ],
         "entityType": "Participant",

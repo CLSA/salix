@@ -38,8 +38,7 @@
       <variable name="site" valueType="text" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="18">
         <attributes>
           <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/salix/table/meta_1/variable/site</attribute>
-          <attribute name="script" valueType="text">var res=$(&apos;Admin.ApplicationConfiguration.siteName&apos;)
-res=res.map({
+          <attribute name="script" valueType="text">$(&apos;Admin.ApplicationConfiguration.siteName&apos;).map({
   &apos;British Columbia&apos;:&apos;University of BC DCS&apos;,
   &apos;Calgary&apos;:&apos;Calgary DCS&apos;,
   &apos;Dalhousie&apos;:&apos;Dalhousie DCS&apos;,
@@ -51,7 +50,7 @@ res=res.map({
   &apos;Ottawa&apos;:&apos;Ottawa DCS&apos;,
   &apos;Sherbrooke&apos;:&apos;Sherbrooke DCS&apos;,
   &apos;Simon Fraser&apos;:&apos;Simon Fraser DCS&apos;,
-  &apos;Victoria&apos;:&apos;Victoria DCS&apos;},res,null)  </attribute>
+  &apos;Victoria&apos;:&apos;Victoria DCS&apos;},null)</attribute>
         </attributes>
       </variable>
       <variable name="height" valueType="decimal" entityType="Participant" unit="cm" mimeType="" referencedEntityType="" index="1060">
@@ -152,5 +151,5 @@ res</attribute>
     </variables>
   </variables>
   <created valueType="datetime">2018-01-02T14:33:34.552-05</created>
-  <updated valueType="datetime">2018-04-12T11:18:45.769-04</updated>
+  <updated valueType="datetime">2018-04-30T14:25:55.440-04</updated>
 </org.obiba.magma.views.View>
