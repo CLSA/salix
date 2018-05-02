@@ -30,6 +30,10 @@ define( function() {
         title: 'Available',
         type: 'boolean'
       },
+      invalid: {
+        title: 'Invalid',
+        type: 'boolean'
+      },
       priority: {
         column: 'priority',
         title: 'Priority',
@@ -69,6 +73,11 @@ define( function() {
     },
     availability: {
       title: 'Availability',
+      type: 'boolean',
+      constant: true
+    },
+    invalid: {
+      title: 'Invalid',
       type: 'boolean',
       constant: true
     },
