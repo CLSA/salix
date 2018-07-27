@@ -53,6 +53,8 @@ class module extends \cenozo\service\module
 
     $modifier->join( 'apex_scan', 'apex_deployment.apex_scan_id', 'apex_scan.id' );
     $modifier->join( 'apex_exam', 'apex_scan.apex_exam_id', 'apex_exam.id' );
+    $modifier->join( 'serial_number', 'apex_exam.serial_number_id', 'serial_number.id' );
+    $modifier->join( 'site', 'serial_number.site_id', 'site.id' );
     $modifier->join( 'apex_baseline', 'apex_exam.apex_baseline_id', 'apex_baseline.id' );
     $modifier->join( 'participant', 'apex_baseline.participant_id', 'participant.id' );
     $modifier->join( 'scan_type', 'apex_scan.scan_type_id', 'scan_type.id' );

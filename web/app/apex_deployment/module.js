@@ -119,6 +119,20 @@ define( function() {
       type: 'string',
       constant: true
     },
+    site: {
+      column: 'site.name',
+      title: 'Site',
+      type: 'string',
+      exclude: 'add',
+      constant: true
+    },
+    serial_number_id: {
+      column: 'serial_number.id',
+      title: 'Serial Number',
+      type: 'string',
+      exclude: 'add',
+      constant: true
+    },
     analysis_datetime: {
       title: 'Analysis Date & Time',
       type: 'datetime',
