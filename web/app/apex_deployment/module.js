@@ -97,7 +97,8 @@ define( function() {
     },
     pass: { type: 'boolean', exclude: true }, // used by CnApexDeploymentViewFactory::patch
     note: { type: 'hidden' },
-    scan_type_id: { column: 'apex_scan.scan_type_id', type: 'hidden' } // used to restrict code types
+    scan_type_id: { column: 'apex_scan.scan_type_id', type: 'hidden' }, // used to restrict code types
+    scan_type_type: { column: 'scan_type.type', type: 'hidden' } // used for next analysis buttons
   } );
 
   module.addInputGroup( 'Additional Details', {
@@ -205,7 +206,6 @@ define( function() {
             { value: true, name: 'Yes' },
             { value: false, name: 'No' }
           ];
-          $scope.nextApexDeployment = function() { $scope.model.viewModel.transitionOnNextViewState(); };
         }
       };
     }
@@ -249,14 +249,19 @@ define( function() {
         };
 
         // transitions to the next available deployment for analysis
-        this.transitionOnNextViewState = function() {
+        this.transitionOnNextViewState = function( any ) {
+          if( angular.isUndefined( any ) ) any = false;
+
+          var where = [ { column: 'status', operator: '=', value: 'pending' } ];
+          if( !any ) where.push( { column: 'apex_scan.type', operator: '=', value: this.record.scan_type_type } );
+
           return CnHttpFactory.instance( {
             path: 'apex_host/' + self.record.apex_host_id + '/apex_deployment',
             // get the highest priority record
             data: {
               select: { column: [ 'id', { table: 'first_apex_exam', column: 'barcode' } ] },
               modifier: {
-                where: [ { column: 'status', operator: '=', value: 'pending' } ],
+                where: where,
                 order: [
                   { 'apex_scan.priority': true },
                   { 'apex_exam.rank': false },

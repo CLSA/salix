@@ -134,13 +134,22 @@
       </fieldset>
     </form>
     <div class="form-footer text-right rounded-bottom bg-info">
-      <button ng-disabled="'pending' == model.viewModel.record.status"
-              type="button"
-              class="btn btn-primary"
-              uib-tooltip="Go to this host's next available scan that requires analysis"
-              ng-click="nextApexDeployment()">
-        Next Analysis
-      </button>
+      <div class="btn-group">
+        <button ng-disabled="'pending' == model.viewModel.record.status"
+                type="button"
+                class="btn btn-primary"
+                uib-tooltip="Go to this host's next available scan that requires analysis"
+                ng-click="model.viewModel.this.transitionOnNextViewState( true )">
+          Next Analysis (any)
+        </button>
+        <button ng-disabled="'pending' == model.viewModel.record.status"
+                type="button"
+                class="btn btn-primary"
+                uib-tooltip="Go to this host's next available scan that requires analysis"
+                ng-click="model.viewModel.this.transitionOnNextViewState( false )">
+          Next Analysis ({{ model.viewModel.record.scan_type_type }})
+        </button>
+      </div>
     </div>
   </div>
 </div>
