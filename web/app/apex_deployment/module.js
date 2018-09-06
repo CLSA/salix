@@ -253,7 +253,7 @@ define( function() {
           if( angular.isUndefined( any ) ) any = false;
 
           var where = [ { column: 'status', operator: '=', value: 'pending' } ];
-          if( !any ) where.push( { column: 'apex_scan.type', operator: '=', value: this.record.scan_type_type } );
+          if( !any ) where.push( { column: 'scan_type.type', operator: '=', value: this.record.scan_type_type } );
 
           return CnHttpFactory.instance( {
             path: 'apex_host/' + self.record.apex_host_id + '/apex_deployment',
