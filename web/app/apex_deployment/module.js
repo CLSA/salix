@@ -265,7 +265,8 @@ define( function() {
                 order: [
                   { 'apex_scan.priority': true },
                   { 'apex_exam.rank': false },
-                  { 'first_apex_exam.barcode': false }
+                  { 'first_apex_exam.barcode': false },
+                  { 'apex_exam.barcode': false }
                 ],
                 limit: 1
               }
