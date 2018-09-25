@@ -70,4 +70,11 @@ BEGIN
   CALL update_apex_deployment_code_summary( NEW.apex_deployment_id );
 END$$
 
+
+DROP TRIGGER IF EXISTS code_AFTER_DELETE $$
+CREATE DEFINER = CURRENT_USER TRIGGER code_AFTER_DELETE AFTER DELETE ON code FOR EACH ROW
+BEGIN
+  CALL update_apex_deployment_code_summary( OLD.apex_deployment_id );
+END$$
+
 DELIMITER ;
