@@ -93,7 +93,7 @@ exec( sprintf( '%s', $settings['path']['APPLICATION'].'/aux/push_salix_meta' ) )
 
 // retrieve exported scan files from APEX hosts
 //
-exec( sprintf( '%s %d', $settings['path']['APPLICATION'].'/aux/receive_exports'
+exec( sprintf( '%s %d', $settings['path']['APPLICATION'].'/aux/receive_exports',
   $settings['apex']['export_total'] ) );
 
 // merge patient biographies such that APEX identifiers use baseline visit barcodes
