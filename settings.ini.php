@@ -32,3 +32,9 @@ $SETTINGS['apex']['apex_ssh_key'] = str_replace( 'settings.ini.php', 'doc/key', 
 
 // the maximum rank to receive and process deployments
 $SETTINGS['apex']['maximum_rank'] = 1;
+
+// the number of deployments to disperse among APEX hosts via nightly cron
+$SETTINGS['apex']['deployment_total'] = 300;
+
+// the number of exported files to retreive among APEX hosts via nightly cron
+$SETTINGS['apex']['export_total'] = 200;

@@ -70,12 +70,36 @@ else
 curl_close( $curl );
 
 // run the daily php scripts
+
+// retrieve opal exam and scan meta data
+//
 exec( sprintf( '%s %d', $settings['path']['APPLICATION'].'/aux/receive_opal_meta',
   $settings['apex']['maximum_rank'] ) );
+
+// create host deployments by validating available scans and allocating according to
+// defined host quota percentages
+//
 exec( sprintf( '%s %d %d', $settings['path']['APPLICATION'].'/aux/receive_deployments',
   $settings['apex']['maximum_rank'], $settings['apex']['deployment_total'] ) );
+
+// realize the deployments: scp scans to hosts, dicom transfer to APEX, validate transfer
+//
 exec( sprintf( '%s %d', $settings['path']['APPLICATION'].'/aux/import_scans',
   $settings['apex']['deployment_total'] ) );
+
+// scrub identifying biographic information, correct gender, dob, ethnicity
+//
 exec( sprintf( '%s', $settings['path']['APPLICATION'].'/aux/push_salix_meta' ) );
-exec( sprintf( '%s', $settings['path']['APPLICATION'].'/aux/receive_exports' ) );
+
+// retrieve exported scan files from APEX hosts
+//
+exec( sprintf( '%s %d', $settings['path']['APPLICATION'].'/aux/receive_exports',
+  $settings['apex']['export_total'] ) );
+
+// merge patient biographies such that APEX identifiers use baseline visit barcodes
+//
+exec( sprintf( '%s', $settings['path']['APPLICATION'].'/aux/merge_biographies' ) );
+
+// retrieve exported priority scans for redaction and release to participants
+//
 exec( sprintf( '%s', $settings['path']['APPLICATION'].'/aux/process_requests' ) );
