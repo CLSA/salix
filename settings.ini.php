@@ -12,7 +12,7 @@ global $SETTINGS;
 // tagged version
 $SETTINGS['general']['application_name'] = 'salix';
 $SETTINGS['general']['instance_name'] = $SETTINGS['general']['application_name'];
-$SETTINGS['general']['version'] = '2.3';
+$SETTINGS['general']['version'] = '2.4';
 $SETTINGS['general']['build'] = '275286a';
 
 // the location of salix internal path
