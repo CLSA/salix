@@ -134,6 +134,14 @@ define( function() {
       exclude: 'add',
       constant: true
     },
+    forearm_length: {
+      column: 'apex_scan.forearm_length',
+      title: 'Forearm Length',
+      type: 'string',
+      format: 'float',
+      constant: true,
+      exclude: true
+    },
     analysis_datetime: {
       title: 'Analysis Date & Time',
       type: 'datetime',
@@ -284,9 +292,15 @@ define( function() {
         } );
 
         this.onView = function( force ) {
+          var mainInputGroup = self.parentModel.module.inputGroupList.findByProperty( 'title', 'Additional Details' );
+          mainInputGroup.inputList.forearm_length.exclude = true;
+
           self.isComplete = false;
           self.fileExists = false;
           return this.$$onView( force ).then( function() {
+            // only show the forearm length when viewing forearm scans
+            mainInputGroup.inputList.forearm_length.exclude = 'forearm' != self.record.scan_type_type;
+
             // do not allow exported deployments to be edited
             self.parentModel.getEditEnabled = null == self.record.status || 'exported' == self.record.status
                                             ? function() { return false; }
