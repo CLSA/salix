@@ -32,10 +32,7 @@
     </list>
   </from>
   <select class="org.obiba.magma.views.support.NoneClause"/>
-  <where class="org.obiba.magma.js.views.JavascriptClause">
-    <scriptName>customScript</scriptName>
-    <script>$lastupdate().after(newValue(&apos;2018-04-09&apos;, &apos;date&apos;))</script>
-  </where>
+  <where class="org.obiba.magma.views.support.AllClause"/>
   <variables class="org.obiba.magma.js.views.VariablesClause">
     <variables class="linked-hash-set">
       <variable name="barcode" valueType="text" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
@@ -166,8 +163,31 @@ res</attribute>
           <attribute name="script" valueType="text">$group(&apos;Measure.OUTPUT_HIP_SIDE&apos;,&apos;RIGHT&apos;,&apos;Measure.RES_HIP_DICOM&apos;).asSequence().last().isNull().value()?0:1</attribute>
         </attributes>
       </variable>
+      <variable name="forearm_left_length" valueType="decimal" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="script" valueType="text">var res=null
+if($this(&apos;forearm_left_availability&apos;).eq(1).value()) {
+  res=$(&apos;clsa-dcs-images-f1.ForearmBoneDensity:RES_FA_ARM_LENGTH&apos;)
+}
+res</attribute>
+        </attributes>
+      </variable>
+      <variable name="forearm_right_length" valueType="decimal" entityType="Participant" unit="mm" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="stage" valueType="text">ForearmBoneDensity</attribute>
+          <attribute name="captureMethod" valueType="text">AUTOMATIC</attribute>
+          <attribute name="isManualCaptureAllowed" valueType="text">false</attribute>
+          <attribute name="vendorName" valueType="text">FA_ARM_LENGTH</attribute>
+          <attribute name="derivedFrom" namespace="opal" valueType="text">/datasource/clsa-dcs-images-f1/table/ForearmBoneDensity/variable/RES_FA_ARM_LENGTH</attribute>
+          <attribute name="script" valueType="text">var res=null
+if($this(&apos;forearm_right_availability&apos;).eq(1).value()) {
+  res=$(&apos;clsa-dcs-images-f1.ForearmBoneDensity:RES_FA_ARM_LENGTH&apos;)
+}
+res</attribute>
+        </attributes>
+      </variable>
     </variables>
   </variables>
   <created valueType="datetime">2017-12-14T15:24:51.618-05</created>
-  <updated valueType="datetime">2018-04-30T14:12:38.756-04</updated>
+  <updated valueType="datetime">2019-01-16T09:40:58.866-05</updated>
 </org.obiba.magma.views.View>

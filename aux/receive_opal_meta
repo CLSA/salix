@@ -237,7 +237,17 @@ foreach( $list as $uid => $row )
       $availability = $row[$key];
     $availability = '' == $availability ? 0 : $availability;
 
-    $sql .= sprintf( ' %d, %d, %d ) ', $apex_exam_id, $scan_type_id, $availability );
+    $key = $type_qualified . '_length';
+    if('forearm' == $type && array_key_exists( $key, $row ) )
+    {
+      $forearm_length = '' == $row[$key] ? 0 : $row[$key];
+      $sql .= sprintf( ' %d, %d, %d, %s ) ', $apex_exam_id, $scan_type_id, $availability, $forearm_length );
+    }
+    else
+    {
+      $sql .= sprintf( ' %d, %d, %d ) ', $apex_exam_id, $scan_type_id, $availability );
+    }
+
     $sql .=
       'ON DUPLICATE KEY UPDATE ' .
       'availability = VALUES( availability )';
