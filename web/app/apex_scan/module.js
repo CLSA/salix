@@ -99,6 +99,13 @@ define( function() {
       title: 'Patient Key',
       type: 'string',
       constant: true
+    },
+    forearm_length: {
+      title: 'Forearm Length',
+      type: 'string',
+      format: 'float',
+      constant: true,
+      exclude: true
     }
   } );
 
@@ -145,7 +152,19 @@ define( function() {
   cenozo.providers.factory( 'CnApexScanViewFactory', [
     'CnBaseViewFactory',
     function( CnBaseViewFactory ) {
-      var object = function( parentModel, root ) { CnBaseViewFactory.construct( this, parentModel, root ); };
+      var object = function( parentModel, root ) {
+        var self = this;
+        CnBaseViewFactory.construct( this, parentModel, root );
+
+        this.onView = function( force ) {
+          var mainInputGroup = self.parentModel.module.inputGroupList.findByProperty( 'title', '' );
+          mainInputGroup.inputList.forearm_length.exclude = true;
+          return this.$$onView( force ).then( function() {
+            // only show the forearm length when viewing forearm scans
+            mainInputGroup.inputList.forearm_length.exclude = 'forearm' != self.record.scan_type_type;
+          } );
+        };
+      };
       return { instance: function( parentModel, root ) { return new object( parentModel, root ); } };
     }
   ] );
