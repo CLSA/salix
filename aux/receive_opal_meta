@@ -226,7 +226,7 @@ foreach( $list as $uid => $row )
   {
     $sql =
       'INSERT INTO apex_scan ('.
-      'apex_exam_id, scan_type_id, availability';
+      'apex_exam_id, scan_type_id, availability) VALUES (';
 
     $type = $type_data['type'];
     $side = $type_data['side'];
@@ -238,29 +238,22 @@ foreach( $list as $uid => $row )
     $availability = '' == $availability ? 0 : $availability;
 
     $key = $type_qualified . '_length';
-    if('forearm' == $type && array_key_exists( $key, $row ) && is_numeric($row[$key]))
+    if('forearm' == $type && array_key_exists( $key, $row ) )
     {
-      $forearm_length = $row[$key];
-      $sql .= sprintf( ',forearm_length) VALUES (%d, %d, %d, %s) ',
-          $apex_exam_id, $scan_type_id, $availability, $forearm_length );
-      $sql .=
-        'ON DUPLICATE KEY UPDATE ' .
-        'availability = VALUES( availability ), '.
-        'forearm_length = VALUES( forearm_length )';
+      $forearm_length = '' == $row[$key] ? 0 : $row[$key];
+      $sql .= sprintf( ' %d, %d, %d, %s ) ', $apex_exam_id, $scan_type_id, $availability, $forearm_length );
     }
     else
     {
-      $sql .= sprintf( ') VALUES (%d, %d, %d) ', $apex_exam_id, $scan_type_id, $availability );
-      $sql .=
-        'ON DUPLICATE KEY UPDATE ' .
-        'availability = VALUES( availability )';
+      $sql .= sprintf( ' %d, %d, %d ) ', $apex_exam_id, $scan_type_id, $availability );
     }
 
+    $sql .=
+      'ON DUPLICATE KEY UPDATE ' .
+      'availability = VALUES( availability )';
+
     if( false === $db_salix->execute( $sql ) )
-    {
       write_log( sprintf( 'WARNING: failed to update apex_scan for %s / %s', $uid, $row['barcode']  ) );
-      write_log( $sql );
-    }
   }
 }
 
