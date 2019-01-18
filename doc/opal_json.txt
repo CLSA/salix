@@ -1,0 +1,10 @@
+To retrieve an Opal view in json format, use the opal python
+client with the command:
+opal rest /datasource/salix/view/meta_N --opal https://opal_url:port
+--user username --password userpwd --json > meta_N.json
+
+For views that employ and entity filter of the form:
+$lastupdate().after(newValue('YYYY-MM-DD', 'date'))
+
+replace the date with "NEWDATE":
+$lastupdate().after(newValue('NEWDATE', 'date'))
