@@ -56,6 +56,21 @@ $PRECISION_FIELDS = array(
   'WEIGHT' => 1
 );
 
+// serial numbers of devices with scans requiring anonymization
+$ANONYMIZE_DEVICES = array(
+  '85921',
+  '85968',
+  '86036',
+  '86147',
+  '86155',
+  '86164',
+  '86204',
+  '86205',
+  '86222',
+  '86359',
+  '87800'
+);
+
 /*-------------MAIN PROGRAM-----------*/
 
 $dexa_host_option = NULL;
@@ -115,10 +130,10 @@ foreach( $host_list as $host_item )
 
   // Anonymize all patient biography data populated from the dicom image import
   //
-  $sql =
+  $sql = sprintf(
     'SELECT COUNT(*) '.
     'FROM PatScan.dbo.PATIENT '.
-    'WHERE DATALENGTH(LAST_NAME)>0 '.
+    'WHERE (DATALENGTH(LAST_NAME)>0 '.
     'OR DATALENGTH(FIRST_NAME)>0 '.
     'OR DATALENGTH(MID_INITIAL)>0 '.
     'OR DATALENGTH(PAT_COMMENT)>0 '.
@@ -129,18 +144,21 @@ foreach( $host_list as $host_item )
     'OR DATALENGTH(CITY)>0 '.
     'OR DATALENGTH(STATE)>0 '.
     'OR DATALENGTH(POSTAL)>0 '.
-    'OR DATALENGTH(COUNTRY)>0';
+    'OR DATALENGTH(COUNTRY)>0) '.
+    'AND SERIAL_NUMBER IN ("'.
+    implode('","',$ANONYMIZE_DEVICES) .
+    '")');
 
   $res = $db_dexa->get_one( $sql );
   if( false !== $res && 0 < $res )
   {
-    $sql =
+    $sql = sprintf(
       'UPDATE PatScan.dbo.PATIENT '.
       'SET FIRST_NAME=null, LAST_NAME=null, '.
       'MID_INITIAL=null, PAT_COMMENT=null, REF_PHYSICIAN=null, '.
       'STUDY=null, ADDRESS1=null, ADDRESS2=null, CITY=null, '.
       'STATE=null, POSTAL=null, COUNTRY=null '.
-      'WHERE DATALENGTH(LAST_NAME)>0 '.
+      'WHERE (DATALENGTH(LAST_NAME)>0 '.
       'OR DATALENGTH(FIRST_NAME)>0 '.
       'OR DATALENGTH(MID_INITIAL)>0 '.
       'OR DATALENGTH(PAT_COMMENT)>0 '.
@@ -151,7 +169,10 @@ foreach( $host_list as $host_item )
       'OR DATALENGTH(CITY)>0 '.
       'OR DATALENGTH(STATE)>0 '.
       'OR DATALENGTH(POSTAL)>0 '.
-      'OR DATALENGTH(COUNTRY)>0';
+      'OR DATALENGTH(COUNTRY)>0) '.
+      'AND SERIAL_NUMBER IN ("'.
+      implode('","',$ANONYMIZE_DEVICES) .
+      '")');
 
     $db_dexa->execute( $sql );
   }
