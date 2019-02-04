@@ -42,6 +42,7 @@ class ui extends \cenozo\ui\ui
     $module = $this->get_module( 'apex_host' );
     if( !is_null( $module ) )
     {
+      $module->add_child( 'allocation' );
       $module->add_child( 'apex_deployment' );
     }
 
