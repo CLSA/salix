@@ -132,7 +132,8 @@ foreach( $host_list as $host_item )
   //
   $sql = sprintf(
     'SELECT COUNT(*) '.
-    'FROM PatScan.dbo.PATIENT '.
+    'FROM PatScan.dbo.PATIENT p '.
+    'JOIN PatScan.dbo.ScanAnalysis s ON p.PATIENT_KEY=s.PATIENT_KEY '.
     'WHERE (DATALENGTH(LAST_NAME)>0 '.
     'OR DATALENGTH(FIRST_NAME)>0 '.
     'OR DATALENGTH(MID_INITIAL)>0 '.
@@ -145,15 +146,16 @@ foreach( $host_list as $host_item )
     'OR DATALENGTH(STATE)>0 '.
     'OR DATALENGTH(POSTAL)>0 '.
     'OR DATALENGTH(COUNTRY)>0) '.
-    'AND SERIAL_NUMBER IN ("'.
-    implode('","',$ANONYMIZE_DEVICES) .
-    '")');
+    'AND SERIAL_NUMBER IN ('.
+    implode(',',$ANONYMIZE_DEVICES) .
+    ')');
 
   $res = $db_dexa->get_one( $sql );
   if( false !== $res && 0 < $res )
   {
     $sql = sprintf(
-      'UPDATE PatScan.dbo.PATIENT '.
+      'UPDATE PatScan.dbo.PATIENT p '.
+      'JOIN PatScan.dbo.ScanAnalysis s ON p.PATIENT_KEY=s.PATIENT_KEY '.
       'SET FIRST_NAME=null, LAST_NAME=null, '.
       'MID_INITIAL=null, PAT_COMMENT=null, REF_PHYSICIAN=null, '.
       'STUDY=null, ADDRESS1=null, ADDRESS2=null, CITY=null, '.
@@ -170,9 +172,9 @@ foreach( $host_list as $host_item )
       'OR DATALENGTH(STATE)>0 '.
       'OR DATALENGTH(POSTAL)>0 '.
       'OR DATALENGTH(COUNTRY)>0) '.
-      'AND SERIAL_NUMBER IN ("'.
-      implode('","',$ANONYMIZE_DEVICES) .
-      '")');
+      'AND SERIAL_NUMBER IN ('.
+      implode(',',$ANONYMIZE_DEVICES) .
+      ')');
 
     $db_dexa->execute( $sql );
   }
@@ -293,7 +295,6 @@ foreach( $host_list as $host_item )
         $sql = rtrim( $sql, ', ' ) .
           sprintf(
             " WHERE PATIENT_KEY='%s'", $deployment_item['patient_key'] );
-
         if( false !== $db_dexa->execute( $sql ) )
         {
           $num_patient++;
@@ -335,7 +336,6 @@ foreach( $host_list as $host_item )
             $deployment_item['patient_key'],
             $deployment_item['scanid'],
             $deployment_item['serial_number'] );
-
         if( false !== $db_dexa->execute( $sql ) )
         {
           $num_analysis++;
