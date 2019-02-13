@@ -100,15 +100,15 @@ class module extends \cenozo\service\module
       $select->add_column( 'participant_count', 'participant_count', false );
     }   
 
-    // add the total number of scan_types
-    if( $select->has_column( 'scan_types' ) )
+    // add the list of allocations
+    if( $select->has_column( 'allocations' ) )
     {
       $join_sel = lib::create( 'database\select' );
       $join_sel->from( 'allocation' );
       $join_sel->add_column( 'apex_host_id' );
       $join_sel->add_column(
         'GROUP_CONCAT( CONCAT_WS( " ", side, type ) ORDER BY type, side SEPARATOR ", " )',
-        'scan_types',
+        'allocations',
         false
       );
 
@@ -117,10 +117,10 @@ class module extends \cenozo\service\module
       $join_mod->group( 'apex_host_id' );
 
       $modifier->left_join(
-        sprintf( '( %s %s ) AS apex_host_join_scan_type', $join_sel->get_sql(), $join_mod->get_sql() ),
+        sprintf( '( %s %s ) AS apex_host_join_allocation', $join_sel->get_sql(), $join_mod->get_sql() ),
         'apex_host.id',
-        'apex_host_join_scan_type.apex_host_id' );
-      $select->add_column( 'apex_host_join_scan_type.scan_types', 'scan_types', false );
+        'apex_host_join_allocation.apex_host_id' );
+      $select->add_column( 'apex_host_join_allocation.allocations', 'allocations', false );
     }
   }
 }
