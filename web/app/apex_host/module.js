@@ -16,6 +16,9 @@ define( function() {
       host: {
         title: 'Hostname'
       },
+      allocations: {
+        title: 'Allocations'
+      },
       apex_scan_count: {
         title: 'Apex Scans',
         type: 'number'

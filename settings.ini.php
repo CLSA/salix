@@ -12,8 +12,8 @@ global $SETTINGS;
 // tagged version
 $SETTINGS['general']['application_name'] = 'salix';
 $SETTINGS['general']['instance_name'] = $SETTINGS['general']['application_name'];
-$SETTINGS['general']['version'] = '2.3';
-$SETTINGS['general']['build'] = '75ae25c';
+$SETTINGS['general']['version'] = '2.4';
+$SETTINGS['general']['build'] = '67bfec1';
 
 // the location of salix internal path
 $SETTINGS['path']['APPLICATION'] = str_replace( '/settings.ini.php', '', __FILE__ );
