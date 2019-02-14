@@ -10,6 +10,8 @@
  * whereas salix db tables contain "cleaned" data.  This script updates
  * the APEX db tables with cleaned data and de-identifies all biographical
  * information.
+ * A check is also performed on precision of age, bmi, height and weight data
+ * and updated in APEX accordingly.
  *
  * @author Dean Inglis <inglisd@mcmaster.ca>
  */
@@ -70,6 +72,10 @@ $ANONYMIZE_DEVICES = array(
   '86359',
   '87800'
 );
+
+// the status of deployments requiring anonymization and basic
+// morphometry repair (eg., height, weight etc.)
+$STATUS='pending';
 
 /*-------------MAIN PROGRAM-----------*/
 
@@ -183,6 +189,7 @@ foreach( $host_list as $host_item )
   //
   $sql = sprintf(
     'SELECT '.
+    'uid, '.
     'DATE_FORMAT(b.dob, "%%Y-%%m-%%d") AS BIRTHDATE, '.
     'b.sex as SEX, '.
     'b.ethnicity as ETHNICITY, '.
@@ -191,6 +198,9 @@ foreach( $host_list as $host_item )
     's.patient_key, '.
     'e.height as HEIGHT, '.
     'e.weight as WEIGHT, '.
+    'type, '.
+    'side, '.
+    'merged, '.
     'e.rank, '.
     'n.id AS serial_number '.
     'FROM apex_deployment d '.
@@ -199,12 +209,14 @@ foreach( $host_list as $host_item )
     'JOIN apex_exam e ON e.id=s.apex_exam_id '.
     'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
     'JOIN serial_number n ON n.id=e.serial_number_id '.
+    'JOIN scan_type t ON t.id=s.scan_type_id '.
+    'JOIN %scenozo.participant p ON p.id=b.participant_id '.
     'WHERE h.id=%d '.
     'AND s.scan_datetime IS NOT NULL '.
     'AND s.scanid IS NOT NULL '.
     'AND s.patient_key IS NOT NULL '.
     'AND s.availability=1 '.
-    'AND d.status="pending"', $host_item['id'] );
+    'AND d.status="%s"', DB_PREFIX, $host_item['id'], $STATUS );
 
   $deployment_list = $db_salix->get_all( $sql );
   if( false === $deployment_list || !is_array( $deployment_list ) ||
@@ -228,6 +240,39 @@ foreach( $host_list as $host_item )
     $sday = new DateTime( $deployment_item['scan_datetime'] );
     $diff = $sday->diff( $bday );
     $rank = $deployment_item['rank'];
+    $merged = $deployment_item['merged'];
+    $patient_key =  $deployment_item['patient_key'];
+    $scanid = $deployment_item['scanid'];
+    $serial_number = $deployment_item['serial_number'];
+
+    // if this is a merged scan and the rank>1, get the patient key from the baseline scan
+    if( 1 == $merged && 1 < $rank )
+    {
+      $uid = $deployment_item['uid'];
+      $side = $deployment_item['side'];
+      $type = $deployment_item['type'];
+      $sql = sprintf(
+        'SELECT '.
+        'patient_key '.
+        'FROM apex_deployment d '.
+        'JOIN apex_host h ON h.id=d.apex_host_id '.
+        'JOIN apex_scan s ON s.id=d.apex_scan_id '.
+        'JOIN apex_exam e ON e.id=s.apex_exam_id '.
+        'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
+        'JOIN scan_type t ON t.id=s.scan_type_id '.
+        'JOIN %scenozo.participant p ON p.id=b.participant_id '.
+        'WHERE h.id=%d '.
+        'AND availability=1 '.
+        'AND type="%s" '.
+        'AND side="%s" '.
+        'AND uid="%s" '.
+        'AND rank=1', DB_PREFIX, $host_item['id'], $type, $side, $uid);
+      $res = $db_salix->get_row( $sql );
+      if( false !== $res && array_key_exists( 'patient_key', $res ) )
+      {
+        $patient_key = $res['patient_key'];
+      }
+    }
 
     $deployment_item['ADJUSTED_AGE'] = $diff->y + $diff->m / 12.0 + $diff->d / 365.25;
 
@@ -241,7 +286,7 @@ foreach( $host_list as $host_item )
       $sql = sprintf(
         "SELECT FORMAT(BIRTHDATE, 'yyyy-MM-dd') BIRTHDATE, SEX, ETHNICITY, WEIGHT, HEIGHT, BMI ".
         'FROM PatScan.dbo.PATIENT '.
-        "WHERE PATIENT_KEY='%s'", $deployment_item['patient_key'] );
+        "WHERE PATIENT_KEY='%s'", $patient_key );
       $dexa_patient = $db_dexa->get_row( $sql );
       if( false === $dexa_patient || !is_array( $dexa_patient ) )
         $dexa_patient = null;
@@ -253,9 +298,9 @@ foreach( $host_list as $host_item )
       "WHERE PATIENT_KEY='%s' ".
       "AND SCANID='%s' ".
       "AND SERIAL_NUMBER='%s'",
-      $deployment_item['patient_key'],
-      $deployment_item['scanid'],
-      $deployment_item['serial_number'] );
+      $patient_key,
+      $scanid,
+      $serial_number );
 
     $dexa_analysis = $db_dexa->get_row( $sql );
     if( false === $dexa_analysis || !is_array( $dexa_analysis ) )
@@ -294,14 +339,15 @@ foreach( $host_list as $host_item )
         }
         $sql = rtrim( $sql, ', ' ) .
           sprintf(
-            " WHERE PATIENT_KEY='%s'", $deployment_item['patient_key'] );
+            " WHERE PATIENT_KEY='%s'", $patient_key );
+
         if( false !== $db_dexa->execute( $sql ) )
         {
           $num_patient++;
           $num_patient_item += count( $diff );
         }
       }
-    } // end patient data correction
+    } // end baseline patient data correction
 
     if( null !== $dexa_analysis )
     {
@@ -333,9 +379,10 @@ foreach( $host_list as $host_item )
             " WHERE PATIENT_KEY='%s' ".
             "AND SCANID='%s' ".
             "AND SERIAL_NUMBER='%s'",
-            $deployment_item['patient_key'],
-            $deployment_item['scanid'],
-            $deployment_item['serial_number'] );
+            $patient_key,
+            $scanid,
+            $serial_number );
+
         if( false !== $db_dexa->execute( $sql ) )
         {
           $num_analysis++;
