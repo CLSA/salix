@@ -148,8 +148,26 @@ res</attribute>
           <attribute name="script" valueType="text">0</attribute>
         </attributes>
       </variable>
+      <variable name="forearm_left_length" valueType="decimal" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="script" valueType="text">var res=null
+if($this(&apos;forearm_left_availability&apos;).eq(1).value()) {
+  res=$(&apos;clsa-dcs-images.ForearmBoneDensity:RES_FA_ARM_LENGTH&apos;)
+}
+res</attribute>
+        </attributes>
+      </variable>
+      <variable name="forearm_right_length" valueType="decimal" entityType="Participant" unit="" mimeType="" referencedEntityType="" index="0">
+        <attributes>
+          <attribute name="script" valueType="text">var res=null
+if($this(&apos;forearm_right_availability&apos;).eq(1).value()) {
+  res=$(&apos;clsa-dcs-images.ForearmBoneDensity:RES_FA_ARM_LENGTH&apos;)
+}
+res</attribute>
+        </attributes>
+      </variable>
     </variables>
   </variables>
   <created valueType="datetime">2018-01-02T14:33:34.552-05</created>
-  <updated valueType="datetime">2018-04-30T14:25:55.440-04</updated>
+  <updated valueType="datetime">2019-01-16T09:30:52.583-05</updated>
 </org.obiba.magma.views.View>

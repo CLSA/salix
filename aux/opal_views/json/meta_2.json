@@ -308,6 +308,61 @@
         "referencedEntityType": "",
         "unit": "",
         "valueType": "integer"
+      },
+      {
+        "attributes": [
+          {
+            "name": "script",
+            "value": "var res=null\nif($this('forearm_left_availability').eq(1).value()) {\n  res=$('clsa-dcs-images-f1.ForearmBoneDensity:RES_FA_ARM_LENGTH')\n}\nres"
+          }
+        ],
+        "entityType": "Participant",
+        "index": 0,
+        "isRepeatable": false,
+        "mimeType": "",
+        "name": "forearm_left_length",
+        "occurrenceGroup": "",
+        "referencedEntityType": "",
+        "unit": "",
+        "valueType": "decimal"
+      },
+      {
+        "attributes": [
+          {
+            "name": "stage",
+            "value": "ForearmBoneDensity"
+          },
+          {
+            "name": "captureMethod",
+            "value": "AUTOMATIC"
+          },
+          {
+            "name": "isManualCaptureAllowed",
+            "value": "false"
+          },
+          {
+            "name": "vendorName",
+            "value": "FA_ARM_LENGTH"
+          },
+          {
+            "name": "derivedFrom",
+            "namespace": "opal",
+            "value": "/datasource/clsa-dcs-images-f1/table/ForearmBoneDensity/variable/RES_FA_ARM_LENGTH"
+          },
+          {
+            "name": "script",
+            "value": "var res=null\nif($this('forearm_right_availability').eq(1).value()) {\n  res=$('clsa-dcs-images-f1.ForearmBoneDensity:RES_FA_ARM_LENGTH')\n}\nres"
+          }
+        ],
+        "entityType": "Participant",
+        "index": 0,
+        "isRepeatable": false,
+        "mimeType": "",
+        "name": "forearm_right_length",
+        "occurrenceGroup": "",
+        "referencedEntityType": "",
+        "unit": "mm",
+        "valueType": "decimal"
       }
     ]
   },
@@ -323,6 +378,5 @@
     "clsa-dcs-f1.StandingHeight",
     "clsa-dcs-f1.Weight"
   ],
-  "name": "meta_2",
-  "where": "$lastupdate().after(newValue('NEWDATE', 'date'))"
+  "name": "meta_2"
 }

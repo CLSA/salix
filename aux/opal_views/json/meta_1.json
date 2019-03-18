@@ -6,7 +6,7 @@
           {
             "name": "derivedFrom",
             "namespace": "opal",
-            "value": "/datasource/clsa-dcs-f2/table/Participants/variable/Admin.Participant.barcode"
+            "value": "/datasource/clsa-dcs/table/Participants/variable/Admin.Participant.barcode"
           },
           {
             "name": "script",
@@ -14,11 +14,10 @@
           }
         ],
         "entityType": "Participant",
-        "index": 0,
+        "index": 3,
         "isRepeatable": false,
         "mimeType": "",
         "name": "barcode",
-        "occurrenceGroup": "",
         "referencedEntityType": "",
         "unit": "",
         "valueType": "text"
@@ -28,41 +27,18 @@
           {
             "name": "derivedFrom",
             "namespace": "opal",
-            "value": "/datasource/salix/table/meta_3/variable/technician"
+            "value": "/datasource/salix/table/meta_1/variable/site"
           },
           {
             "name": "script",
-            "value": "// the user who ran the onyx bone density qnaire stage just before\n// performing the dexa exam\n//\nvar q=$('clsa-dcs-f2.QuestionnaireBoneDensity:QuestionnaireRun.user').lowerCase()\n\n// the user who ran the dexa image transfer to onyx, who may or may not\n// be the same user who actually performed the exam\n//\nvar wu=$('clsa-dcs-images-f2.WholeBodyBoneDensity:InstrumentRun.user').lowerCase()\nvar lu=$('clsa-dcs-images-f2.LateralBoneDensity:InstrumentRun.user').lowerCase()\nvar hu=$('clsa-dcs-images-f2.DualHipBoneDensity:InstrumentRun.user').lowerCase()\nvar fu=$('clsa-dcs-images-f2.ForearmBoneDensity:InstrumentRun.user').lowerCase()\nvar su=$('clsa-dcs-images-f2.SpineBoneDensity:InstrumentRun.user').lowerCase()\nvar a = new Array()\nif(wu.isNull().not().value() && a.indexOf(wu.value())<0) a.push(wu.value())\nif(lu.isNull().not().value() && a.indexOf(lu.value())<0) a.push(lu.value())\nif(hu.isNull().not().value() && a.indexOf(hu.value())<0) a.push(hu.value())\nif(fu.isNull().not().value() && a.indexOf(fu.value())<0) a.push(fu.value())\nif(su.isNull().not().value() && a.indexOf(su.value())<0) a.push(su.value())\nvar res=null\nif(0<a.length) {\n  res=newValue(a.join('/'))\n  if(q.isNull().not().value() && a.indexOf(q.value())<0) {\n    res=res.concat('/').concat(q)\n  }\n}\nres"
+            "value": "$('Admin.ApplicationConfiguration.siteName').map({\n  'British Columbia':'University of BC DCS',\n  'Calgary':'Calgary DCS',\n  'Dalhousie':'Dalhousie DCS',\n  'Hamilton':'Hamilton DCS',\n  'Manitoba':'Manitoba DCS',\n  'McGill':'McGill DCS',\n  'McMaster':'Hamilton DCS',\n  'Memorial':'Memorial DCS',\n  'Ottawa':'Ottawa DCS',\n  'Sherbrooke':'Sherbrooke DCS',\n  'Simon Fraser':'Simon Fraser DCS',\n  'Victoria':'Victoria DCS'},null)"
           }
         ],
         "entityType": "Participant",
-        "index": 0,
-        "isRepeatable": false,
-        "mimeType": "",
-        "name": "technician",
-        "occurrenceGroup": "",
-        "referencedEntityType": "",
-        "unit": "",
-        "valueType": "text"
-      },
-      {
-        "attributes": [
-          {
-            "name": "derivedFrom",
-            "namespace": "opal",
-            "value": "/datasource/salix/table/meta_3/variable/site"
-          },
-          {
-            "name": "script",
-            "value": "$('Admin.ApplicationConfiguration.siteName').map({\n  'BritishColumbia':'University of BC DCS',\n  'British Columbia':'University of BC DCS',\n  'Calgary':'Calgary DCS',\n  'Dalhousie':'Dalhousie DCS',\n  'Hamilton':'Hamilton DCS',\n  'Manitoba':'Manitoba DCS',\n  'McGill':'McGill DCS',\n  'McMaster':'Hamilton DCS',\n  'Memorial':'Memorial DCS',\n  'Memorial University':'Memorial DCS',\n  'Ottawa':'Ottawa DCS',\n  'Sherbrooke':'Sherbrooke DCS',\n  'Simon Fraser':'Simon Fraser DCS',\n  'SimonFraser':'Simon Fraser DCS',\n  'UniversityofBC':'University of BC DCS',\n  'University of Manitoba':'Manitoba DCS',\n  'University of Victoria':'Victoria DCS',\n  'Victoria':'Victoria DCS'},null) "
-          }
-        ],
-        "entityType": "Participant",
-        "index": 0,
+        "index": 18,
         "isRepeatable": false,
         "mimeType": "",
         "name": "site",
-        "occurrenceGroup": "",
         "referencedEntityType": "",
         "unit": "",
         "valueType": "text"
@@ -72,19 +48,18 @@
           {
             "name": "derivedFrom",
             "namespace": "opal",
-            "value": "/datasource/clsa-dcs-f2/table/StandingHeight/variable/RES_HEIGHT"
+            "value": "/datasource/salix/table/meta_1/variable/height"
           },
           {
             "name": "script",
-            "value": "$('RES_HEIGHT')"
+            "value": "$('HGT_HEIGHT_M_COM').div(0.01)"
           }
         ],
         "entityType": "Participant",
-        "index": 0,
+        "index": 1060,
         "isRepeatable": false,
         "mimeType": "",
         "name": "height",
-        "occurrenceGroup": "",
         "referencedEntityType": "",
         "unit": "cm",
         "valueType": "decimal"
@@ -94,21 +69,20 @@
           {
             "name": "derivedFrom",
             "namespace": "opal",
-            "value": "/datasource/clsa-dcs-f2/table/Weight/variable/RES_WEIGHT"
+            "value": "/datasource/clsa-sac-releases/table/60minQv1_CoP_Baseline/variable/WGT_WEIGHT_KG_COM"
           },
           {
             "name": "script",
-            "value": "$('RES_WEIGHT')"
+            "value": "$('WGT_WEIGHT_KG_COM')"
           }
         ],
         "entityType": "Participant",
-        "index": 0,
+        "index": 1064,
         "isRepeatable": false,
         "mimeType": "",
         "name": "weight",
-        "occurrenceGroup": "",
         "referencedEntityType": "",
-        "unit": "kg",
+        "unit": "Kg",
         "valueType": "decimal"
       },
       {
@@ -116,22 +90,21 @@
           {
             "name": "derivedFrom",
             "namespace": "opal",
-            "value": "/datasource/salix/table/meta_3/variable/spine_availability"
+            "value": "/datasource/salix/table/meta_1/variable/technician"
           },
           {
             "name": "script",
-            "value": "$('RES_SP_DICOM').isNull().value()?0:1"
+            "value": "// the user who ran the onyx bone density qnaire stage just before\n// performing the dexa exam\n//\nvar q=$('clsa-dcs.QuestionnaireBoneDensity:QuestionnaireRun.user').lowerCase()\n\n// the user who ran the dexa image transfer to onyx, who may or may not\n// be the same user who actually performed the exam\n//\nvar wu=$('clsa-dcs-images.WholeBodyBoneDensity:InstrumentRun.user').lowerCase()\nvar lu=$('clsa-dcs-images.LateralBoneDensity:InstrumentRun.user').lowerCase()\nvar hu=$('clsa-dcs-images.DualHipBoneDensity:InstrumentRun.user').lowerCase()\nvar fu=$('clsa-dcs-images.ForearmBoneDensity:InstrumentRun.user').lowerCase()\nvar a = new Array()\nif(wu.isNull().not().value() && a.indexOf(wu.value())<0) a.push(wu.value())\nif(lu.isNull().not().value() && a.indexOf(lu.value())<0) a.push(lu.value())\nif(hu.isNull().not().value() && a.indexOf(hu.value())<0) a.push(hu.value())\nif(fu.isNull().not().value() && a.indexOf(fu.value())<0) a.push(fu.value())\nvar res=null\nif(0<a.length) {\n  res=newValue(a.join('/'))\n  if(q.isNull().not().value() && a.indexOf(q.value())<0) {\n    res=res.concat('/').concat(q)\n  }\n}\nres"
           }
         ],
         "entityType": "Participant",
-        "index": 0,
+        "index": 4,
         "isRepeatable": false,
         "mimeType": "",
-        "name": "spine_availability",
-        "occurrenceGroup": "",
+        "name": "technician",
         "referencedEntityType": "",
         "unit": "",
-        "valueType": "integer"
+        "valueType": "text"
       },
       {
         "attributes": [
@@ -142,15 +115,14 @@
           {
             "name": "derivedFrom",
             "namespace": "opal",
-            "value": "/datasource/clsa-dcs-f2/table/Participants/variable/AGE"
+            "value": "/datasource/clsa-dcs/table/Participants/variable/AGE"
           }
         ],
         "entityType": "Participant",
-        "index": 0,
+        "index": 36,
         "isRepeatable": false,
         "mimeType": "",
         "name": "age",
-        "occurrenceGroup": "",
         "referencedEntityType": "",
         "unit": "",
         "valueType": "integer"
@@ -160,7 +132,7 @@
           {
             "name": "derivedFrom",
             "namespace": "opal",
-            "value": "/datasource/salix/table/meta_3/variable/iva_availability"
+            "value": "/datasource/salix/table/scan_1/variable/iva_availability"
           },
           {
             "name": "script",
@@ -168,11 +140,10 @@
           }
         ],
         "entityType": "Participant",
-        "index": 0,
+        "index": 10,
         "isRepeatable": false,
         "mimeType": "",
         "name": "lateral_availability",
-        "occurrenceGroup": "",
         "referencedEntityType": "",
         "unit": "",
         "valueType": "integer"
@@ -182,7 +153,7 @@
           {
             "name": "derivedFrom",
             "namespace": "opal",
-            "value": "/datasource/salix/table/meta_3/variable/wholebody_availability"
+            "value": "/datasource/salix/table/scan_1/variable/wholebody_availability"
           },
           {
             "name": "script",
@@ -190,11 +161,10 @@
           }
         ],
         "entityType": "Participant",
-        "index": 0,
+        "index": 10,
         "isRepeatable": false,
         "mimeType": "",
         "name": "wbody_availability",
-        "occurrenceGroup": "",
         "referencedEntityType": "",
         "unit": "",
         "valueType": "integer"
@@ -204,7 +174,7 @@
           {
             "name": "derivedFrom",
             "namespace": "opal",
-            "value": "/datasource/salix/table/meta_3/variable/bodycomp_availability"
+            "value": "/datasource/salix/table/meta_1/variable/wbodycomposition_availability"
           },
           {
             "name": "script",
@@ -216,7 +186,6 @@
         "isRepeatable": false,
         "mimeType": "",
         "name": "wbodycomposition_availability",
-        "occurrenceGroup": "",
         "referencedEntityType": "",
         "unit": "",
         "valueType": "integer"
@@ -226,7 +195,7 @@
           {
             "name": "derivedFrom",
             "namespace": "opal",
-            "value": "/datasource/salix/table/meta_3/variable/hip_left_availability"
+            "value": "/datasource/salix/table/meta_1/variable/hip_left_availability"
           },
           {
             "name": "script",
@@ -238,7 +207,6 @@
         "isRepeatable": false,
         "mimeType": "",
         "name": "hip_left_availability",
-        "occurrenceGroup": "",
         "referencedEntityType": "",
         "unit": "",
         "valueType": "integer"
@@ -248,51 +216,7 @@
           {
             "name": "derivedFrom",
             "namespace": "opal",
-            "value": "/datasource/salix/table/meta_3/variable/forearm_left_availability"
-          },
-          {
-            "name": "script",
-            "value": "$('OUTPUT_FA_SIDE').any('LEFT').and($('RES_FA_DICOM').isNull().not()).value()?1:0"
-          }
-        ],
-        "entityType": "Participant",
-        "index": 0,
-        "isRepeatable": false,
-        "mimeType": "",
-        "name": "forearm_left_availability",
-        "occurrenceGroup": "",
-        "referencedEntityType": "",
-        "unit": "",
-        "valueType": "integer"
-      },
-      {
-        "attributes": [
-          {
-            "name": "derivedFrom",
-            "namespace": "opal",
-            "value": "/datasource/salix/table/meta_3/variable/forearm_right_availability"
-          },
-          {
-            "name": "script",
-            "value": "$('OUTPUT_FA_SIDE').any('RIGHT').and($('RES_FA_DICOM').isNull().not()).value()?1:0"
-          }
-        ],
-        "entityType": "Participant",
-        "index": 0,
-        "isRepeatable": false,
-        "mimeType": "",
-        "name": "forearm_right_availability",
-        "occurrenceGroup": "",
-        "referencedEntityType": "",
-        "unit": "",
-        "valueType": "integer"
-      },
-      {
-        "attributes": [
-          {
-            "name": "derivedFrom",
-            "namespace": "opal",
-            "value": "/datasource/salix/table/meta_3/variable/hip_right_availability"
+            "value": "/datasource/salix/table/meta_1/variable/hip_availability"
           },
           {
             "name": "script",
@@ -304,7 +228,48 @@
         "isRepeatable": false,
         "mimeType": "",
         "name": "hip_right_availability",
-        "occurrenceGroup": "",
+        "referencedEntityType": "",
+        "unit": "",
+        "valueType": "integer"
+      },
+      {
+        "attributes": [
+          {
+            "name": "derivedFrom",
+            "namespace": "opal",
+            "value": "/datasource/salix/table/meta_1/variable/forearm_left_availability"
+          },
+          {
+            "name": "script",
+            "value": "$('OUTPUT_FA_SIDE').any('LEFT').and($('RES_FA_DICOM').isNull().not()).value()?1:0"
+          }
+        ],
+        "entityType": "Participant",
+        "index": 0,
+        "isRepeatable": false,
+        "mimeType": "",
+        "name": "forearm_left_availability",
+        "referencedEntityType": "",
+        "unit": "",
+        "valueType": "integer"
+      },
+      {
+        "attributes": [
+          {
+            "name": "derivedFrom",
+            "namespace": "opal",
+            "value": "/datasource/salix/table/meta_1/variable/forearm_right_availability"
+          },
+          {
+            "name": "script",
+            "value": "$('OUTPUT_FA_SIDE').any('RIGHT').and($('RES_FA_DICOM').isNull().not()).value()?1:0"
+          }
+        ],
+        "entityType": "Participant",
+        "index": 0,
+        "isRepeatable": false,
+        "mimeType": "",
+        "name": "forearm_right_availability",
         "referencedEntityType": "",
         "unit": "",
         "valueType": "integer"
@@ -313,7 +278,23 @@
         "attributes": [
           {
             "name": "script",
-            "value": "var res=null\nif($this('forearm_left_availability').eq(1).value()) {\n  res=$('clsa-dcs-images-f2.ForearmBoneDensity:RES_FA_ARM_LENGTH')\n}\nres"
+            "value": "0"
+          }
+        ],
+        "entityType": "Participant",
+        "index": 0,
+        "isRepeatable": false,
+        "mimeType": "",
+        "name": "spine_availability",
+        "referencedEntityType": "",
+        "unit": "",
+        "valueType": "integer"
+      },
+      {
+        "attributes": [
+          {
+            "name": "script",
+            "value": "var res=null\nif($this('forearm_left_availability').eq(1).value()) {\n  res=$('clsa-dcs-images.ForearmBoneDensity:RES_FA_ARM_LENGTH')\n}\nres"
           }
         ],
         "entityType": "Participant",
@@ -330,7 +311,7 @@
         "attributes": [
           {
             "name": "script",
-            "value": "var res=null\nif($this('forearm_right_availability').eq(1).value()) {\n  res=$('clsa-dcs-images-f2.ForearmBoneDensity:RES_FA_ARM_LENGTH')\n}\nres"
+            "value": "var res=null\nif($this('forearm_right_availability').eq(1).value()) {\n  res=$('clsa-dcs-images.ForearmBoneDensity:RES_FA_ARM_LENGTH')\n}\nres"
           }
         ],
         "entityType": "Participant",
@@ -347,16 +328,13 @@
   },
   "datasourceName": "salix",
   "from": [
-    "clsa-dcs-images-f2.DualHipBoneDensity",
-    "clsa-dcs-images-f2.ForearmBoneDensity",
-    "clsa-dcs-images-f2.LateralBoneDensity",
-    "clsa-dcs-images-f2.SpineBoneDensity",
-    "clsa-dcs-images-f2.WholeBodyBoneDensity",
-    "clsa-dcs-f2.Participants",
-    "clsa-dcs-f2.QuestionnaireBoneDensity",
-    "clsa-dcs-f2.StandingHeight",
-    "clsa-dcs-f2.Weight"
+    "clsa-dcs.Participants",
+    "clsa-dcs.QuestionnaireBoneDensity",
+    "clsa-dcs-images.DualHipBoneDensity",
+    "clsa-dcs-images.ForearmBoneDensity",
+    "clsa-dcs-images.LateralBoneDensity",
+    "clsa-dcs-images.WholeBodyBoneDensity",
+    "clsa-sac-releases.60minQv1_CoP_Baseline"
   ],
-  "name": "meta_3",
-  "where": "$lastupdate().after(newValue('NEWDATE', 'date'))"
+  "name": "meta_1"
 }

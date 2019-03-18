@@ -16,10 +16,8 @@ define( function() {
       host: {
         title: 'Hostname'
       },
-      allocation: {
-        title: 'Allocation',
-        type: 'number',
-        filter: 'cnPercent'
+      allocations: {
+        title: 'Allocations'
       },
       apex_scan_count: {
         title: 'Apex Scans',
@@ -44,10 +42,6 @@ define( function() {
     host: {
       title: 'Hostname',
       type: 'string'
-    },
-    allocation: {
-      title: 'Allocation',
-      type: 'percent'
     },
     apex_scan_count: {
       title: 'Apex Scans',
