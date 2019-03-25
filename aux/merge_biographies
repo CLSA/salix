@@ -67,6 +67,14 @@ $aux_host_tables = array(
     array( 'WbodyComposition', 'SubRegionBone', 'SubRegionComposition',
            'ObesityIndices', 'AndroidGynoidComposition' ) );
 
+// rank that is considered as baseline
+$baseline_rank_list = array(
+ 'forearm' => 1,
+ 'lateral' => 1,
+ 'wbody' => 1,
+ 'hip' => 1,
+ 'spine' => 2 );
+
 $sql = 'SELECT * FROM apex_host';
 $host_list = $db_salix->get_all( $sql );
 foreach( $host_list as $host_item )
@@ -139,7 +147,7 @@ foreach( $host_list as $host_item )
     $type = $merge_item['type'];
     $side = $merge_item['side'];
     $rank_list = explode( ',' , $merge_item['rank_list'] );
-    if( 1 != min( $rank_list ) )
+    if( $baseline_rank_list[$type] != min( $rank_list ) )
     {
       write_log( sprintf( 'WARNING: incomplete rank list (%s (side: %s) barcodes: %s)',
         $type, $side, $merge_item['barcode_list'] ) );
