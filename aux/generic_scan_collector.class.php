@@ -8,7 +8,11 @@ class generic_scan_collector extends scan_collector
   {
     parent::__construct($db, $db_prefix);
 
-    $this->scan_type = in_array($type, array('hip','spine','lateral','wbody')) ? $type : null;
+    $this->scan_type =
+      in_array($type, array('hip','spine','lateral','wbody')) ? $type : null;
+
+    if('hip'==$type)
+      $this->preferred_side = 'left';
   }
 
   protected function build_collection_query()

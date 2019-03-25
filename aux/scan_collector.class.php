@@ -192,17 +192,17 @@ abstract class scan_collector
     return $scan_chain;
   }
 
-  public function get_deployments($weighted_host_list)
+  public function get_deployments()
   {
     // get all the uid's that have candidates
     $uid_list = array_keys($this->candidate_scans);
-    $deployment_list = array('any'=>array());
+    $deployment_list = array('any'=>array(),'undecided'=array());
     foreach($uid_list as $uid)
     {
       $scan_chain = $this->get_scan_chain($uid);
-      if(null===$scan_chain) continue;
+      if(null === $scan_chain) continue;
       $host_id = $scan_chain['host_id'];
-      if(null===$host_id)
+      if(null === $host_id)
       {
         // each array element in the final deployment lists must
         // be deployed to the same host (ie., keep scans for a uid together)
@@ -212,7 +212,7 @@ abstract class scan_collector
       else
       {
         // we dont have a choice, these scans must be deployed to this host
-        if(1==count($host_id))
+        if(1 == count($host_id))
         {
           $id = $host_id[0];
           $deployment_list[$id][] = $scan_chain['scans'];
@@ -226,15 +226,34 @@ abstract class scan_collector
     }
 
     //DEBUG - report how many uid per host
-    foreach($deployment_list as $key=>$scan_chain_list)
+    $total_deploy = 0;
+    $total_uid = 0;
+    foreach($deployment_list as $key => $scan_chain_list)
     {
-      $num=0;
-      foreach($scan_chain_list as $list) $num+=count($list);
+      $num = 0;
+      $num_multi = 0;
+      $num_single = 0;
+      foreach($scan_chain_list as $list)
+      { 
+        $total_uid++;
+        $n = count($list);
+        $num += $n;
+        if(1 == $n) 
+          $num_single++;
+        else if(1 < $n)
+          $num_multi++;
+      }
+      $total_deploy += $num;
 
-      util::out(sprintf('host %s: number uids = %d, total deployments = %d',
-        $key,count($scan_chain_list),$num));
+      $deployment_list[$key]['uid_count'] = count($scan_chain_list);  
+      $deployment_list[$key]['total_count'] = $num;
+      $deployment_list[$key]['single_count'] = $num_single;
+      $deployment_list[$key]['multi_count'] = $num_multi;
+      
     }
-    //var_dump($deployment_list);
+    $deployment_list['total_uid'] = $total_uid;
+    $deployment_list['total_deploy'] = $total_deploy;
+    return $deployment_list; 
   }
 
 
