@@ -14,6 +14,22 @@ abstract class scan_collector
     $this->db = $db;
     $this->db_prefix = $db_prefix;
     $this->preferred_side = 'none';
+    $this->reset_count_stats();
+  }
+
+  protected function reset_count_stats()
+  {
+    $this->count_stats = array(
+      'numCandidates' => 0,
+      'numDeployments' => 0,
+      'numHostCandidates' => array(),
+      'numHostDeployments' => array(),
+      'numHostPriorityCandidates' => array());
+  }
+
+  public function get_count_stats()
+  {
+    return $this->count_stats;
   }
 
   public function set_preferred_side($side)
@@ -44,27 +60,30 @@ abstract class scan_collector
       util::out(sprintf('SQL ERROR: %s',$this->query));
       die();
     }
+
+    $this->reset_count_stats();
+
     if(is_array($res) && 0 < count($res))
     {
-      $numcan = 0;
-      $numdep = 0;
       $partition = $this->preferred_side == 'none' ? false : true;
       foreach($res as $data)
       {
         $uid = $data['uid'];
         $side = $data['side'];
+        $host_id = $data['apex_host_id'];
         $scan = new dexa_scan(
           $data['uid'], $data['type'], $data['side'],
           $data['rank'], $data['barcode'], $data['serial_number'],
-          $data['apex_scan_id'], $data['scan_type_id'], $data['priority'], $data['apex_host_id'] );
+          $data['apex_scan_id'], $data['scan_type_id'], $data['priority'], $host_id );
 
-        if($data['apex_host_id']=='NULL')
+        if('NULL' == $data['apex_host_id'])
         {
           if($partition)
             $this->candidate_scans[$uid][$side][] = $scan;
           else
             $this->candidate_scans[$uid][] = $scan;
-          $numcan++;
+
+          $this->count_stats['numCandidates']++;
         }
         else
         {
@@ -73,11 +92,20 @@ abstract class scan_collector
           else
             $this->deployed_scans[$uid][] = $scan;
 
-          $numdep++;
+          $this->count_stats['numDeployments']++;
+          if(!array_key_exists($host_id,$this->count_stats['numHostDeployments']))
+          {
+            $this->count_stats['numHostDeployments'][$host_id] = 0;
+          }
+          $this->count_stats['numHostDeployments'][$host_id]++;
         }
       }
       util::out(sprintf('ok, found %d scans: candidates: %d, deployed: %d',
-        count($res),$numcan,$numdep));
+        count($res),$this->count_stats['numCandidates'],$this->count_stats['numDeployments']));
+
+      foreach($this->count_stats['numHostDeployments'] as $key=>$value)
+        util::out(sprintf('host %d has %d deployments => %s percent',$key,$value,
+          round(100*$value/$this->count_stats['numDeployments'])));
     }
   }
 
@@ -164,7 +192,7 @@ abstract class scan_collector
         {
           $chain_side = $this->preferred_side;
         }
-        // case 2.1:
+        // case 2.2:
         // no preferred, only non-preferred candidates
         //  - non-deferred deployed, find max host id or ties
         else if(in_array($alternate_side,$candidate_side_keys) &&
@@ -192,68 +220,92 @@ abstract class scan_collector
     return $scan_chain;
   }
 
-  public function get_deployments()
+  protected function get_priority_sorting( $deployment_list )
   {
-    // get all the uid's that have candidates
+    $priority_chain = array();
+    $non_priority_chain = array();
+    foreach($deployment_list as $uid => $scan_chain)
+    {
+      $found = false;
+      foreach($scan_chain as $item)
+      {
+        if(1 == $item->priority)
+        {
+          $found = true;
+          break;
+        }
+      }
+      if($found)
+        $priority_chain[$uid] = $scan_chain;
+      else
+        $non_priority_chain[$uid] = $scan_chain;
+    }
+    return $priority_chain + $non_priority_chain;
+  }
+
+  public function get_deployments( $ordered_host_list )
+  {
+    // get all uid's that have candidates
     $uid_list = array_keys($this->candidate_scans);
-    $deployment_list = array('any'=>array(),'undecided'=array());
+    $deployment_list = array();
     foreach($uid_list as $uid)
     {
       $scan_chain = $this->get_scan_chain($uid);
       if(null === $scan_chain) continue;
+
       $host_id = $scan_chain['host_id'];
       if(null === $host_id)
       {
-        // each array element in the final deployment lists must
-        // be deployed to the same host (ie., keep scans for a uid together)
-        //
+        // deployable to any host since there are no deployed siblings
         $deployment_list['any'][] = $scan_chain['scans'];
       }
       else
       {
-        // we dont have a choice, these scans must be deployed to this host
+        // candidates must be deployed to this host
         if(1 == count($host_id))
         {
-          $id = $host_id[0];
+          $id = current($host_id);
           $deployment_list[$id][] = $scan_chain['scans'];
         }
-        else  // in the list of hosts that have weights
+        else // candidates have siblings on more than one host
         {
-          //util::out(sprintf('tie situation among %d hosts',count($host_id)));
-          $deployment_list['undecided'][] = $scan_chain['scans'];
+          // the id of the first host in the list of hosts ordered by allocation preference
+          // that has sibling scans that would complete the chain.
+          // If there is no host suitable at this time, then do not deploy the scans
+          //
+          $list = array_intersect($ordered_host_list,$host_id);
+          if(0<count($list))
+          {
+            $id = current($list);
+            $deployment_list[$id][] = $scan_chain['scans'];
+          }
         }
       }
     }
 
-    //DEBUG - report how many uid per host
-    $total_deploy = 0;
-    $total_uid = 0;
+    //DEBUG - report how many candidate and deployed uid per host
     foreach($deployment_list as $key => $scan_chain_list)
     {
+      $deployment_list[$key] = $this->get_priority_sorting($scan_chain_list);
       $num = 0;
-      $num_multi = 0;
-      $num_single = 0;
+      $num_priority = 0;
       foreach($scan_chain_list as $list)
-      { 
-        $total_uid++;
-        $n = count($list);
-        $num += $n;
-        if(1 == $n) 
-          $num_single++;
-        else if(1 < $n)
-          $num_multi++;
+      {
+        $num += count($list);
+        foreach($list as $item)
+          $num_priority += $item->priority;
       }
-      $total_deploy += $num;
-
-      $deployment_list[$key]['uid_count'] = count($scan_chain_list);  
-      $deployment_list[$key]['total_count'] = $num;
-      $deployment_list[$key]['single_count'] = $num_single;
-      $deployment_list[$key]['multi_count'] = $num_multi;
-      
+      $this->count_stats['numHostCandidates'][$key] = $num;
+      $this->count_stats['numHostPriorityCandidates'][$key] = $num_priority;
     }
-    $deployment_list['total_uid'] = $total_uid;
-    $deployment_list['total_deploy'] = $total_deploy;
-    return $deployment_list; 
+
+    $total = array_sum(array_values($this->count_stats['numHostCandidates']));
+
+    foreach($this->count_stats['numHostCandidates'] as $key=>$value)
+      util::out(sprintf('host %s has %d candidates => %s percent',$key,$value,
+        round(100*$value/$total)));
+
+    return $deployment_list;
   }
 
 
@@ -270,4 +322,6 @@ abstract class scan_collector
   protected $scan_type = null;
 
   protected $preferred_side = 'none';
+
+  protected $count_stats = array();
 }
