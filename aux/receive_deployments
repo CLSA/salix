@@ -5,9 +5,7 @@
  *
  * A script for retrieving DEXA scans, verifying their content,
  * and creating a deployment record for subsequent transfer to
- * the APEX host workstations.  The script currently only allows
- * for grouped hip scan retrieval (left side preferred) and
- * priority whole body scans.
+ * the APEX host workstations.
  *
  * @author Dean Inglis <inglisd@mcmaster.ca>
  */
@@ -36,6 +34,8 @@ define( 'USER', $settings['utility']['username'] );
 require_once( $settings['path']['PHP_UTIL'].'/database.class.php' );
 // a lite curl wrapper
 require_once( $settings['path']['PHP_UTIL'].'/opalcurl.class.php' );
+// scan collector helper class
+require_once( $settings['path']['APPLICATION'].'/aux/scan_collector.class.php' );
 
 // function for writing to the log
 function write_log( $message )
@@ -47,143 +47,6 @@ function write_log( $message )
   );
 }
 
-class dexa_scan
-{
-  public function __construct( $uid, $type, $side, $rank, $barcode, $serial_number,
-    $apex_scan_id, $priority = 0, $apex_host_id = NULL )
-  {
-    $this->uid = $uid;
-    $this->type = $type;
-    $this->side = $side;
-    $this->rank = $rank;
-    $this->barcode = $barcode;
-    $this->serial_number = $serial_number;
-    $this->apex_scan_id = $apex_scan_id;
-    $this->apex_host_id = 'NULL' === $apex_host_id ? NULL : $apex_host_id;
-    $this->priority = $priority;
-  }
-
-  public function get_scan_file( $opal_source, $path )
-  {
-    $opal_var = $this->type;
-    $opal_var .= 'none' == $this->side ? '' : '_' . $this->side;
-    $opal_var .= '_image';
-
-    $opal_source->set_view( 'image_' . $this->rank );
-
-    // download the dicom file based on uid, rank, type, side, barcode to the working directory
-    $res = $opal_source->get_participant( $this->uid );
-    if( is_object( $res ) && property_exists( $res, 'values' ) )
-    {
-      $res = array_filter( $res->values,
-        function ( $obj ) use( $opal_var )
-        {
-          return ( property_exists( $obj, 'link' ) &&
-                   property_exists( $obj, 'length' ) &&
-                   0 < $obj->length &&
-                   false !== strpos( $obj->link, $opal_var ) );
-        } );
-    }
-    if( NULL === $res || false === $res )
-    {
-      write_log( 'WARNING: expected scan data not found in opal' );
-      return NULL;
-    }
-
-    $res = current( $res );
-    $link = $res->link;
-    $filename = sprintf( '%s/%s_%s_%s_%d.dcm', $path,
-      $this->type, $this->side, $this->barcode, $this->rank );
-
-    $opal_source->send( $link, array( 'output' => $filename ) );
-
-    // verify the file is non-empty
-    if( !file_exists( $filename ) || 0 == filesize( $filename ) )
-    {
-      write_log( 'WARNING: requested file failed to download' );
-      $filename = NULL;
-    }
-    return $filename;
-  }
-
-  public function validate( $filename )
-  {
-    $file_error = false;
-    if( NULL === $filename ) return $file_error;
-
-    $validation_list = static::$validation_types[$this->type];
-    foreach( $validation_list as $validation )
-    {
-      $gdcm_command = static::$gdcm_validation_list[$validation];
-      $res = trim( shell_exec( sprintf( $gdcm_command, $filename ) ) );
-      if( 'LATERALITY' == $validation )
-      {
-        $laterality = 'left' == $this->side ? 'L' : 'R';
-        if( $laterality != $res )
-        {
-          /*
-          write_log( sprintf(
-           'WARNING: laterality expected %s received %s in file %s',
-           $laterality, $res, $filename ) );
-          */
-          $file_error = true;
-        }
-      }
-      else if( 'PATIENTID' == $validation )
-      {
-        if( $this->barcode != $res )
-        {
-          /*
-          write_log( sprintf(
-            'WARNING: barcode expected: %s, received: %s in file %s',
-            $this->barcode, $res, $filename ) );
-          */
-          $file_error = true;
-        }
-      }
-      else if( 'SERIAL_NUMBER' == $validation )
-      {
-        $res = preg_replace( '/[^0-9]/', '', $res );
-        if( $this->serial_number != $res )
-        {
-          /*
-          write_log( sprintf(
-            'WARNING: serial number expected: %s, received: %s in file %s',
-            $this->serial_number, $res, $filename ) );
-          */
-          $file_error = true;
-        }
-      }
-    }
-
-    return $file_error;
-  }
-
-  private static $gdcm_validation_list = array(
-    'SERIAL_NUMBER' =>
-    "gdcmdump -d %s | grep -E '\(0008,1090\)' | awk '{print $4$5$6}'",
-    'LATERALITY' =>
-    "gdcmdump -d %s | grep -E '\(0020,0060\)' | awk '{print $4}'",
-    'PATIENTID' =>
-    "gdcmdump -d %s | grep -E '\(0010,0020\)' | awk '{print $4}'" );
-
-  private static $validation_types = array(
-    'hip' => array( 'SERIAL_NUMBER', 'LATERALITY', 'PATIENTID' ),
-    'forearm' => array( 'SERIAL_NUMBER', 'LATERALITY', 'PATIENTID' ),
-    'lateral' => array( 'SERIAL_NUMBER', 'PATIENTID' ),
-    'spine' => array( 'SERIAL_NUMBER', 'PATIENTID' ),
-    'wbody' => array( 'SERIAL_NUMBER', 'PATIENTID' ) );
-
-  public $uid;
-  public $type;
-  public $side;
-  public $serial_number;
-  public $barcode;
-  public $apex_scan_id;
-  public $priority;
-  public $apex_host_id;
-}
-
 /*----------------MAIN PROGRAM----------------*/
 
 if( $argc < 2 )
@@ -193,7 +56,7 @@ if( $argc < 2 )
 }
 $max_rank = $argv[1];
 
-$deployment_total = 200;
+$deployment_limit = 100;
 if( 3 == $argc )
 {
   $deployment_total = $argv[2];
@@ -211,151 +74,174 @@ catch( Exception $e )
   return 0;
 }
 
-$sql = 'SELECT MAX(rank) FROM apex_exam';
-$res = $db_salix->get_one( $sql );
-if( false === $res || $res < $max_rank )
-{
-  write_log( 'ERROR: invalid maximum rank ' . $max_rank );
-  return 0;
-}
-
-// verify sum of host allocation ratios = 1
-//
-$sql = 'SELECT * FROM apex_host ORDER BY allocation DESC';
-$res = $db_salix->get_all( $sql );
-$host_list = array();
-$allocation_sum = 0.0;
-foreach( $res as $item )
-{
-  $name = $item['name'];
-  unset( $item['name'] );
-  $host_list[$name] = $item;
-  $allocation_sum += $item['allocation'];
-}
-
-if( 1.0 != round( $allocation_sum, 1 ) )
-{
-  write_log( 'ERROR: host allocation not equal to 1: ' . $allocation_sum );
-  return 0;
-}
-
-// get the preferred host for priority scans
-$sql = sprintf(
-  'SELECT setting.priority_apex_host_id '.
-  'FROM setting '.
-  'JOIN %scenozo.site ON setting.site_id=site.id '.
-  'WHERE site.name="NCC"', DB_PREFIX);
-$priority_host_id = $db_salix->get_one( $sql );
-
-if( false === $priority_host_id || '' == $priority_host_id )
-{
-  write_log( 'ERROR: indeterminate priority host' );
-  return 0;
-}
-
-// get the potential and existing hip and wbody deployments
-// order by UID and later re-order by UID keys having one or
-// more priority scans
-//
-$sql = sprintf(
-  'SELECT uid, '.
-  'type, '.
-  'side, '.
-  'rank, '.
-  'barcode, '.
-  's.id AS apex_scan_id, '.
-  'priority, '.
-  'n.id AS serial_number, '.
-  'IFNULL(d.apex_host_id, "NULL") AS apex_host_id '.
-  'FROM apex_exam e '.
-  'JOIN apex_scan s ON s.apex_exam_id=e.id '.
-  'JOIN scan_type t ON s.scan_type_id=t.id '.
-  'JOIN serial_number n ON e.serial_number_id=n.id '.
-  'JOIN apex_baseline b ON e.apex_baseline_id=b.id '.
-  'JOIN %scenozo.participant p ON b.participant_id=p.id '.
-  'LEFT JOIN apex_deployment d ON d.apex_scan_id=s.id '.
-  'WHERE s.availability=1 '.
-  'AND (invalid IS NULL OR invalid=0) '.
-  'AND rank<=%d '.
-  'AND type IN ("hip","wbody") '. // currently only allow hip and wbody scans
-  'ORDER BY priority DESC, uid, side, rank ASC', DB_PREFIX, $max_rank );
-
-$data_list = $db_salix->get_all( $sql );
-if( false === $data_list || !is_array( $data_list ) ||
-  0 == count( $data_list ) ) return 1;
-
-$scan_list = array();
-foreach( $data_list as $data )
-{
-  $item = new dexa_scan( $data['uid'], $data['type'], $data['side'],
-    $data['rank'], $data['barcode'], $data['serial_number'],
-    $data['apex_scan_id'], $data['priority'], $data['apex_host_id'] );
-
-  $scan_list[$item->uid][] = $item;
-}
-
-// connect to opal source to download scans using curl
-//
 $opal_curl = new opalcurl( OPAL_SERVER, OPAL_PORT, OPAL_USERNAME, OPAL_PASSWORD );
 $opal_curl->set_datasource( 'salix' );
 
-// for each UID, go through the list of hip scans searching for paired or higher groups
-// starting with the preferred left side
+// order of preference for tie breakers
 //
-$pending_list = array();
-$priority_list = array();
-$invalid_scan_list = array();
-foreach( $scan_list as $uid => $item_list )
+$ordered_host_list = array('dancer' => 1,'bluet' => 2,'skimmer' => 3);
+$sql = 'select name, id from apex_host';
+$res = $db_salix->get_all($sql);
+if(false === $res || !is_array($res))
 {
-  // prefer left groupings first
-  $group_list = array( 'left' => array(), 'right' => array() );
-  foreach( $item_list as $item )
+  return 0;
+}
+
+foreach($res as $item)
+{
+  $name = $item['name'];
+  $ordered_host_list[$name] = $item['id'];
+}
+$ordered_host_list = array_values($ordered_host_list);
+
+// verify that for each type that has more than one
+// side and for each host that the weights are equal
+//
+$sql =
+ 'select type, side, weight, h.name as host, h.id as apex_host_id '.
+ 'from allocation a '.
+ 'join scan_type t on t.id=a.scan_type_id '.
+ 'join apex_host h on h.id=a.apex_host_id';
+
+$res = $db_salix->get_all($sql);
+if(false === $res || !is_array($res))
+{
+  return 0;
+}
+
+$host_list = array();
+foreach($res as $item)
+{
+  $id = $item['apex_host_id'];
+  $type = $item['type'];
+  $side = $item['side'];
+  $weight = $item['weight'];
+  $host_list[$id][$type][$side] = $weight;
+
+  if(2 == count(array_keys($host_list[$id][$type])) &&
+     in_array($side, array('left','right')))
   {
-    if( 'hip' == $item->type )
+    if($host_list[$id][$type]['left'] !=
+       $host_list[$id][$type]['right'])
     {
-      $group_list[$item->side][] = $item;
-    }
-    else
-    {
-      // wbody scans are sent directly to the priority host
-      if( 1 == $item->priority && NULL === $item->apex_host_id )
-      {
-        // validate undeployed scans
-        $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
-        if( NULL !== $filename )
-        {
-          if( false === $item->validate( $filename ) )
-            $priority_list[] = $item;
-          else
-            $invalid_scan_list[] = $item->apex_scan_id;
-          unlink( $filename );
-        }
-      }
+      util::out('ERROR: asymetric weights');
+      return 0;
     }
   }
+}
 
-  $found = false;
-  foreach( $group_list as $side => $side_item_list )
+$sql =
+  'select type, '.
+  'if(sum(if(side="none",0,1))>0,1,0) as bilateral, '.
+  'sum(weight) as total_weight '.
+  'from allocation a '.
+  'join scan_type t on t.id=a.scan_type_id '.
+  'join apex_host h on h.id=a.apex_host_id '.
+  'where side in ("left","none") '.
+  'group by type order by type';
+
+$res = $db_salix->get_all($sql);
+if(false === $res || !is_array($res))
+{
+  return 0;
+}
+
+$collector_list = array();
+foreach($res as $item)
+{
+  $type = $item['type'];
+  $total_weight = round($item['total_weight'], 3);
+  foreach($host_list as $host_id => $type_list)
   {
-    $current_list = array();
-    $host_id_list = array();
-    $rank_list = array();
-    $has_priority = false;
-    if( 1 < count( $side_item_list ) )
+    if(array_key_exists($type, $type_list))
     {
-      // validate undeployed scans
-      foreach( $side_item_list as $item )
+      $side = $item['bilateral'] ? 'left' : 'none';
+      $weight = $type_list[$type][$side];
+      $percent = $weight / $total_weight;
+      $host_list[$host_id][$type] = $percent;
+      $collector_list[] = $type;
+    }
+  }
+}
+
+$residual_scan_list = array();
+$deploy_scan_list = array();
+$invalid_scan_list = array();
+
+$collector_list = array_unique($collector_list);
+foreach($collector_list as $type)
+{
+  $collector = new scan_collector($db_salix, DB_PREFIX, $type);
+
+  write_log(sprintf('--------------------TYPE = %s --------',$type));
+
+  $collector->collect_scans();
+  $deployment_list = $collector->get_deployments( $ordered_host_list );
+
+  $stats = $collector->get_count_stats();
+
+  $all_total_candidate =
+    array_sum($stats['numHostCandidates']);
+  $total_residual_candidate =
+    array_key_exists('any', $stats['numHostCandidates']) ? $stats['numHostCandidates']['any'] : 0;
+  $total_targeted_candidate = $all_total_candidate - $total_residual_candidate;
+  $all_total_deployment = $stats['numDeployments'];
+
+  $residual_list = 0 < $total_residual_candidate ? $deployment_list['any'] : array();
+
+  foreach($host_list as $host_id=>$type_list)
+  {
+    if(!array_key_exists($type,$type_list)) continue;
+    if(!array_key_exists($host_id,$stats['numHostCandidates'])) continue;
+
+    $percent = $type_list[$type];
+
+    $num_priority =
+      array_key_exists($host_id,$stats['numHostPriorityCandidates']) ?
+      $stats['numHostPriorityCandidates'][$host_id] : 0;
+    $num_deployments =
+      array_key_exists($host_id,$stats['numHostDeployments']) ?
+      $stats['numHostDeployments'][$host_id] : 0;
+    $num_targeted =
+      array_key_exists($host_id,$stats['numHostCandidates']) ?
+      $stats['numHostCandidates'][$host_id] : 0;
+    $num_residual = max( array( intval( round(
+      $percent*($all_total_deployment + $all_total_candidate) - $num_deployments - $num_targeted, 0) ), 0) );
+
+    util::out(sprintf('host %d must deploy %d candidates (%d priority) + %d additional untargeted (%d available)',
+      $host_id,$num_targeted,$num_priority,$num_residual,$total_residual_candidate));
+
+    // the quota for this host
+    //
+    $quota = intval( round( $percent*$deployment_limit, 0) );
+
+    // take from the targeted scans for this host first
+    //
+    $list = $deployment_list[$host_id];
+
+    write_log(sprintf('host %d: initial number of candidate chains %d',$host_id,count($list)));
+
+    $num_p = 0;
+    if(0 < $num_targeted)
+    {
+      $chain_key_list = array();
+      $num_used = 0;
+      foreach($list as $chain_key=>$scan_chain)
       {
-        if( NULL === $item->apex_host_id )
+        foreach($scan_chain as $item_key=>$item)
         {
+          // validate undeployed scans
           $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
           if( NULL !== $filename )
           {
             if( false === $item->validate( $filename ) )
             {
-              $current_list[] = $item;
-              $rank_list[] = $item->rank;
-              if( 1 == $item->priority ) $has_priority = true;
+              if($item->priority && 0 == $num_priority)  var_dump($item);
+              $item->apex_host_id = $host_id;
+              $deploy_scan_list[$host_id][] = $item;
+              $num_p += $item->priority;
+              $quota--;
+              $num_used++;
             }
             else
             {
@@ -363,225 +249,127 @@ foreach( $scan_list as $uid => $item_list )
             }
             unlink( $filename );
           }
-        }
-        else
-        {
-          $current_list[] = $item;
-          $host_id_list[] = $item->apex_host_id;
-          $rank_list[] = $item->rank;
-          if( 1 == $item->priority ) $has_priority = true;
-        }
-      }
-    }
+        }// end current scan chain
 
-    // group for comparison analysis
-    // verify ranks as sequentially complete
-    $uq_rank_list = array_unique( $rank_list );
-    sort( $uq_rank_list );
-    if( $max_rank == count( $uq_rank_list ) &&
-        $max_rank == max( $uq_rank_list ) )
+        $chain_key_list[] = $chain_key;
+
+        // break only on completion of a chain to keep scans grouped by uid
+        if(0 >= $quota) break;
+
+      }// end chain list
+
+      foreach($chain_key_list as $key) unset($list[$key]);
+
+      write_log(sprintf('host %d: used up %d targeted', $host_id, $num_used));
+
+    }//end if there are targets for this host
+
+    if(0 < $num_residual && 0 < $quota && 0 < count($residual_list))
     {
-      $found = true;
-      // enforce host uniformity: supercedes priority host deployment
-      if( 0 < count( $host_id_list ) )
+      if($num_residual < $quota) $quota = $num_residual;
+      $num_used = 0;
+
+      $chain_key_list = array();
+      foreach($residual_list as $chain_key=>$scan_chain)
       {
-        $uq_host_id_list = array_unique( $host_id_list );
-        // single unique host id
-        if( 1 == count( $uq_host_id_list ) )
+        foreach($scan_chain as $item_key=>$item)
         {
-          $host_id = current( $uq_host_id_list );
-          foreach( $current_list as $item )
+
+          // validate undeployed scans
+          //
+          $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
+          if( NULL !== $filename )
           {
-            if( NULL === $item->apex_host_id )
+            if( false === $item->validate( $filename ) )
             {
-              $item->apex_host_id = $host_id;
-              $pending_list[] = $item;
+              if(in_array($item->apex_scan_id,$residual_scan_list))
+              {
+                write_log('WARNING: already used residual');
+              }
+              else
+              {
+                $residual_scan_list[] = $item->apex_scan_id;
+                $item->apex_host_id = $host_id;
+                $deploy_scan_list[$host_id][] = $item;
+                $num_p += $item->priority;
+                $quota--;
+                $num_used++;
+              }
             }
-          }
-        }
-        else
-        {
-          $unassigned = false;
-          foreach( $current_list as $item )
-          {
-            if( NULL === $item->apex_host_id )
+            else
             {
-              $unassigned = true;
-              break;
+              $invalid_scan_list[] = $item->apex_scan_id;
             }
+            unlink( $filename );
           }
-          if( $unassigned )
-          {
-            $repeat_list = array();
-            foreach( $current_list as $item )
-            {
-              $repeat_list[] = $item->apex_scan_id;
-            }
-            $repeat_list = array_unique( $repeat_list );
-            write_log( sprintf( 'WARNING: %d repeat %s hip deployments (%s)',
-              count( $host_id_list ), $side, implode( ',', $repeat_list ) ) );
-          }
-        }
-      }
-      else // none of the scans are deployed
-      {
-        foreach( $current_list as $item )
-        {
-          // keep prioritized scans and their siblings grouped on the same host
-          $item->apex_host_id = $has_priority ? $priority_host_id : NULL;
-        }
-        $pending_list = array_merge( $pending_list, $current_list );
-      }
+
+        }// end current scan chain
+
+        $chain_key_list[] = $chain_key;
+
+        // break only on completion of a chain to keep scans grouped to a uid
+        //
+        if(0 >= $quota) break;
+
+      }// end chain list
+
+      foreach($chain_key_list as $key) unset($residual_list[$key]);
+
+      write_log(sprintf('host %d: used up %d residuals', $host_id, $num_used));
     }
 
-    if( $found ) break;
-  }
+    write_log(sprintf('host %d: priority deployments: %s, candidate chains remaining %d',
+      $host_id,$num_p, count($list)));
 
-  if( count( $pending_list ) >= $deployment_total ) break;
-}
+  }// end loop on host ids
+}// end loop on collector types
 
-// apportion out to the hosts and update the apex_deployment table
-// note that host allocations can be modified in the presence of
-// priority scans being sent to the preferred host
-//
-$total = count( $pending_list );
-$allocation_list = array();
-$last_total = $total;
-foreach( $host_list as $name => $data )
+if( 0 < count( $invalid_scan_list ) )
 {
-  $quota = intval( round( $data['allocation']*$total, 0 ) );
-  $last_total -= $quota;
-  if( $last_total < 0 ) $quota -= abs( $last_total );
-  $allocation_list[$name] = $quota;
-  write_log( sprintf( '%s to receive %d of %d', $name, $quota, $total ) );
+  $invalid_scan_list = array_unique($invalid_scan_list);
+  $sql =  sprintf(
+    'UPDATE apex_scan '.
+    'SET invalid=1 '.
+    'WHERE id IN ( %s )', implode( ',', $invalid_scan_list ) );
+
+  if( false === $db_salix->execute( $sql ) )
+  {
+    write_log( sprintf(
+      'WARNING: failed to set invalid state to 1 in %d apex_scan records',
+      count( $invalid_scan_list ) ) );
+  }
 }
 
-// assign scans by quota for each host
-// maintain groupings by uid
-//
-$process_list = array(
-  'name' => array(),
-  'num_deploy' => array(),
-  'num_candidate' => array(),
-  'num_quota' => array()
-  );
 $valid_scan_list = array();
-foreach( $allocation_list as $name => $quota )
+foreach($deploy_scan_list as $host_id => $item_list)
 {
-  $target = $quota;
-  $apex_host_id = $host_list[$name]['id'];
-  $current_list = array();
-  $uid_list = array();
-  // get all of the assigned deployments
-  foreach( $pending_list as $idx => $item )
-  {
-    if( $apex_host_id == $item->apex_host_id )
-    {
-      $current_list[] = $item;
-      $uid_list[] = $item->uid;
-      unset( $pending_list[$idx] );
-      $target--;
-    }
-    if( 0 == $target ) break;
-  }
-  if( 0 < $target )
-  {
-    // add in unassigned items
-    foreach( $pending_list as $idx => $item )
-    {
-      if( NULL === $item->apex_host_id )
-      {
-        $item->apex_host_id = $apex_host_id;
-        $current_list[] = $item;
-        $uid_list[] = $item->uid;
-        unset( $pending_list[$idx] );
-        $target--;
-      }
-      if( 0 == $target ) break;
-    }
-  }
-  // maintain grouping by uid
-  $uid_list = array_unique( $uid_list );
-  foreach( $pending_list as $idx => $item )
-  {
-    if( in_array( $item->uid, $uid_list ) &&
-        NULL === $item->apex_host_id ||
-        $apex_host_id == $item->apex_host_id )
-    {
-      $item->apex_host_id = $apex_host_id;
-      $current_list[] = $item;
-      unset( $pending_list[$idx] );
-    }
-  }
-
   $num_deploy = 0;
-  foreach( $current_list as $item )
+  foreach($item_list as $item)
   {
     $sql = sprintf(
       'INSERT INTO apex_deployment (apex_scan_id, apex_host_id) '.
-      'VALUES (%d, %d) ', $item->apex_scan_id, $apex_host_id );
+      'VALUES (%d, %d)', $item->apex_scan_id, $host_id);
     if( false !== $db_salix->execute( $sql ) )
     {
       $valid_scan_list[] = $item->apex_scan_id;
       $num_deploy++;
     }
   }
-  $process_list['name'][] = $name;
-  $process_list['num_deploy'][] = $num_deploy;
-  $process_list['num_candidate'][] = count( $current_list );
-  $process_list['num_quota'][] = $quota;
+  write_log(sprintf('host %d created %d new deployments',$host_id, $num_deploy));
 }
 
-write_log( sprintf( 'hosts [%s] deployments [%s] candidates [%s] quotas [%s]',
-    implode( '/', $process_list['name'] ),
-    implode( '/', $process_list['num_deploy'] ),
-    implode( '/', $process_list['num_candidate'] ),
-    implode( '/', $process_list['num_quota'] ) ) );
-
-// priority list of whole body scans
-//
-$num_deploy = 0;
-foreach( $priority_list as $item )
-{
-  $sql = sprintf(
-    'INSERT INTO apex_deployment (apex_scan_id, apex_host_id) '.
-    'VALUES (%d, %d)', $item->apex_scan_id, $priority_host_id );
-  if( false !== $db_salix->execute( $sql ) )
-  {
-    $valid_scan_list[] = $item->apex_scan_id;
-    $num_deploy++;
-  }
-}
-
-if( 0 < count( $invalid_scan_list ) )
-{
-  $sql =  sprintf(
-    'UPDATE apex_scan '.
-    'SET invalid=1 '.
-    'WHERE id IN ( %s )', implode( ',', $invalid_scan_list ) );
-  if( false === $db_salix->execute( $sql ) )
-    write_log( sprintf(
-      'WARNING: failed to set invalid state to 1 in %d apex_scan records', count( $invalid_scan_list ) )
-     );
-}
-
-if( 0 < count( $valid_scan_list ) )
+if(0 < count($valid_scan_list))
 {
   $sql =  sprintf(
     'UPDATE apex_scan '.
     'SET invalid=0 '.
-    'WHERE id IN ( %s )', implode( ',', $valid_scan_list ) );
-  if( false === $db_salix->execute( $sql ) )
-    write_log( sprintf(
-      'WARNING: failed to set invalid state to 0 in %d apex_scan records', count( $valid_scan_list ) )
-     );
+    'WHERE id IN ( %s )', implode(',', $valid_scan_list) );
+  if(false === $db_salix->execute($sql))
+  {
+    write_log(sprintf(
+      'WARNING: failed to set invalid state to 0 in %d apex_scan records',
+      count($valid_scan_list)));
+  }
 }
-
-if( 0 < count( $priority_list ) )
-  write_log( sprintf( 'priority host received %d new deployments of %d priority candidates outside of quota',
-    $num_deploy, count( $priority_list ) ) );
-
-write_log( sprintf( 'receive_deployments done! %d remaining items to deploy',
-  count( $pending_list ) ) );
 
 return 1;
