@@ -139,7 +139,7 @@ foreach($res as $item)
     if($host_list[$name][$type]['left'] !=
        $host_list[$name][$type]['right'])
     {
-      util::out('ERROR: asymetric weights');
+      write_log('ERROR: asymetric weights');
       return 0;
     }
   }
