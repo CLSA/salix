@@ -38,6 +38,8 @@ require_once( $settings['path']['PHP_UTIL'].'/database.class.php' );
 require_once( $settings['path']['PHP_UTIL'].'/odbc.class.php' );
 // a lite curl wrapper
 require_once( $settings['path']['PHP_UTIL'].'/opalcurl.class.php' );
+// dexa scan helper class
+require_once( 'dexa_scan.class.php' );
 
 // function for writing to the log
 function write_log( $message )
@@ -70,163 +72,20 @@ function dgate_command( $address, $arg )
   return ssh_command( $address, '/cygdrive/c/dicomserverIn/dgate -v ' . $arg );
 }
 
-class dexa_scan
-{
-  public function __construct(
-    $uid, $type, $side, $scan_type_id,
-    $rank, $barcode, $serial_number,
-    $apex_scan_id, $priority = 0, $apex_host_id = NULL )
-  {
-    $this->uid = $uid;
-    $this->type = $type;
-    $this->side = $side;
-    $this->scan_type_id = $scan_type_id;
-    $this->rank = $rank;
-    $this->barcode = $barcode;
-    $this->serial_number = $serial_number;
-    $this->apex_scan_id = $apex_scan_id;
-    $this->apex_host_id = 'NULL' === $apex_host_id ? NULL : $apex_host_id;
-    $this->priority = $priority;
-    $this->copy_from = NULL;
-    $this->copy_to = NULL;
-    $this->import_datetime = NULL;
-  }
-
-  public function get_basefile_name()
-  {
-    return sprintf( '%s_%s_%s_%d.dcm',
-      $this->type, $this->side, $this->barcode, $this->rank );
-  }
-
-  public function get_scan_file( $opal_source, $path )
-  {
-    $opal_var = $this->type;
-    $opal_var .= 'none' == $this->side ? '' : '_' . $this->side;
-    $opal_var .= '_image';
-
-    $opal_source->set_view( 'image_' . $this->rank );
-
-    // download the dicom file based on uid, rank, type, side, barcode to the working directory
-    $res = $opal_source->get_participant( $this->uid );
-    if( is_object( $res ) && property_exists( $res, 'values' ) )
-    {
-      $res = array_filter( $res->values,
-        function ( $obj ) use( $opal_var )
-        {
-          return ( property_exists( $obj, 'link' ) &&
-                   property_exists( $obj, 'length' ) &&
-                   0 < $obj->length &&
-                   false !== strpos( $obj->link, $opal_var ) );
-        } );
-    }
-    if( NULL === $res || false === $res )
-    {
-      write_log( 'WARNING: expected scan data not found in opal' );
-      return NULL;
-    }
-
-    $res = current( $res );
-    $link = $res->link;
-    $path = rtrim( $path, '/' );
-    $filename = sprintf( '%s/%s', $path, $this->get_basefile_name() );
-
-    $opal_source->send( $link, array( 'output' => $filename ) );
-
-    // verify the file is non-empty
-    if( !file_exists( $filename ) || 0 == filesize( $filename ) )
-    {
-      write_log( 'WARNING: requested file failed to download' );
-      $filename = NULL;
-    }
-    return $filename;
-  }
-
-  public function validate( $filename )
-  {
-    $file_error = false;
-    if( NULL === $filename ) return $file_error;
-
-    $validation_list = static::$validation_types[$this->type];
-    foreach( $validation_list as $validation )
-    {
-      $gdcm_command = static::$gdcm_validation_list[$validation];
-      $res = trim( shell_exec( sprintf( $gdcm_command, $filename ) ) );
-      if( 'LATERALITY' == $validation )
-      {
-        $laterality = 'left' == $this->side ? 'L' : 'R';
-        if( $laterality != $res )
-        {
-          write_log( sprintf(
-           'WARNING: laterality expected %s received %s in file %s',
-           $laterality, $res, $filename ) );
-          $file_error = true;
-        }
-      }
-      else if( 'PATIENTID' == $validation )
-      {
-        if( $this->barcode != $res )
-        {
-          write_log( sprintf(
-            'WARNING: barcode expected: %s, received: %s in file %s',
-            $this->barcode, $res, $filename ) );
-          $file_error = true;
-        }
-      }
-      else if( 'SERIAL_NUMBER' == $validation )
-      {
-        $res = preg_replace( '/[^0-9]/', '', $res );
-        if( $this->serial_number != $res )
-        {
-          write_log( sprintf(
-            'WARNING: serial number expected: %s, received: %s in file %s',
-            $this->serial_number, $res, $filename ) );
-          $file_error = true;
-        }
-      }
-    }
-
-    return $file_error;
-  }
-
-  private static $gdcm_validation_list = array(
-    'SERIAL_NUMBER' =>
-    "gdcmdump -d %s | grep -E '\(0008,1090\)' | awk '{print $4$5$6}'",
-    'LATERALITY' =>
-    "gdcmdump -d %s | grep -E '\(0020,0060\)' | awk '{print $4}'",
-    'PATIENTID' =>
-    "gdcmdump -d %s | grep -E '\(0010,0020\)' | awk '{print $4}'" );
-
-  private static $validation_types = array(
-    'hip' => array( 'SERIAL_NUMBER', 'LATERALITY', 'PATIENTID' ),
-    'forearm' => array( 'SERIAL_NUMBER', 'LATERALITY', 'PATIENTID' ),
-    'lateral' => array( 'SERIAL_NUMBER', 'PATIENTID' ),
-    'spine' => array( 'SERIAL_NUMBER', 'PATIENTID' ),
-    'wbody' => array( 'SERIAL_NUMBER', 'PATIENTID' ) );
-
-  public $uid;
-  public $type;
-  public $side;
-  public $scan_type_id;
-  public $serial_number;
-  public $barcode;
-  public $apex_scan_id;
-  public $priority;
-  public $apex_host_id;
-  public $copy_from;
-  public $copy_to;
-  public $import_datetime;
-}
-
 /*-------------MAIN PROGRAM-----------*/
 
-// optional argument: limit on number of scans
-// to direct to only one host, set the allocation
-// ratios in the salix UI
-
+// optional arguments: limit on number of scans
+// type of scan to apply weights to. Default is hip.
+//
 $deployment_total = 200;
-if( 2 == $argc )
+$deployment_type = 'hip';
+if( 2 <= $argc )
 {
   $deployment_total = $argv[1];
+  if( 3 == $argc )
+  {
+    $deployment_type = $argv[2];
+  }
 }
 
 $db_salix = null;
@@ -241,37 +100,94 @@ catch( Exception $e )
   return 0;
 }
 
-// verify sum of host allocation ratios = 1
-//
-$sql = 'SELECT *, 0 AS quota FROM apex_host ORDER BY allocation DESC';
+$sql = 'SELECT *, 0 AS quota FROM apex_host';
 $res = $db_salix->get_all( $sql );
 $host_list = array();
-$allocation_sum = 0.0;
 foreach( $res as $item )
 {
   $name = $item['name'];
   unset( $item['name'] );
   $host_list[$name] = $item;
-  $allocation_sum += $item['allocation'];
 }
 
-if( 1.0 != round( $allocation_sum, 1 ) )
+// verify that for the deployment type that has more than one
+// side and for each host that the weights are equal
+//
+$sql =
+ 'select type, side, weight, h.name as host, h.id as apex_host_id '.
+ 'from allocation a '.
+ 'join scan_type t on t.id=a.scan_type_id '.
+ 'join apex_host h on h.id=a.apex_host_id';
+
+$res = $db_salix->get_all($sql);
+if(null === $res || !is_array($res))
 {
-  write_log( 'ERROR: host allocation not equal to 1: ' . $allocation_sum );
   return 0;
 }
 
-// define quotas on number of non-priority scans
+foreach($res as $item)
+{
+  $name = $item['host'];
+  $type = $item['type'];
+  $side = $item['side'];
+  $weight = $item['weight'];
+  $host_list[$name][$type][$side] = $weight;
+
+  if(2 == count(array_keys($host_list[$name][$type])) &&
+     in_array($side, array('left','right')))
+  {
+    if($host_list[$name][$type]['left'] !=
+       $host_list[$name][$type]['right'])
+    {
+      util::out('ERROR: asymetric weights');
+      return 0;
+    }
+  }
+}
+
+$sql =
+  'select type, '.
+  'if(sum(if(side="none",0,1))>0,1,0) as bilateral, '.
+  'sum(weight) as total_weight '.
+  'from allocation a '.
+  'join scan_type t on t.id=a.scan_type_id '.
+  'join apex_host h on h.id=a.apex_host_id '.
+  'where side in ("left","none") '.
+  'group by type order by type';
+
+$res = $db_salix->get_all($sql);
+if(false === $res || !is_array($res))
+{
+  return 0;
+}
+
+foreach($res as $item)
+{
+  $type = $item['type'];
+  $total_weight = round($item['total_weight'], 3);
+  foreach($host_list as $name => $type_list)
+  {
+    if(array_key_exists($type, $type_list))
+    {
+      $side = $item['bilateral'] ? 'left' : 'none';
+      $weight = $type_list[$type][$side];
+      $percent = $weight / $total_weight;
+      $host_list[$name][$type] = $percent;
+    }
+  }
+}
+
 foreach( $host_list as $name => $item )
 {
-  $host_list[$name]['quota'] = intval( round( $item['allocation'] * $deployment_total ) );
+  $percent = $host_list[$name][$deployment_type];
+  $host_list[$name]['quota'] = intval( round( $percent * $deployment_total ) );
 }
 
 $scan_list = array();
-foreach( $host_list as $name => $host_item )
+foreach( $host_list as $name => $item )
 {
-  $quota = $host_item['quota'];
-  $apex_host_id = $host_item['id'];
+  $quota = $item['quota'];
+  $apex_host_id = $item['id'];
 
   $sql = sprintf(
     'SELECT uid, '.
@@ -298,9 +214,9 @@ foreach( $host_list as $name => $host_item )
     'AND d.analysis_datetime IS NULL '.
     'AND d.import_datetime IS NULL '.
     'AND d.export_datetime IS NULL '.
-    ( 0 == $quota ? 'AND priority=1 ' : '' ).
     'AND h.id=%d '.
-    'ORDER BY uid', DB_PREFIX, $apex_host_id );
+    'AND t.type="%s" '.
+    'ORDER BY uid, priority DESC', DB_PREFIX, $apex_host_id, $deployment_type );
 
   $data_list = $db_salix->get_all( $sql );
 
@@ -310,12 +226,13 @@ foreach( $host_list as $name => $host_item )
   $current_uid = NULL;
   $priority_keys = array();
   $current_list = array();
+  $num_scans = 0;
   foreach( $data_list as $data )
   {
     $item = new dexa_scan(
-      $data['uid'], $data['type'], $data['side'], $data['scan_type_id'],
+      $data['uid'], $data['type'], $data['side'],
       $data['rank'], $data['barcode'], $data['serial_number'],
-      $data['apex_scan_id'], $data['priority'], $apex_host_id );
+      $data['apex_scan_id'], $data['scan_type_id'], $data['priority'], $apex_host_id );
 
     if( $item->uid != $current_uid )
     {
@@ -325,11 +242,13 @@ foreach( $host_list as $name => $host_item )
     if( $current_uid == $item->uid )
     {
       $current_list[$item->uid][] = $item;
+      $num_scans++;
     }
     if( 1 == $item->priority ) $priority_keys[] = $item->uid;
   }
 
-  // prioritze scans
+  // prioritize scans
+  //
   if( 0 < count( $priority_keys ) )
   {
     $priority_keys = array_unique( $priority_keys );
@@ -341,9 +260,20 @@ foreach( $host_list as $name => $host_item )
 
   if( 0 < $quota )
   {
-    $total = count( $priority_keys ) + $quota;
-    if( $total < count( $current_list ) )
-      $current_list = array_slice( $current_list, 0, $total, true );
+    if( $quota < $num_scans )
+    {
+      // count scans within uid groupings until the quota is reached
+      //
+      $slice_offset = 0;
+      $num_scans = 0;
+      foreach($current_list as $uid => $item_list)
+      {
+        $slice_offset++;
+        foreach($item_list as $item) $num_scans++;
+        if($quota <= $num_scans) break;
+      }
+      $current_list = array_slice( $current_list, 0, $slice_offset, true );
+    }
   }
 
   if( 0 < count( $current_list ) )
@@ -356,6 +286,7 @@ $opal_curl = new opalcurl( OPAL_SERVER, OPAL_PORT, OPAL_USERNAME, OPAL_PASSWORD 
 $opal_curl->set_datasource( 'salix' );
 
 // verify that on each host, both conquest dicom server and APEX are running
+//
 $verify_host_list = array_keys( $scan_list );
 foreach( $verify_host_list as $name )
 {
@@ -390,12 +321,14 @@ foreach( $verify_host_list as $name )
 }
 
 // loop over hosts
+//
 $process_list = array(
   'name' => array(),
   'num_transfer' => array(),
   'num_candidate' => array(),
   'num_verify' => array()
   );
+
 foreach( $scan_list as $name => $identifier_list )
 {
   $db_dexa_server = strtoupper( $name );
@@ -425,9 +358,11 @@ foreach( $scan_list as $name => $identifier_list )
       if( NULL !== $filename )
       {
         // run gdcmconv -E -w the_file.dcm the_file.dcm
+        //
         exec( sprintf( 'gdcmconv -E -w %s %s', $filename, $filename ) );
 
         // scp the_file.dcm to the host E:\InComing dir
+        //
         $subpath = '';
         if( 'none' == $item->side )
           $subpath = sprintf( '%s/%s', $item->type, $item->barcode );
@@ -451,9 +386,11 @@ foreach( $scan_list as $name => $identifier_list )
   }
 
   // wait a few seconds for scp transfer to complete
+  //
   sleep(5);
 
   // remotely run the conquest dicom server to rebuild its db
+  //
   $res = dgate_command( $host_address, '--initializetables' );
   if( '' != $res )
   {
@@ -461,6 +398,7 @@ foreach( $scan_list as $name => $identifier_list )
   }
 
   // regenerate the conquest dicom server db from files in E:\InComing
+  //
   $res = dgate_command( $host_address, '--regendevice:MAG0' );
   if( '' != $res )
   {
@@ -468,6 +406,7 @@ foreach( $scan_list as $name => $identifier_list )
   }
 
   // dicom C-Move files to Apex
+  //
   $res = dgate_command( $host_address, sprintf( '--movepatient:CONQUESTSRV1,DEXA_%s,*', $name ) );
   if( 0 != $res )
   {
@@ -475,6 +414,7 @@ foreach( $scan_list as $name => $identifier_list )
   }
 
   // query Apex MS SQL Server db to verify transfer
+  //
   $sql_str =
       'SELECT p.PATIENT_KEY patient_key, '.
       's.SCANID scanid, '.
@@ -487,12 +427,14 @@ foreach( $scan_list as $name => $identifier_list )
       "AND p.IDENTIFIER1='%s'";
 
   // reloop through this host's set of scan items
+  //
   $num_verify = 0;
   foreach( $identifier_list as $uid => $item_list )
   {
     foreach( $item_list as $item )
     {
       // query Apex SQL db
+      //
       $sql = sprintf( $sql_str, $item->scan_type_id, $item->barcode );
       $res = $db_dexa->get_row( $sql );
       $filename = $item->get_basefile_name();
@@ -529,12 +471,14 @@ foreach( $scan_list as $name => $identifier_list )
 
         // copy the file on the host from InComing to ORIGINAL
         // create the barcode subdirectory
+        //
         $dir = '/cygdrive/e/ORIGINAL/' . $item->type . '/';
         $dir .= ('none' == $item->side) ? $item->barcode : ( $item->side . '/' . $item->barcode);
         $res = ssh_command( $host_address, 'mkdir -p ' . $dir );
         $res = ssh_command( $host_address, sprintf( 'cp %s %s', $item->copy_from, $item->copy_to ) );
 
         // remove the barcode sub-directory from InComing
+        //
         $dir = str_replace( '/cygdrive/e/ORIGINAL/', '/cygdrive/e/InComing/', $dir );
         $res = ssh_command( $host_address, 'rm -rf ' . $dir );
 
