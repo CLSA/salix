@@ -7,14 +7,17 @@ require_once( $settings['path']['PHP_UTIL'].'/database.class.php' );
 // dexa scan helper class
 require_once( 'dexa_scan.class.php' );
 
-abstract class scan_collector
+class scan_collector
 {
-  public function __construct($db, $db_prefix)
+  public function __construct($db, $db_prefix, $type)
   {
     $this->db = $db;
     $this->db_prefix = $db_prefix;
     $this->preferred_side = 'none';
     $this->reset_count_stats();
+    $this->scan_type = $type;
+    if('hip' == $type)
+      $this->preferred_side = 'left';
   }
 
   protected function reset_count_stats()
@@ -34,7 +37,7 @@ abstract class scan_collector
 
   public function set_preferred_side($side)
   {
-    if(in_array($side,array('none','left','right')))
+    if(in_array($side, array('none','left','right')))
     {
       $this->preferred_side = $side;
     }
@@ -65,7 +68,7 @@ abstract class scan_collector
 
     if(is_array($res) && 0 < count($res))
     {
-      $partition = $this->preferred_side == 'none' ? false : true;
+      $partition = 'none' == $this->preferred_side ? false : true;
       foreach($res as $data)
       {
         $uid = $data['uid'];
@@ -109,7 +112,72 @@ abstract class scan_collector
     }
   }
 
-  abstract protected function build_collection_query();
+  protected function build_collection_query()
+  {
+    if('forearm' == $this->scan_type)
+    {
+      $this->query = sprintf(
+        'select distinct '.
+        'uid, type, side,  '.
+        'rank, barcode, s.id as apex_scan_id,  '.
+        'priority, n.id as serial_number, '.
+        'IFNULL(d.apex_host_id, "NULL") AS apex_host_id, '.
+        'availability, invalid, scan_type_id '.
+        'from '.
+        '( '.
+        '  select distinct e.id '.
+        '  from apex_exam e '.
+        '  join apex_scan s on e.id=s.apex_exam_id '.
+        '  join scan_type t on t.id=s.scan_type_id '.
+        '  where type = "forearm" '.
+        '  and availability=1   '.
+        '  and (invalid=0 or invalid=1) '.
+        ') as t1  '.
+        'left join '.
+        '( '.
+        '  select distinct e.id   '.
+        '  from apex_exam e '.
+        '  join apex_scan s on e.id=s.apex_exam_id '.
+        '  join scan_type t on t.id=s.scan_type_id '.
+        '  where type in ("hip","wbody","spine") '.
+        '  and availability=1 '.
+        '  and (invalid=0 or invalid is null) '.
+        ') as t2 on t1.id=t2.id '.
+        'join apex_exam e on e.id=t1.id '.
+        'JOIN apex_scan s ON s.apex_exam_id=e.id  '.
+        'JOIN scan_type t ON s.scan_type_id=t.id  '.
+        'JOIN serial_number n ON e.serial_number_id=n.id  '.
+        'JOIN apex_baseline b ON e.apex_baseline_id=b.id  '.
+        'JOIN %scenozo.participant p ON b.participant_id=p.id  '.
+        'LEFT JOIN apex_deployment d ON d.apex_scan_id=s.id  '.
+        'where t2.id is null '.
+        'and type="forearm" '.
+        'and availability=1 '.
+        'order by uid, rank, side', $this->db_prefix);
+    }
+    else
+    {
+      $this->query = sprintf(
+        'select distinct '.
+        'uid, type, side,  '.
+        'rank, barcode, s.id as apex_scan_id,  '.
+        'priority, n.id as serial_number, '.
+        'IFNULL(d.apex_host_id, "NULL") AS apex_host_id, '.
+        'availability, invalid, scan_type_id '.
+        'from '.
+        'apex_scan s '.
+        'JOIN apex_exam e ON s.apex_exam_id=e.id  '.
+        'JOIN scan_type t ON s.scan_type_id=t.id  '.
+        'JOIN serial_number n ON e.serial_number_id=n.id  '.
+        'JOIN apex_baseline b ON e.apex_baseline_id=b.id  '.
+        'JOIN %scenozo.participant p ON b.participant_id=p.id  '.
+        'LEFT JOIN apex_deployment d ON d.apex_scan_id=s.id  '.
+        'where type="%s" '.
+        'and availability=1 '.
+        'and (invalid is null or invalid=0) '.
+        'order by uid, rank', $this->db_prefix, $this->scan_type);
+    }
+  }
 
   // two chain types:
   // a chain that must be deployed to a host so that sibling relationships are maintained
@@ -120,10 +188,10 @@ abstract class scan_collector
     $candidate_list = $this->get_candidate_scans($uid);
     $deployed_list = $this->get_deployed_scans($uid);
 
-    if(null===$candidate_list) return null;
+    if(null === $candidate_list) return null;
 
     $scan_chain = null;
-    if($this->preferred_side == 'none')
+    if('none' == $this->preferred_side)
     {
       $scan_chain['scans'] = $candidate_list;
       $scan_chain['host_id'] = null;
@@ -138,9 +206,10 @@ abstract class scan_collector
           }
           $host_id_list[$item->apex_host_id]++;
         }
-        if(0<count($host_id_list))
+        if(0 < count($host_id_list))
         {
           // an array of ids which will either be a single id or an array of ties
+          //
           $scan_chain['host_id'] = array_keys($host_id_list, max($host_id_list));
         }
       }
@@ -152,16 +221,12 @@ abstract class scan_collector
       // case 1: no prior deployments
       // - if there are no preferred side candidates send the other side
       // - if there are only preferred side candidates send them
+      //
       $candidate_side_keys = array_keys($candidate_list);
-      if(count($candidate_side_keys)>2)
-      {
-        util::out('ERROR: more than 2 candidate side keys');
-        die();
-      }
-      if(null===$deployed_list)
+      if(null === $deployed_list)
       {
         $scan_chain['host_id'] = null;
-        if(in_array($this->preferred_side,$candidate_side_keys))
+        if(in_array($this->preferred_side, $candidate_side_keys))
         {
           $scan_chain['scans'] = $candidate_list[$this->preferred_side];
         }
@@ -173,30 +238,29 @@ abstract class scan_collector
       // case 2: prior deployments
       // - preferred candidates
       // - non-preferred candidates
+      //
       else
       {
         $deployed_side_keys = array_keys($deployed_list);
-        if(count($deployed_side_keys)>2)
-        {
-          util::out('ERROR: more than 2 deployed side keys');
-          die();
-        }
+
         // case 2.1:
         // preferred candidates
         //   - preferred deployed, find max host id or ties
         //   - discard non-preferred candidates
-        $alternate_side = $this->preferred_side == 'left' ? 'right' : 'left';
+        //
+        $alternate_side = 'left' == $this->preferred_side ? 'right' : 'left';
         $chain_side = null;
-        if(in_array($this->preferred_side,$candidate_side_keys) &&
-           in_array($this->preferred_side,$deployed_side_keys))
+        if(in_array($this->preferred_side, $candidate_side_keys) &&
+           in_array($this->preferred_side, $deployed_side_keys))
         {
           $chain_side = $this->preferred_side;
         }
         // case 2.2:
         // no preferred, only non-preferred candidates
         //  - non-deferred deployed, find max host id or ties
-        else if(in_array($alternate_side,$candidate_side_keys) &&
-           in_array($alternate_side,$deployed_side_keys))
+        //
+        else if(in_array($alternate_side, $candidate_side_keys) &&
+           in_array($alternate_side, $deployed_side_keys))
         {
           $chain_side = $alternate_side;
         }
@@ -246,6 +310,7 @@ abstract class scan_collector
   public function get_deployments( $ordered_host_list )
   {
     // get all uid's that have candidates
+    //
     $uid_list = array_keys($this->candidate_scans);
     $deployment_list = array();
     foreach($uid_list as $uid)
@@ -257,11 +322,13 @@ abstract class scan_collector
       if(null === $host_id)
       {
         // deployable to any host since there are no deployed siblings
+        //
         $deployment_list['any'][] = $scan_chain['scans'];
       }
       else
       {
         // candidates must be deployed to this host
+        //
         if(1 == count($host_id))
         {
           $id = current($host_id);
@@ -274,7 +341,7 @@ abstract class scan_collector
           // If there is no host suitable at this time, then do not deploy the scans
           //
           $list = array_intersect($ordered_host_list,$host_id);
-          if(0<count($list))
+          if(0 < count($list))
           {
             $id = current($list);
             $deployment_list[$id][] = $scan_chain['scans'];
@@ -307,7 +374,6 @@ abstract class scan_collector
 
     return $deployment_list;
   }
-
 
   protected $candidate_scans = array();
 
