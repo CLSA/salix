@@ -60,8 +60,7 @@ class scan_collector
     $res = $this->db->get_all($this->query);
     if(false === $res)
     {
-      util::out(sprintf('SQL ERROR: %s',$this->query));
-      die();
+      return false;
     }
 
     $this->reset_count_stats();
@@ -103,13 +102,8 @@ class scan_collector
           $this->count_stats['numHostDeployments'][$host_id]++;
         }
       }
-      util::out(sprintf('ok, found %d scans: candidates: %d, deployed: %d',
-        count($res),$this->count_stats['numCandidates'],$this->count_stats['numDeployments']));
-
-      foreach($this->count_stats['numHostDeployments'] as $key=>$value)
-        util::out(sprintf('host %d has %d deployments => %s percent',$key,$value,
-          round(100*$value/$this->count_stats['numDeployments'])));
     }
+    return true;
   }
 
   protected function build_collection_query()
@@ -367,10 +361,6 @@ class scan_collector
     }
 
     $total = array_sum(array_values($this->count_stats['numHostCandidates']));
-
-    foreach($this->count_stats['numHostCandidates'] as $key=>$value)
-      util::out(sprintf('host %s has %d candidates => %s percent',$key,$value,
-        round(100*$value/$total)));
 
     return $deployment_list;
   }

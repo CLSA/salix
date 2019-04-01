@@ -175,7 +175,12 @@ foreach($collector_list as $type)
 
   write_log(sprintf('--------------------TYPE = %s --------',$type));
 
-  $collector->collect_scans();
+  if(false === $collector->collect_scans())
+  {
+    write_log(sprintf('ERROR: failed to collect scans of type %s',$type));
+    return 0;
+  }
+
   $deployment_list = $collector->get_deployments( $ordered_host_list );
 
   $stats = $collector->get_count_stats();
