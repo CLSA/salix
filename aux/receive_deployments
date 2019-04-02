@@ -124,7 +124,7 @@ foreach($res as $item)
     if($host_list[$id][$type]['left'] !=
        $host_list[$id][$type]['right'])
     {
-      util::out('ERROR: asymetric weights');
+      write_log('ERROR: asymetric weights');
       return 0;
     }
   }
@@ -213,7 +213,7 @@ foreach($collector_list as $type)
     $num_residual = max( array( intval( round(
       $percent*($all_total_deployment + $all_total_candidate) - $num_deployments - $num_targeted, 0) ), 0) );
 
-    util::out(sprintf('host %d must deploy %d candidates (%d priority) + %d additional untargeted (%d available)',
+    write_log(sprintf('host %d must deploy %d candidates (%d priority) + %d additional untargeted (%d available)',
       $host_id,$num_targeted,$num_priority,$num_residual,$total_residual_candidate));
 
     // the quota for this host
