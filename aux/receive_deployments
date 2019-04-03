@@ -59,7 +59,7 @@ $max_rank = $argv[1];
 $deployment_limit = 100;
 if( 3 == $argc )
 {
-  $deployment_total = $argv[2];
+  $deployment_limit = $argv[2];
 }
 
 $db_salix = null;
@@ -80,7 +80,7 @@ $opal_curl->set_datasource( 'salix' );
 // order of preference for tie breakers
 //
 $ordered_host_list = array('dancer' => 1,'bluet' => 2,'skimmer' => 3);
-$sql = 'select name, id from apex_host';
+$sql = 'SELECT name, id FROM apex_host';
 $res = $db_salix->get_all($sql);
 if(false === $res || !is_array($res))
 {
@@ -98,10 +98,10 @@ $ordered_host_list = array_values($ordered_host_list);
 // side and for each host that the weights are equal
 //
 $sql =
- 'select type, side, weight, h.name as host, h.id as apex_host_id '.
- 'from allocation a '.
- 'join scan_type t on t.id=a.scan_type_id '.
- 'join apex_host h on h.id=a.apex_host_id';
+ 'SELECT type, side, weight, h.name AS host, h.id AS apex_host_id '.
+ 'FROM allocation a '.
+ 'JOIN scan_type t ON t.id=a.scan_type_id '.
+ 'JOIN apex_host h ON h.id=a.apex_host_id';
 
 $res = $db_salix->get_all($sql);
 if(false === $res || !is_array($res))
@@ -131,14 +131,14 @@ foreach($res as $item)
 }
 
 $sql =
-  'select type, '.
-  'if(sum(if(side="none",0,1))>0,1,0) as bilateral, '.
-  'sum(weight) as total_weight '.
-  'from allocation a '.
-  'join scan_type t on t.id=a.scan_type_id '.
-  'join apex_host h on h.id=a.apex_host_id '.
-  'where side in ("left","none") '.
-  'group by type order by type';
+  'SELECT type, '.
+  'IF(SUM(IF(side="none",0,1))>0,1,0) AS bilateral, '.
+  'SUM(weight) AS total_weight '.
+  'FROM allocation a '.
+  'JOIN scan_type t ON t.id=a.scan_type_id '.
+  'JOIN apex_host h ON h.id=a.apex_host_id '.
+  'WHERE side IN ("left","none") '.
+  'GROUP BY type ORDER BY type';
 
 $res = $db_salix->get_all($sql);
 if(false === $res || !is_array($res))
@@ -163,7 +163,6 @@ foreach($res as $item)
     }
   }
 }
-
 $residual_scan_list = array();
 $deploy_scan_list = array();
 $invalid_scan_list = array();
@@ -172,6 +171,9 @@ $collector_list = array_unique($collector_list);
 foreach($collector_list as $type)
 {
   $collector = new scan_collector($db_salix, DB_PREFIX, $type);
+
+  if('wbody' == $type)
+    $collector->set_rank_restrictions(array(1));
 
   write_log(sprintf('--------------------TYPE = %s --------',$type));
 
@@ -197,7 +199,6 @@ foreach($collector_list as $type)
   foreach($host_list as $host_id=>$type_list)
   {
     if(!array_key_exists($type,$type_list)) continue;
-    if(!array_key_exists($host_id,$stats['numHostCandidates'])) continue;
 
     $percent = $type_list[$type];
 
@@ -222,7 +223,7 @@ foreach($collector_list as $type)
 
     // take from the targeted scans for this host first
     //
-    $list = $deployment_list[$host_id];
+    $list = array_key_exists($host_id, $deployment_list) ? $deployment_list[$host_id] : array();
 
     write_log(sprintf('host %d: initial number of candidate chains %d',$host_id,count($list)));
 
@@ -236,12 +237,12 @@ foreach($collector_list as $type)
         foreach($scan_chain as $item_key=>$item)
         {
           // validate undeployed scans
+          //
           $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
           if( NULL !== $filename )
           {
             if( false === $item->validate( $filename ) )
             {
-              if($item->priority && 0 == $num_priority)  var_dump($item);
               $item->apex_host_id = $host_id;
               $deploy_scan_list[$host_id][] = $item;
               $num_p += $item->priority;
@@ -259,6 +260,7 @@ foreach($collector_list as $type)
         $chain_key_list[] = $chain_key;
 
         // break only on completion of a chain to keep scans grouped by uid
+        //
         if(0 >= $quota) break;
 
       }// end chain list
@@ -279,7 +281,6 @@ foreach($collector_list as $type)
       {
         foreach($scan_chain as $item_key=>$item)
         {
-
           // validate undeployed scans
           //
           $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
@@ -307,7 +308,6 @@ foreach($collector_list as $type)
             }
             unlink( $filename );
           }
-
         }// end current scan chain
 
         $chain_key_list[] = $chain_key;
@@ -369,6 +369,7 @@ if(0 < count($valid_scan_list))
     'UPDATE apex_scan '.
     'SET invalid=0 '.
     'WHERE id IN ( %s )', implode(',', $valid_scan_list) );
+
   if(false === $db_salix->execute($sql))
   {
     write_log(sprintf(
