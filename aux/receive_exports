@@ -78,10 +78,70 @@ $process_list = array(
 foreach( $host_list as $host_item )
 {
   $num_export = 0;
-
   $apex_host_id = $host_item['id'];
-
   $host_address = $host_item['host'];
+
+  $sql = sprintf(
+    'SELECT DISTINCT '.
+    'IF( side="none", '.
+    '  CONCAT_WS( "/", "/cygdrive/e/OutGoing", type ), '.
+    '  CONCAT_WS( "/", "/cygdrive/e/OutGoing", type, side ) ) AS path '.
+    'FROM apex_deployment d '.
+    'JOIN apex_host h ON h.id=d.apex_host_id '.
+    'JOIN apex_scan s ON s.id=d.apex_scan_id '.
+    'JOIN apex_exam e ON e.id=s.apex_exam_id '.
+    'JOIN serial_number n ON n.id=e.serial_number_id '.
+    'JOIN scan_type t ON t.id=s.scan_type_id '.
+    'JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
+    'JOIN %scenozo.participant p on p.id=b.participant_id '.
+    'JOIN ( '.
+    '  SELECT '.
+    '  b.participant_id, '.
+    '  GROUP_CONCAT(barcode ORDER BY barcode ASC) AS barcode_list '.
+    '  FROM apex_exam e '.
+    '  JOIN apex_baseline b ON b.id=e.apex_baseline_id '.
+    '  GROUP BY participant_id '.
+    ') AS x ON x.participant_id=b.participant_id '.
+    'WHERE status = "completed" '.
+    'AND s.availability=1 '.
+    'AND type="hip" '.
+    'AND s.scan_datetime IS NOT NULL '.
+    'AND h.id=%d '.
+    'ORDER BY priority DESC', DB_PREFIX, $apex_host_id );
+
+  $path_list = $db_salix->get_all( $sql );
+  if( false === $path_list || !is_array( $path_list ) ||
+    0 == count( $path_list ) )
+  {
+    continue;
+  }
+
+  $path_keys = array();
+  $file_keys = array();
+  foreach($path_list as $path)
+  {
+    $current_path = $path['path'];
+    $cmd = sprintf('ls -R %s/ | awk ', $current_path );
+    $cmd .= '\'/:$/&&f{s=$0;f=0} /:$/&&!f{sub(/:$/,"");s=$0;f=1;next} NF&&f{ print s"/"$0 }\'';
+    $res = ssh_command( $host_address, $cmd );
+    if('' != $res)
+    {
+      $res = explode(PHP_EOL, $res);
+      foreach($res as $item)
+      {
+        if(false!==strpos($item, $current_path))
+        {
+          if(false===strpos($item,'.dcm'))
+            $path_keys[] = $item;
+          else
+            $file_keys[] = $item;
+        }
+      }
+    }
+  }
+
+  if(0 == count($path_keys) || 0 == count($file_keys)) continue;
+
   $sql = sprintf(
     'SELECT '.
     'IF( side="none", '.
@@ -133,7 +193,6 @@ foreach( $host_list as $host_item )
   {
     continue;
   }
-
   $export_data = array();
   foreach( $scan_list as $item )
   {
@@ -143,23 +202,27 @@ foreach( $host_list as $host_item )
     $scan_date = $item['scan_date'];
     $serial_number = $item['serial_number'];
     $side = $item['side_code'];
+
+    $filename_stub = array('STUB',$scan_date,$serial_number);
+    if('NA' != $body_part) $filename_stub[] = $body_part;
+    if('NA' != $side) $filename_stub[] = $side;
+    $filename_stub = implode('_', $filename_stub) . '.dcm';
+
     foreach($barcode_list as $folder_barcode)
     {
-      $folder_path = $path . $folder_barcode . '/';
+      $folder_path = $path . $folder_barcode;
 
       // if the folder doesnt exist move on
       //
-      $res = ssh_command( $host_address, sprintf(
-        '[ -d %s ] && echo "found"', $folder_path ) );
+      if(!in_array($folder_path,$path_keys)) continue;
 
-      if('found' != $res) continue;
+      $folder_path .= '/';
 
       foreach($barcode_list as $file_barcode)
       {
-        $filename = array($file_barcode,$scan_date,$serial_number);
-        if('NA' != $body_part) $filename[] = $body_part;
-        if('NA' != $side) $filename[] = $side;
-        $filename = $folder_path . implode('_', $filename) . '.dcm';
+        $filename = $folder_path . str_replace('STUB', $file_barcode, $filename_stub);
+
+        if(!in_array($filename,$file_keys)) continue;
 
         // if a valid file, get the create timestamp
         //
@@ -171,17 +234,19 @@ foreach( $host_list as $host_item )
         if('' != $res )
         {
           $parts = explode(' ', $res);
-          if(3==count($parts))
+          if(3 == count($parts))
           {
             $export_data[] = array(
               'file' => $filename,
               'date' => sprintf('%s %s:00', $parts[0], $parts[1]),
               'deployment_id' => $item['deployment_id']);
+            $num_export++;
             break 2;
           }
         }
       }
     }
+    if( $num_export >= $export_limit ) break;
   } // end current uid list
 
   foreach( $export_data as $item )
@@ -192,16 +257,15 @@ foreach( $host_list as $host_item )
       'export_datetime="%s", '.
       'export_filename="%s" '.
       'WHERE id=%d', $item['date'], $item['file'], $item['deployment_id'] );
-    if( false !== $db_salix->execute( $sql ) )
+    if( false === $db_salix->execute( $sql ) )
     {
-      $num_export++;
+      write_log('ERROR: failed to update deployment record');
+      write_log($sql);
     }
   }
 
   $process_list['name'][] = $host_item['name'];
   $process_list['num_export'][] = $num_export;
-
-  if( $num_export >= $export_limit ) break;
 }
 
 write_log( sprintf( 'hosts [%s] exports [%s]',
