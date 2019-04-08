@@ -121,7 +121,7 @@ foreach( $host_list as $host_item )
   foreach($path_list as $path)
   {
     $current_path = $path['path'];
-    $cmd = sprintf('ls -R %s/ | awk ', $current_path );
+    $cmd = sprintf('ls -R %s | awk ', $current_path );
     $cmd .= '\'/:$/&&f{s=$0;f=0} /:$/&&!f{sub(/:$/,"");s=$0;f=1;next} NF&&f{ print s"/"$0 }\'';
     $res = ssh_command( $host_address, $cmd );
     if('' != $res)
@@ -193,6 +193,7 @@ foreach( $host_list as $host_item )
   {
     continue;
   }
+
   $export_data = array();
   foreach( $scan_list as $item )
   {
@@ -217,7 +218,6 @@ foreach( $host_list as $host_item )
       if(!in_array($folder_path,$path_keys)) continue;
 
       $folder_path .= '/';
-
       foreach($barcode_list as $file_barcode)
       {
         $filename = $folder_path . str_replace('STUB', $file_barcode, $filename_stub);
@@ -226,10 +226,12 @@ foreach( $host_list as $host_item )
 
         // if a valid file, get the create timestamp
         //
-        $res = ssh_command( $host_address, sprintf(
+        $cmd = sprintf(
           'ls -l -tr --time-style="long-iso" -d -1 %s 2>/dev/null | '.
           "grep -E '\/[1-9]{1}[0-9]{7}\/' | ".
-          "awk '{print $6" . '" "$7" "$8}'. "'", $filename ) );
+          "awk '{print $6" . '" "$7" "$8}'. "'", $filename );
+
+        $res = ssh_command( $host_address, $cmd );
 
         if('' != $res )
         {
