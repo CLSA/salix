@@ -98,7 +98,11 @@ define( function() {
     pass: { type: 'boolean', exclude: true }, // used by CnApexDeploymentViewFactory::patch
     note: { type: 'hidden' },
     scan_type_id: { column: 'apex_scan.scan_type_id', type: 'hidden' }, // used to restrict code types
-    scan_type_type: { column: 'scan_type.type', type: 'hidden' } // used for next analysis buttons
+
+    // the following are used for the next analysis button
+    scan_type_type: { column: 'scan_type.type', type: 'hidden' },
+    priority: { column: 'apex_scan.priority', type: 'hidden' },
+    first_barcode: { column: 'first_apex_exam.barcode', type: 'hidden' }
   } );
 
   module.addInputGroup( 'Additional Details', {
@@ -269,7 +273,13 @@ define( function() {
             data: {
               select: { column: [ 'id', { table: 'first_apex_exam', column: 'barcode' } ] },
               modifier: {
-                where: where,
+                // make sure it comes after the current deployment
+                where: where.concat( [
+                  { column: 'apex_scan.priority', operator: '<=', value: this.record.priority ? 1 : 0 },
+                  { column: 'apex_exam.rank', operator: '>=', value: this.record.rank },
+                  { column: 'first_apex_exam.barcode', operator: '>=', value: this.record.first_barcode },
+                  { column: 'apex_exam.barcode', operator: '>', value: this.record.barcode }
+                ] ),
                 order: [
                   { 'apex_scan.priority': true },
                   { 'apex_exam.rank': false },
@@ -280,8 +290,31 @@ define( function() {
               }
             }
           } ).get().then( function( response ) {
-            if( 0 < response.data.length )
+            if( 0 == response.data.length ) {
+              // restart at the beginning if we didn't get any records back
+              return CnHttpFactory.instance( {
+                path: 'apex_host/' + self.record.apex_host_id + '/apex_deployment',
+                data: {
+                  select: { column: [ 'id', { table: 'first_apex_exam', column: 'barcode' } ] },
+                  modifier: {
+                    // don't add the extra where statements from above to start from the beginning of the list
+                    where: where,
+                    order: [
+                      { 'apex_scan.priority': true },
+                      { 'apex_exam.rank': false },
+                      { 'first_apex_exam.barcode': false },
+                      { 'apex_exam.barcode': false }
+                    ],
+                    limit: 1
+                  }
+                }
+              } ).get().then( function( response ) {
+                if( 0 < response.data.length )
+                  return $state.go( 'apex_deployment.view', { identifier: response.data[0].id } );
+              } );
+            } else {
               return $state.go( 'apex_deployment.view', { identifier: response.data[0].id } );
+            }
           } );
         };
 

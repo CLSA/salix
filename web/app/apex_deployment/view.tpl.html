@@ -135,15 +135,13 @@
     </form>
     <div class="form-footer text-right rounded-bottom bg-info">
       <div class="btn-group">
-        <button ng-disabled="'pending' == model.viewModel.record.status"
-                type="button"
+        <button type="button"
                 class="btn btn-primary"
                 uib-tooltip="Go to this host's next available scan that requires analysis"
                 ng-click="model.viewModel.transitionOnNextViewState( true )">
           Next Analysis (any)
         </button>
-        <button ng-disabled="'pending' == model.viewModel.record.status"
-                type="button"
+        <button type="button"
                 class="btn btn-primary"
                 uib-tooltip="Go to this host's next available scan that requires analysis"
                 ng-click="model.viewModel.transitionOnNextViewState( false )">
