@@ -81,11 +81,10 @@ class dexa_scan
     $file_error = false;
     if( NULL === $filename ) return $file_error;
 
-    $validation_list = static::$validation_types[$this->type];
+    $validation_list = self::$validation_types[$this->type];
     foreach( $validation_list as $validation )
     {
-      $gdcm_command = static::$gdcm_validation_list[$validation];
-      $res = trim( shell_exec( sprintf( $gdcm_command, $filename ) ) );
+      $res = self::get_dicom_tag_value($validation, $filename);
       if( 'LATERALITY' == $validation )
       {
         $laterality = 'left' == $this->side ? 'L' : 'R';
@@ -103,7 +102,6 @@ class dexa_scan
       }
       else if( 'SERIAL_NUMBER' == $validation )
       {
-        $res = preg_replace( '/[^0-9]/', '', $res );
         if( $this->serial_number != $res )
         {
           $file_error = true;
@@ -114,11 +112,35 @@ class dexa_scan
     return $file_error;
   }
 
+  public static function get_dicom_tag_value($tag_name, $filename)
+  {
+    if(!array_key_exists($tag_name, self::$gdcm_validation_list)) return null;
+
+    $res = null;
+    $gdcm_command = self::$gdcm_validation_list[$tag_name];
+    $res = trim( shell_exec( sprintf( $gdcm_command, $filename ) ) );
+    if('SERIAL_NUMBER' == $tag_name)
+    {
+      $res = preg_replace( '/[^0-9]/', '', $res );
+      return $res;
+    }
+    else
+    {
+      return $res;
+    }
+  }
+
   private static $gdcm_validation_list = array(
     'SERIAL_NUMBER' =>
     "gdcmdump -d %s | grep -E '\(0008,1090\)' | awk '{print $4$5$6}'",
     'LATERALITY' =>
     "gdcmdump -d %s | grep -E '\(0020,0060\)' | awk '{print $4}'",
+    'PATIENT_SEX' =>
+    "gdcmdump -d %s | grep -E '\(0010,0040\)' | awk '{print $4}'",
+    'PATIENT_DOB' =>
+    "gdcmdump -d %s | grep -E '\(0010,0030\)' | awk '{print $4}'",
+    'STUDY_DATE' =>
+    "gdcmdump -d %s | grep -E '\(0008,0020\)' | awk '{print $4}'",
     'PATIENTID' =>
     "gdcmdump -d %s | grep -E '\(0010,0020\)' | awk '{print $4}'" );
 
