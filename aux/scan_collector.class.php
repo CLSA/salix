@@ -181,7 +181,6 @@ class scan_collector
         'AND (invalid IS NULL OR invalid=0) '.
         'ORDER BY uid, rank', $this->db_prefix, $this->scan_type);
     }
-    var_dump($this->query);
   }
 
   // two chain types:
@@ -270,7 +269,41 @@ class scan_collector
           $chain_side = $alternate_side;
         }
 
-        if(null !== $chain_side)
+        // if both left and right exist in prior rank deployments
+        //
+        if(array_key_exists($this->preferred_side,$deployed_side_keys) &&
+           array_key_exists($alternate_side, $deployed_side_keys))
+        {
+          write_log('WARNING: performing tie break on sides');
+          // find the last max rank of each side
+          $max_side = array('left'=>array(),'right'=>array());
+          foreach($deployed_list as $side => $item_list)
+          {
+            foreach($item_list as $item)
+              $max_side[$side][] = $item->rank;
+          }
+          $max_preferred =
+            0 < count($max_side[$this->preferred_side]) ?
+            max($max_side[$this->preferred_side]) : 0;
+          $max_alternate =
+            0 < count($max_side[$alternate_side]) ?
+            max($max_side[$alternate_side]) : 0;
+
+          $new_chain_side = ($max_preferred>=$max_alternate) ?
+            $max_preferred : $max_alternate;
+          if($new_chain_side!=$chain_side)
+          {
+            write_log(sprintf('WARNING: correcting chain side from %s to %s',$chain_side,$new_chain_side));
+            $chain_side = $new_chain_side;
+            if(!array_key_exists($chain_side,$candidate_list))
+            {
+              $chain_side = null;
+              write_log(sprintf('WARNING: correcting new chain side from %s to NULL',$chain_side));
+            }
+          }
+        }
+
+        if(null !== $chain_side && array_key_exists($chain_side,$candidate_list))
         {
           $scan_chain['scans'] = $candidate_list[$chain_side];
           $host_id_list = array();
