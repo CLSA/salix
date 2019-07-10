@@ -141,6 +141,8 @@ class dexa_scan
     "gdcmdump -d %s | grep -E '\(0010,0030\)' | awk '{print $4}'",
     'STUDY_DATE' =>
     "gdcmdump -d %s | grep -E '\(0008,0020\)' | awk '{print $4}'",
+    'STUDY_TIME' =>
+    "gdcmdump -d %s | grep -E '\(0008,0030\)' | awk '{print $4}'",
     'PATIENTID' =>
     "gdcmdump -d %s | grep -E '\(0010,0020\)' | awk '{print $4}'" );
 
