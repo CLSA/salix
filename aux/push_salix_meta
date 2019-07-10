@@ -58,19 +58,25 @@ $PRECISION_FIELDS = array(
   'WEIGHT' => 1
 );
 
+// phantom ID fields having an APEX patient name descriptor
+$PHANTOM_IDS = array(
+  16066,
+  1037
+);
+
 // serial numbers of devices with scans requiring anonymization
 $ANONYMIZE_DEVICES = array(
-  '85921',
-  '85968',
-  '86036',
-  '86147',
-  '86155',
-  '86164',
-  '86204',
-  '86205',
-  '86222',
-  '86359',
-  '87800'
+  85921,
+  85968,
+  86036,
+  86147,
+  86155,
+  86164,
+  86204,
+  86205,
+  86222,
+  86359,
+  87800
 );
 
 // the status of deployments requiring anonymization and basic
@@ -152,20 +158,23 @@ foreach( $host_list as $host_item )
     'OR DATALENGTH(STATE)>0 '.
     'OR DATALENGTH(POSTAL)>0 '.
     'OR DATALENGTH(COUNTRY)>0) '.
-    'AND SERIAL_NUMBER IN ('.
-    implode(',',$ANONYMIZE_DEVICES) .
-    ')');
+    'AND SERIAL_NUMBER IN (%s) '.
+    'AND IDENTIFIER1 NOT IN (%s)',
+    implode(',',$ANONYMIZE_DEVICES),
+    implode(',',$PHANTOM_IDS)
+    );
 
   $res = $db_dexa->get_one( $sql );
   if( false !== $res && 0 < $res )
   {
     $sql = sprintf(
-      'UPDATE PatScan.dbo.PATIENT p '.
-      'JOIN PatScan.dbo.ScanAnalysis s ON p.PATIENT_KEY=s.PATIENT_KEY '.
+      'UPDATE p '.
       'SET FIRST_NAME=null, LAST_NAME=null, '.
       'MID_INITIAL=null, PAT_COMMENT=null, REF_PHYSICIAN=null, '.
       'STUDY=null, ADDRESS1=null, ADDRESS2=null, CITY=null, '.
       'STATE=null, POSTAL=null, COUNTRY=null '.
+      'FROM PatScan.dbo.PATIENT p '.
+      'JOIN PatScan.dbo.ScanAnalysis s ON p.PATIENT_KEY=s.PATIENT_KEY '.
       'WHERE (DATALENGTH(LAST_NAME)>0 '.
       'OR DATALENGTH(FIRST_NAME)>0 '.
       'OR DATALENGTH(MID_INITIAL)>0 '.
@@ -178,9 +187,11 @@ foreach( $host_list as $host_item )
       'OR DATALENGTH(STATE)>0 '.
       'OR DATALENGTH(POSTAL)>0 '.
       'OR DATALENGTH(COUNTRY)>0) '.
-      'AND SERIAL_NUMBER IN ('.
-      implode(',',$ANONYMIZE_DEVICES) .
-      ')');
+      'AND SERIAL_NUMBER IN (%s) '.
+      'AND IDENTIFIER1 NOT IN (%s)',
+      implode(',',$ANONYMIZE_DEVICES),
+      implode(',',$PHANTOM_IDS)
+      );
 
     $db_dexa->execute( $sql );
   }
