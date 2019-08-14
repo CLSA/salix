@@ -60,6 +60,7 @@ catch( Exception $e )
 }
 
 // auxilliary APEX db tables that have patient_key indices
+//
 $aux_host_tables = array(
   'hip' =>
     array( 'HipHSA' ),
@@ -67,7 +68,8 @@ $aux_host_tables = array(
     array( 'WbodyComposition', 'SubRegionBone', 'SubRegionComposition',
            'ObesityIndices', 'AndroidGynoidComposition' ) );
 
-// rank that is considered as baseline
+// rank that is considered as baseline for each scan type
+//
 $baseline_rank_list = array(
  'forearm' => 1,
  'lateral' => 1,
@@ -128,7 +130,7 @@ foreach( $host_list as $host_item )
     'ORDER BY type, side', $apex_host_id );
 
   // update the APEX db auxialliary patient_keys eg., hip => HSA
-
+  //
   $merge_list = $db_salix->get_all( $sql );
   if( false === $merge_list || !is_array( $merge_list ) ||
     0 == count( $merge_list ) )
@@ -138,10 +140,15 @@ foreach( $host_list as $host_item )
   }
 
   // post-merge patient_key removals
+  //
   $remove_list = array();
+
+  // update deployment merge status
+  //
   $update_deployment_list = array();
 
   // for each merge candidate row
+  //
   foreach( $merge_list as $merge_item )
   {
     $type = $merge_item['type'];
@@ -149,12 +156,36 @@ foreach( $host_list as $host_item )
     $rank_list = explode( ',' , $merge_item['rank_list'] );
     if( $baseline_rank_list[$type] != min( $rank_list ) )
     {
-      write_log( sprintf( 'WARNING: incomplete rank list (%s (side: %s) barcodes: %s)',
-        $type, $side, $merge_item['barcode_list'] ) );
-      continue;
+      // verify that the lowest ranked scan of this type for this patient_key is unavailable
+      // regardless of salix invalid status since in future it may be recovered
+      //
+      $verify_sql = sprintf(
+        'select min(rank) '.
+        'from apex_scan s '.
+        'join scan_type t on t.id=s.scan_type_id '.
+        'join apex_exam e on e.id=s.apex_exam_id '.
+        'join apex_baseline b on b.id=e.apex_baseline_id '.
+        'join %scenozo.participant p on p.id=b.participant_id '.
+        'where type="%s" '.
+        'and availability=1 '.
+        'and side="%s" '.
+        'and apex_baseline_id=%d '.
+        'group by uid',
+         DB_PREFIX, $type, $side, $merge_item['apex_baseline_id']);
+
+      $lowest_rank = $db_salix->get_one($verify_sql);
+      if($lowest_rank < min( $rank_list ) )
+      {
+        write_log( sprintf( 'WARNING: incomplete rank list (%s (side: %s) barcodes: %s)',
+          $type, $side, $merge_item['barcode_list'] ) );
+        continue;
+      }
     }
 
     $scan_type_id = $merge_item['scan_type_id'];
+
+    // which APEX db tables contain the patient_key?
+    //
     $host_tables = array( ucfirst( $type ) );
     if( array_key_exists( $type, $aux_host_tables ) )
       $host_tables = array_merge( $host_tables, $aux_host_tables[$type] );
@@ -170,7 +201,7 @@ foreach( $host_list as $host_item )
     // reference the baseline patient_key
     // if there are no further references to the follow-up patient_key
     // we delete the corresponding record from the PATIENT table
-
+    //
     $base_deployment_id = array_shift($deployment_id_list);
     $base_barcode = array_shift($barcode_list);
     $base_scanid = array_shift($scanid_list);
@@ -180,6 +211,8 @@ foreach( $host_list as $host_item )
     $current_remove_list = array();
     $current_deployment_list= array();
 
+    // loop over the remaining scans that came after the first (lowest) ranked scan
+    //
     $barcode = current($barcode_list);
     $serial_number = current($serial_number_list);
     $scanid = current($scanid_list);
@@ -191,6 +224,8 @@ foreach( $host_list as $host_item )
            false !== $patient_key &&
            false !== $deployment_id )
     {
+      // update the APEX ScanAnalysis table so that the scan references the baseline patient_key
+      //
       $sql = sprintf(
         'UPDATE s '.
         "SET PATIENT_KEY='%s' ".
@@ -202,6 +237,8 @@ foreach( $host_list as $host_item )
         "AND s.SCANID='%s';", $base_patient_key,
         $barcode, $scan_type_id, $serial_number, $scanid );
 
+      // update the APEX analysis results table(s) so that the scan references the baseline patient_key
+      //
       foreach( $host_tables as $table )
       {
         $sql .= sprintf(
@@ -223,7 +260,12 @@ foreach( $host_list as $host_item )
       }
       else
       {
+        // list of patient_keys that may need to be removed
+        //
         $current_remove_list[] = $patient_key;
+
+        // list of deployments that will have merged column set to 1
+        //
         $current_deployment_list[] = $deployment_id;
       }
       $barcode = next($barcode_list);
@@ -240,11 +282,18 @@ foreach( $host_list as $host_item )
       {
         $remove_list[$type] = array();
       }
+      // global list of candidate patient_keys for removal
+      //
       $remove_list[$type] = array_merge( $remove_list[$type], $current_remove_list );
+
+      // global list of deployments to have merged column set to 1
+      //
       $update_deployment_list = array_merge( $update_deployment_list, $current_deployment_list );
     }
   }// end host merge list
 
+  // loop over the post baseline patient_keys that were merged by scan type
+  //
   foreach( $remove_list as $type => $item_list )
   {
     if( 0 == count( $item_list ) ) continue;
@@ -260,7 +309,7 @@ foreach( $host_list as $host_item )
     $str = "'". implode( "','", $host_tables ) . "'";
     $sql = sprintf(
       'SELECT '.
-      't.name AS table_name '.
+      't.name '.
       'FROM PatScan.sys.columns c '.
       'JOIN PatScan.sys.tables t ON c.object_id=t.object_id '.
       "WHERE c.name IN ('PATIENT_KEY', 'SCANID', 'SERIAL_NUMBER' ) ".
@@ -308,6 +357,10 @@ foreach( $host_list as $host_item )
     if( false !== $res && is_array( $res ) && 0 < count( $res ) )
     {
       array_walk( $res, function( &$item ) { $item = $item['PATIENT_KEY']; } );
+
+      // the difference between the patient_keys we merged and want to delete
+      // and the patient_keys in use by other scan types which should NOT be removed
+      //
       $item_list = array_diff( $item_list, $res );
     }
 
