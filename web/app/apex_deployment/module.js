@@ -342,7 +342,7 @@ define( function() {
             return self.parentModel.metadata.getPromise().then( function() {
               // get a limited list of code types which apply to this deployment's scan type
               self.codeTypeList = self.parentModel.metadata.codeTypeList.filter(
-                codeType => 0 <= codeType.scan_type_id_list.indexOf( self.record.scan_type_id )
+                codeType => codeType.scan_type_id_list.includes( self.record.scan_type_id )
               );
 
               self.isComplete = true;
