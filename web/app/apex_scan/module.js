@@ -51,35 +51,35 @@ define( function() {
       column: 'participant.uid',
       title: 'Participant',
       type: 'string',
-      constant: true
+      isConstant: true
     },
     rank: {
       column: 'apex_exam.rank',
       title: 'Wave Rank',
       type: 'string',
-      constant: true
+      isConstant: true
     },
     scan_type_type: {
       column: 'scan_type.type',
       title: 'Type',
       type: 'string',
-      constant: true
+      isConstant: true
     },
     scan_type_side: {
       column: 'scan_type.side',
       title: 'Side',
       type: 'string',
-      constant: true
+      isConstant: true
     },
     availability: {
       title: 'Availability',
       type: 'boolean',
-      constant: true
+      isConstant: true
     },
     invalid: {
       title: 'Invalid',
       type: 'boolean',
-      constant: true
+      isConstant: true
     },
     priority: {
       title: 'Priority',
@@ -88,24 +88,26 @@ define( function() {
     scan_datetime: {
       title: 'Scan Date & Time',
       type: 'datetime',
-      constant: true
+      isConstant: true
     },
     scanid: {
       title: 'Scan ID',
       type: 'string',
-      constant: true
+      isConstant: true
     },
     patient_key: {
       title: 'Patient Key',
       type: 'string',
-      constant: true
+      isConstant: true
     },
     forearm_length: {
       title: 'Forearm Length',
       type: 'string',
       format: 'float',
-      constant: true,
-      exclude: true
+      isConstant: true,
+      isExcluded: function( $state, model ) {
+        return angular.isUndefined( model.viewModel.record.scan_type_type ) || 'forearm' != model.viewModel.record.scan_type_type;
+      }
     }
   } );
 
@@ -152,19 +154,7 @@ define( function() {
   cenozo.providers.factory( 'CnApexScanViewFactory', [
     'CnBaseViewFactory',
     function( CnBaseViewFactory ) {
-      var object = function( parentModel, root ) {
-        var self = this;
-        CnBaseViewFactory.construct( this, parentModel, root );
-
-        this.onView = function( force ) {
-          var mainInputGroup = self.parentModel.module.inputGroupList.findByProperty( 'title', '' );
-          mainInputGroup.inputList.forearm_length.exclude = true;
-          return this.$$onView( force ).then( function() {
-            // only show the forearm length when viewing forearm scans
-            mainInputGroup.inputList.forearm_length.exclude = 'forearm' != self.record.scan_type_type;
-          } );
-        };
-      };
+      var object = function( parentModel, root ) { CnBaseViewFactory.construct( this, parentModel, root ); };
       return { instance: function( parentModel, root ) { return new object( parentModel, root ); } };
     }
   ] );

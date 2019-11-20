@@ -36,7 +36,7 @@ define( function() {
       column: 'site.name',
       title: 'Site',
       type: 'string',
-      constant: true
+      isConstant: true
     },
     priority_apex_host_id: {
       title: 'Priority Apex Host',

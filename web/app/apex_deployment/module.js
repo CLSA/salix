@@ -69,33 +69,33 @@ define( function() {
     apex_host_id: {
       title: 'Apex Host',
       type: 'enum',
-      constant: true
+      isConstant: true
     },
     uid: {
       column: 'participant.uid',
       title: 'Participant',
       type: 'string',
-      constant: true
+      isConstant: true
     },
     barcode: {
       column: 'apex_exam.barcode',
       title: 'Barcode',
       type: 'string',
-      constant: true
+      isConstant: true
     },
     rank: {
       column: 'apex_exam.rank',
       title: 'Wave Rank',
       type: 'string',
-      constant: true
+      isConstant: true
     },
     scan_type_side: {
       column: 'scan_type_side',
       title: 'Scan Type & Side',
       type: 'string',
-      constant: true
+      isConstant: true
     },
-    pass: { type: 'boolean', exclude: true }, // used by CnApexDeploymentViewFactory::patch
+    pass: { type: 'boolean', isExcluded: true }, // used by CnApexDeploymentViewFactory::patch
     note: { type: 'hidden' },
     scan_type_id: { column: 'apex_scan.scan_type_id', type: 'hidden' }, // used to restrict code types
 
@@ -109,60 +109,63 @@ define( function() {
     merged: {
       title: 'Merged',
       type: 'boolean',
-      exclude: 'add',
-      constant: true
+      isExcluded: 'add',
+      isConstant: true
     },
     status: {
       title: 'Status',
       type: 'string',
-      exclude: 'add',
-      constant: true
+      isExcluded: 'add',
+      isConstant: true
     },
     comp_scanid: {
       title: 'Scan ID',
-      exclude: 'add',
+      isExcluded: 'add',
       type: 'string',
-      constant: true
+      isConstant: true
     },
     site: {
       column: 'site.name',
       title: 'Site',
       type: 'string',
-      exclude: 'add',
-      constant: true
+      isExcluded: 'add',
+      isConstant: true
     },
     serial_number_id: {
       column: 'serial_number.id',
       title: 'Serial Number',
       type: 'string',
-      exclude: 'add',
-      constant: true
+      isExcluded: 'add',
+      isConstant: true
     },
     forearm_length: {
       column: 'apex_scan.forearm_length',
       title: 'Forearm Length',
       type: 'string',
       format: 'float',
-      constant: true,
-      exclude: true
+      isConstant: true,
+      isExcluded: function( $state, model ) {
+        // only show the forearm length when viewing forearm scans
+        return angular.isUndefined( model.viewModel.record.scan_type_type ) || 'forearm' != model.viewModel.record.scan_type_type;
+      }
     },
     analysis_datetime: {
       title: 'Analysis Date & Time',
       type: 'datetime',
-      exclude: 'add',
-      constant: true
+      isExcluded: 'add',
+      isConstant: true
     },
     export_datetime: {
       title: 'Export Date & Time',
       type: 'datetime',
-      exclude: 'add',
-      constant: true
+      isExcluded: 'add',
+      isConstant: true
     },
     import_datetime: {
       title: 'Import Date & Time',
       type: 'datetime',
-      exclude: 'add',
-      constant: true
+      isExcluded: 'add',
+      isConstant: true
     },
   } );
 
@@ -325,15 +328,9 @@ define( function() {
         } );
 
         this.onView = function( force ) {
-          var mainInputGroup = self.parentModel.module.inputGroupList.findByProperty( 'title', 'Additional Details' );
-          mainInputGroup.inputList.forearm_length.exclude = true;
-
           self.isComplete = false;
           self.fileExists = false;
           return this.$$onView( force ).then( function() {
-            // only show the forearm length when viewing forearm scans
-            mainInputGroup.inputList.forearm_length.exclude = 'forearm' != self.record.scan_type_type;
-
             // do not allow exported deployments to be edited
             self.parentModel.getEditEnabled = null == self.record.status || 'exported' == self.record.status
                                             ? function() { return false; }

@@ -46,12 +46,12 @@ define( function() {
     apex_scan_count: {
       title: 'Apex Scans',
       type: 'string',
-      constant: true
+      isConstant: true
     },
     participant_count: {
       title: 'Participants',
       type: 'string',
-      constant: true
+      isConstant: true
     }
   } );
 
