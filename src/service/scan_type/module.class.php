@@ -21,44 +21,6 @@ class module extends \cenozo\service\module
   {
     parent::prepare_read( $select, $modifier );
 
-    // add the total number of apex_scans
-    if( $select->has_column( 'apex_scan_count' ) )
-    {
-      // to accomplish this we need to create two sub-joins, so start by creating the inner join
-      $inner_join_sel = lib::create( 'database\select' );
-      $inner_join_sel->from( 'apex_scan' );
-      $inner_join_sel->add_column( 'scan_type_id' );
-      $inner_join_sel->add_column( 'COUNT(*)', 'apex_scan_count', false );
-
-      $inner_join_mod = lib::create( 'database\modifier' );
-      $inner_join_mod->group( 'scan_type_id' );
-      $inner_join_mod->where( 'scan_type_id', '!=', NULL );
-
-      // now create the outer join
-      $apex_scan_outer_join_sel = lib::create( 'database\select' );
-      $apex_scan_outer_join_sel->from( 'scan_type' );
-      $apex_scan_outer_join_sel->add_column( 'id', 'scan_type_id' );
-      $apex_scan_outer_join_sel->add_column(
-        'IF( scan_type_id IS NOT NULL, apex_scan_count, 0 )', 'apex_scan_count', false );
-
-      $apex_scan_outer_join_mod = lib::create( 'database\modifier' );
-      $apex_scan_outer_join_mod->left_join(
-        sprintf( '( %s %s ) AS inner_join', $inner_join_sel->get_sql(), $inner_join_mod->get_sql() ),
-        'scan_type.id',
-        'inner_join.scan_type_id' );
-
-      // now join to our main modifier
-      $modifier->left_join(
-        sprintf(
-          '( %s %s ) AS apex_scan_outer_join',
-          $apex_scan_outer_join_sel->get_sql(),
-          $apex_scan_outer_join_mod->get_sql()
-        ),
-        'scan_type.id',
-        'apex_scan_outer_join.scan_type_id' );
-      $select->add_column( 'apex_scan_count', 'apex_scan_count', false );
-    }   
-
     // add the total number of code_types
     if( $select->has_column( 'code_type_count' ) )
     {

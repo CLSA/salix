@@ -16,10 +16,6 @@ define( function() {
       side: {
         title: 'Side'
       },
-      apex_scan_count: {
-        title: 'Apex Scans',
-        type: 'number'
-      },
       code_type_count: {
         title: 'Code Types',
         type: 'number'
