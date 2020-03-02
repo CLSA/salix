@@ -176,8 +176,32 @@ foreach( $host_list as $host_item )
       $lowest_rank = $db_salix->get_one($verify_sql);
       if($lowest_rank < min( $rank_list ) )
       {
-        write_log( sprintf( 'WARNING: incomplete rank list (%s (side: %s) barcodes: %s)',
-          $type, $side, $merge_item['barcode_list'] ) );
+        // is there a deployment pending on this host with a rank lower than its sibilings?
+        $verify_sql = sprintf(
+          'select h.name, barcode, status '.
+          'from apex_scan s '.
+          'join scan_type t on t.id=s.scan_type_id '.
+          'join apex_exam e on e.id=s.apex_exam_id '.
+          'join apex_baseline b on b.id=e.apex_baseline_id '.
+          'join apex_deployment d on s.id=d.apex_scan_id '.
+          'join apex_host h on h.id=d.apex_host_id '.
+          'join %scenozo.participant p on p.id=b.participant_id '.
+          'where type="%s" '.
+          'and availability=1 '.
+          'and side="%s" '.
+          'and apex_baseline_id=%d '.
+          'and rank=%d',
+           DB_PREFIX, $type, $side, $merge_item['apex_baseline_id'], $lowest_rank);
+        $res = $db_salix->get_row($verify_sql);
+        if(false !== $res && is_array($res) && $res['status']=='pending')
+        {
+          write_log( sprintf( 'WARNING: %s pending sibling %s (%s (side: %s) delaying merge barcodes: %s)',
+            $res['name'], $res['barcode'], $type, $side, $merge_item['barcode_list'] ) );
+        }
+        else
+          write_log( sprintf( 'WARNING: incomplete rank list (%s (side: %s) barcodes: %s)',
+            $type, $side, $merge_item['barcode_list'] ) );
+
         continue;
       }
     }
