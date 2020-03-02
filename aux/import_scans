@@ -387,7 +387,7 @@ foreach( $scan_list as $name => $identifier_list )
 
   // wait a few seconds for scp transfer to complete
   //
-  sleep(5);
+  sleep(30);
 
   // remotely run the conquest dicom server to rebuild its db
   //
@@ -412,6 +412,8 @@ foreach( $scan_list as $name => $identifier_list )
   {
     write_log( sprintf( 'ERROR: %s failed to dicom C-move images to Apex: %s', $name, $res ) );
   }
+
+  sleep(30);
 
   // query Apex MS SQL Server db to verify transfer
   //
@@ -441,7 +443,7 @@ foreach( $scan_list as $name => $identifier_list )
 
       if( false === $res || '' == $res )
       {
-        write_log( 'ERROR: failed to dicom transfer file ' . $filename );
+        write_log( sprintf('ERROR: %s failed to dicom transfer file %s', $name, $filename ) );
       }
       else
       {

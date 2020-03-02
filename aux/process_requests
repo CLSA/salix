@@ -168,6 +168,7 @@ class dexa_scan_report {
     if( null === self::$label_list )
     {
       self::$label_list = array(
+        'forearm'=> new rectangle(62,1261,1138,1375),
         'hip' => new rectangle(62,1671,1138,1785),
         'wbody' => new rectangle(62,1195,426,1504) );
     }
@@ -178,6 +179,9 @@ class dexa_scan_report {
     if( null === self::$region_list )
     {
       self::$region_list = array(
+        'forearm' => array(
+          new rectangle(170,1204,248,1178),
+          new rectangle(170,973,248,948) ),
         'hip' => array(
           new rectangle(170,1614,248,1589),
           new rectangle(170,1383,248,1358) ),
@@ -241,7 +245,7 @@ if( null !== $deployment_id )
     'JOIN %scenozo.participant p ON p.id=b.participant_id '.
     'JOIN %scenozo.language l ON l.id=p.language_id '.
     'WHERE availability=1 '.
-    'AND t.type in ("hip","wbody") '.
+    'AND t.type in ("hip") '.
     'AND export_filename IS NOT NULL '.
     'AND pass=1 '.
     'AND status="exported" '.
@@ -296,6 +300,7 @@ foreach( $host_list as $host_item )
     'JOIN %scenozo.language l ON l.id=p.language_id '.
     'WHERE availability=1 '.
     'AND export_filename IS NOT NULL '.
+    'AMD type in ("hip") '.
     'AND pass=1 '.
     'AND status="exported" '.
     'AND priority=1 '.
