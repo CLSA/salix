@@ -103,7 +103,7 @@ foreach( $host_list as $host_item )
     '  GROUP BY participant_id '.
     ') AS x ON x.participant_id=b.participant_id '.
     'WHERE status = "completed" '.
-    'AND s.availability=1 '.
+    'AND s.invalid=0 '.
     'AND type="hip" '.
     'AND s.scan_datetime IS NOT NULL '.
     'AND h.id=%d '.
@@ -160,6 +160,7 @@ foreach( $host_list as $host_item )
     '  WHEN type="hip" THEN "HIP" '.
     '  WHEN type="spine" THEN "LSPINE" '.
     '  WHEN type="lateral" THEN "LSPINE" '.
+    '  WHEN type="wbody" THEN "BMD" '.
     '  ELSE "NA" '.
     'END AS body_part, '.
     'd.id AS deployment_id, '.
@@ -181,7 +182,7 @@ foreach( $host_list as $host_item )
     '  GROUP BY participant_id '.
     ') AS x ON x.participant_id=b.participant_id '.
     'WHERE status = "completed" '.
-    'AND s.availability=1 '.
+    'AND s.invalid=0 '.
     'AND type="hip" '.
     'AND s.scan_datetime IS NOT NULL '.
     'AND h.id=%d '.
