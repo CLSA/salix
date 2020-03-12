@@ -120,7 +120,7 @@ foreach( $host_list as $host_item )
       'OR '.
       '(rank=1 AND pass IS NOT NULL AND status IN ("completed","exported"))'.
     ') '.
-    'AND availability=1 '.
+    'AND invalid=0 '.
     'AND scanid IS NOT NULL '.
     'AND patient_key IS NOT NULL '.
     'AND scan_datetime IS NOT NULL '.
@@ -167,7 +167,7 @@ foreach( $host_list as $host_item )
         'join apex_baseline b on b.id=e.apex_baseline_id '.
         'join %scenozo.participant p on p.id=b.participant_id '.
         'where type="%s" '.
-        'and availability=1 '.
+        'and (availability=1 or invalid=0) '.
         'and side="%s" '.
         'and apex_baseline_id=%d '.
         'group by uid',
@@ -187,7 +187,7 @@ foreach( $host_list as $host_item )
           'join apex_host h on h.id=d.apex_host_id '.
           'join %scenozo.participant p on p.id=b.participant_id '.
           'where type="%s" '.
-          'and availability=1 '.
+          'and invalid=0 '.
           'and side="%s" '.
           'and apex_baseline_id=%d '.
           'and rank=%d',
