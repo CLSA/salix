@@ -300,7 +300,7 @@ foreach( $host_list as $host_item )
     'JOIN %scenozo.language l ON l.id=p.language_id '.
     'WHERE invalid=0 '.
     'AND export_filename IS NOT NULL '.
-    'AMD type in ("hip") '.
+    'AND type in ("hip") '.
     'AND pass=1 '.
     'AND status="exported" '.
     'AND priority=1 '.
