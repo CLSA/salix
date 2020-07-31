@@ -104,7 +104,7 @@ foreach( $host_list as $host_item )
     ') AS x ON x.participant_id=b.participant_id '.
     'WHERE status = "completed" '.
     'AND s.invalid=0 '.
-    'AND type="hip" '.
+    'AND type in ("hip","wbody") '.
     'AND s.scan_datetime IS NOT NULL '.
     'AND h.id=%d '.
     'ORDER BY priority DESC', DB_PREFIX, $apex_host_id );
@@ -183,7 +183,7 @@ foreach( $host_list as $host_item )
     ') AS x ON x.participant_id=b.participant_id '.
     'WHERE status = "completed" '.
     'AND s.invalid=0 '.
-    'AND type="hip" '.
+    'AND type in ("hip","wbody") '.
     'AND s.scan_datetime IS NOT NULL '.
     'AND h.id=%d '.
     'ORDER BY priority DESC', DB_PREFIX, $apex_host_id );
