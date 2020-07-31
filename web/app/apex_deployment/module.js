@@ -52,7 +52,8 @@ define( function() {
         type: 'boolean'
       },
       pass: {
-        title: 'pass',
+        title: 'Pass',
+        type: 'boolean'
       },
       code_summary: {
         column: 'apex_deployment_code_summary.summary',
