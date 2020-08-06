@@ -78,7 +78,6 @@ class ui extends \cenozo\ui\ui
     if( 3 <= $db_role->tier )
     {
       $this->add_listitem( 'Apex Baselines', 'apex_baseline' );
-      $this->add_listitem( 'Apex Exams', 'apex_exam' );
       $this->add_listitem( 'Code Types', 'code_type' );
       $this->add_listitem( 'Scan Types', 'scan_type' );
       $this->add_listitem( 'Serial Numbers', 'serial_number' );
@@ -88,6 +87,7 @@ class ui extends \cenozo\ui\ui
       $this->remove_listitem( 'Users' );
     }
 
+    $this->add_listitem( 'Apex Exams', 'apex_exam' );
     $this->add_listitem( 'Apex Hosts', 'apex_host' );
 
     $this->remove_listitem( 'Availability Types' );
