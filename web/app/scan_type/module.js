@@ -105,7 +105,7 @@ define( function() {
   cenozo.providers.factory( 'CnScanTypeViewFactory', [
     'CnBaseViewFactory',
     function( CnBaseViewFactory ) {
-      var object = function( parentModel, root ) { CnBaseViewFactory.construct( this, parentModel, root ); };
+      var object = function( parentModel, root ) { CnBaseViewFactory.construct( this, parentModel, root, 'apex_scan' ); };
       return { instance: function( parentModel, root ) { return new object( parentModel, root ); } };
     }
   ] );

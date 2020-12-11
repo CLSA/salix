@@ -253,185 +253,205 @@ define( function() {
               $q, $state ) {
       var object = function( parentModel, root ) {
         var self = this;
-        CnBaseViewFactory.construct( this, parentModel, root );
-        this.isComplete = false;
-        this.fileExists = false;
+        CnBaseViewFactory.construct( this, parentModel, root, 'analysis' );
+        console.log( this );
 
-        this.downloadReport = function () {
-          return CnHttpFactory.instance( {
-            path: 'apex_deployment/' + self.record.getIdentifier(),
-            format: 'jpeg'
-          } ).file();
-        };
+        angular.extend( this, {
+          isComplete: false,
+          fileExists: false,
 
-        // transitions to the next available deployment for analysis
-        this.transitionOnNextViewState = function( any ) {
-          if( angular.isUndefined( any ) ) any = false;
-
-          var where = [ { column: 'status', operator: '=', value: 'pending' } ];
-          if( !any ) where.push( { column: 'scan_type.type', operator: '=', value: this.record.scan_type_type } );
-
-          return CnHttpFactory.instance( {
-            path: 'apex_host/' + self.record.apex_host_id + '/apex_deployment',
-            // get the highest priority record
-            data: {
-              select: { column: [ 'id', { table: 'first_apex_exam', column: 'barcode' } ] },
-              modifier: {
-                // make sure it comes after the current deployment
-                where: where.concat( [
-                  { column: 'apex_scan.priority', operator: '<=', value: this.record.priority ? 1 : 0 },
-                  { column: 'apex_exam.rank', operator: '>=', value: this.record.rank },
-                  { column: 'first_apex_exam.barcode', operator: '>=', value: this.record.first_barcode },
-                  { column: 'apex_exam.barcode', operator: '>', value: this.record.barcode }
-                ] ),
-                order: [
-                  { 'apex_scan.priority': true },
-                  { 'apex_exam.rank': false },
-                  { 'first_apex_exam.barcode': false },
-                  { 'apex_exam.barcode': false }
-                ],
-                limit: 1
-              }
+          // create a custom child list that includes the analysis dialog
+          customChildList: null,
+          getChildList: function() {
+            if( null == this.customChildList ) {
+              this.customChildList = this.$$getChildList().concat( [
+                { subject: { camel: 'analysis', snake: 'analysis' } }
+              ] );
             }
-          } ).get().then( function( response ) {
-            if( 0 == response.data.length ) {
-              // restart at the beginning if we didn't get any records back
-              return CnHttpFactory.instance( {
-                path: 'apex_host/' + self.record.apex_host_id + '/apex_deployment',
-                data: {
-                  select: { column: [ 'id', { table: 'first_apex_exam', column: 'barcode' } ] },
-                  modifier: {
-                    // don't add the extra where statements from above to start from the beginning of the list
-                    where: where,
-                    order: [
-                      { 'apex_scan.priority': true },
-                      { 'apex_exam.rank': false },
-                      { 'first_apex_exam.barcode': false },
-                      { 'apex_exam.barcode': false }
-                    ],
-                    limit: 1
-                  }
+            return this.customChildList;
+          },
+
+          // extend the child title to properly label the analysis dialog
+          getChildTitle: function( child ) {
+            return 'analysis' == child.subject.snake ? 'Analysis' : self.$$getChildTitle( child );
+          },
+
+          downloadReport: function () {
+            return CnHttpFactory.instance( {
+              path: 'apex_deployment/' + self.record.getIdentifier(),
+              format: 'jpeg'
+            } ).file();
+          },
+
+          // transitions to the next available deployment for analysis
+          transitionOnNextViewState: function( any ) {
+            if( angular.isUndefined( any ) ) any = false;
+
+            var where = [ { column: 'status', operator: '=', value: 'pending' } ];
+            if( !any ) where.push( { column: 'scan_type.type', operator: '=', value: this.record.scan_type_type } );
+
+            return CnHttpFactory.instance( {
+              path: 'apex_host/' + self.record.apex_host_id + '/apex_deployment',
+              // get the highest priority record
+              data: {
+                select: { column: [ 'id', { table: 'first_apex_exam', column: 'barcode' } ] },
+                modifier: {
+                  // make sure it comes after the current deployment
+                  where: where.concat( [
+                    { column: 'apex_scan.priority', operator: '<=', value: this.record.priority ? 1 : 0 },
+                    { column: 'apex_exam.rank', operator: '>=', value: this.record.rank },
+                    { column: 'first_apex_exam.barcode', operator: '>=', value: this.record.first_barcode },
+                    { column: 'apex_exam.barcode', operator: '>', value: this.record.barcode }
+                  ] ),
+                  order: [
+                    { 'apex_scan.priority': true },
+                    { 'apex_exam.rank': false },
+                    { 'first_apex_exam.barcode': false },
+                    { 'apex_exam.barcode': false }
+                  ],
+                  limit: 1
                 }
-              } ).get().then( function( response ) {
-                if( 0 < response.data.length )
-                  return $state.go( 'apex_deployment.view', { identifier: response.data[0].id } );
+              }
+            } ).get().then( function( response ) {
+              if( 0 == response.data.length ) {
+                // restart at the beginning if we didn't get any records back
+                return CnHttpFactory.instance( {
+                  path: 'apex_host/' + self.record.apex_host_id + '/apex_deployment',
+                  data: {
+                    select: { column: [ 'id', { table: 'first_apex_exam', column: 'barcode' } ] },
+                    modifier: {
+                      // don't add the extra where statements from above to start from the beginning of the list
+                      where: where,
+                      order: [
+                        { 'apex_scan.priority': true },
+                        { 'apex_exam.rank': false },
+                        { 'first_apex_exam.barcode': false },
+                        { 'apex_exam.barcode': false }
+                      ],
+                      limit: 1
+                    }
+                  }
+                } ).get().then( function( response ) {
+                  if( 0 < response.data.length )
+                    return $state.go( 'apex_deployment.view', { identifier: response.data[0].id } );
+                } );
+              } else {
+                return $state.go( 'apex_deployment.view', { identifier: response.data[0].id } );
+              }
+            } );
+          },
+
+          onView: function( force ) {
+            self.isComplete = false;
+            self.fileExists = false;
+            return this.$$onView( force ).then( function() {
+              // do not allow exported deployments to be edited
+              self.parentModel.getEditEnabled = null == self.record.status || 'exported' == self.record.status
+                                              ? function() { return false; }
+                                              : function() { return self.parentModel.$$getEditEnabled(); };
+
+              return self.parentModel.metadata.getPromise().then( function() {
+                // get a limited list of code types which apply to this deployment's scan type
+                self.codeTypeList = self.parentModel.metadata.codeTypeList.filter(
+                  codeType => codeType.scan_type_id_list.includes( self.record.scan_type_id )
+                );
+
+                self.isComplete = true;
+                self.codeTypeList.forEach( function( codeType ) { self.record['codeType'+codeType.id] = false; } );
+                return $q.all( [
+                  // set all code values to false then get the scan's codes
+                  CnHttpFactory.instance( {
+                    path: 'apex_deployment/' + self.record.getIdentifier() + '/code',
+                    data: { select: { column: [ 'code_type_id' ] } }
+                  } ).query().then( function( response ) {
+                    response.data.forEach( function( code ) {
+                      self.record['codeType'+code.code_type_id] = true;
+                    } );
+                  } ),
+
+                  // determine whether the report is available
+                  CnHttpFactory.instance( {
+                    path: 'apex_deployment/' + self.record.getIdentifier() + '?report=1'
+                  } ).get().then( function( response ) {
+                    self.fileExists = response.data;
+                  } )
+                ] );
               } );
+            } );
+          },
+
+          patch: function( property ) {
+            if( property.match( /^codeType/ ) ) {
+              var newValue = self.record[property];
+              var codeTypeId = property.replace( /^codeType/, '' );
+              if( newValue ) {
+                return CnHttpFactory.instance( {
+                  path: 'code',
+                  data: {
+                    apex_deployment_id: self.record.getIdentifier(),
+                    code_type_id: codeTypeId,
+                    user_id: CnSession.user.id
+                  },
+                  onError: function( response ) {
+                    // ignore 409 (code already exists)
+                    if( 409 != response.status ) {
+                      self.record[property] = !self.record[property];
+                      CnModalMessageFactory.httpError( response );
+                    }
+                  }
+                } ).post()
+              } else {
+                return CnHttpFactory.instance( {
+                  path: 'code/apex_deployment_id=' + self.record.getIdentifier() + ';code_type_id=' + codeTypeId,
+                  onError: function( response ) {
+                    // ignore 404 (code has already been deleted)
+                    if( 404 != response.status ) {
+                      self.record[property] = !self.record[property];
+                      CnModalMessageFactory.httpError( response );
+                    }
+                  }
+                } ).delete();
+              }
             } else {
-              return $state.go( 'apex_deployment.view', { identifier: response.data[0].id } );
+              var promiseList = [];
+              var codeList = [];
+              var resetCodes = false;
+
+              // check if pass is being set to null (which at this point will be an empty string)
+              if( 'pass' == property && '' === self.record.pass ) {
+                // gather all selected code types
+                for( var column in self.record )
+                  if( column.match( /^codeType/ ) && self.record[column] )
+                    codeList.push( column );
+
+                // if there are any code types, offer to reset them
+                if( 0 < codeList.length ) {
+                  promiseList.push(
+                    CnModalConfirmFactory.instance( {
+                      title: 'Reset Codes',
+                      message: 'Do you also wish to remove all codes associated with this deployment?'
+                    } ).show().then( function( response ) { resetCodes = response; } )
+                  );
+                }
+              }
+
+              return $q.all( promiseList ).then( function() {
+                var data = {};
+                data[property] = self.record[property];
+                if( resetCodes ) data.reset_codes = true;
+                return self.onPatch( data ).then( function() {
+                  if( 'pass' == property ) return self.onView();
+                } );
+              } );
             }
-          } );
-        };
+          }
+        } );
 
         // customize the scan list heading
         this.deferred.promise.then( function() {
           if( angular.isDefined( self.apexDeploymentModel ) )
             self.apexDeploymentModel.listModel.heading = 'Sibling Apex Deployment List';
         } );
-
-        this.onView = function( force ) {
-          self.isComplete = false;
-          self.fileExists = false;
-          return this.$$onView( force ).then( function() {
-            // do not allow exported deployments to be edited
-            self.parentModel.getEditEnabled = null == self.record.status || 'exported' == self.record.status
-                                            ? function() { return false; }
-                                            : function() { return self.parentModel.$$getEditEnabled(); };
-
-            return self.parentModel.metadata.getPromise().then( function() {
-              // get a limited list of code types which apply to this deployment's scan type
-              self.codeTypeList = self.parentModel.metadata.codeTypeList.filter(
-                codeType => codeType.scan_type_id_list.includes( self.record.scan_type_id )
-              );
-
-              self.isComplete = true;
-              self.codeTypeList.forEach( function( codeType ) { self.record['codeType'+codeType.id] = false; } );
-              return $q.all( [
-                // set all code values to false then get the scan's codes
-                CnHttpFactory.instance( {
-                  path: 'apex_deployment/' + self.record.getIdentifier() + '/code',
-                  data: { select: { column: [ 'code_type_id' ] } }
-                } ).query().then( function( response ) {
-                  response.data.forEach( function( code ) {
-                    self.record['codeType'+code.code_type_id] = true;
-                  } );
-                } ),
-
-                // determine whether the report is available
-                CnHttpFactory.instance( {
-                  path: 'apex_deployment/' + self.record.getIdentifier() + '?report=1'
-                } ).get().then( function( response ) {
-                  self.fileExists = response.data;
-                } )
-              ] );
-            } );
-          } );
-        };
-
-        this.patch = function( property ) {
-          if( property.match( /^codeType/ ) ) {
-            var newValue = self.record[property];
-            var codeTypeId = property.replace( /^codeType/, '' );
-            if( newValue ) {
-              return CnHttpFactory.instance( {
-                path: 'code',
-                data: {
-                  apex_deployment_id: self.record.getIdentifier(),
-                  code_type_id: codeTypeId,
-                  user_id: CnSession.user.id
-                },
-                onError: function( response ) {
-                  // ignore 409 (code already exists)
-                  if( 409 != response.status ) {
-                    self.record[property] = !self.record[property];
-                    CnModalMessageFactory.httpError( response );
-                  }
-                }
-              } ).post()
-            } else {
-              return CnHttpFactory.instance( {
-                path: 'code/apex_deployment_id=' + self.record.getIdentifier() + ';code_type_id=' + codeTypeId,
-                onError: function( response ) {
-                  // ignore 404 (code has already been deleted)
-                  if( 404 != response.status ) {
-                    self.record[property] = !self.record[property];
-                    CnModalMessageFactory.httpError( response );
-                  }
-                }
-              } ).delete();
-            }
-          } else {
-            var promiseList = [];
-            var codeList = [];
-            var resetCodes = false;
-
-            // check if pass is being set to null (which at this point will be an empty string)
-            if( 'pass' == property && '' === self.record.pass ) {
-              // gather all selected code types
-              for( var column in self.record )
-                if( column.match( /^codeType/ ) && self.record[column] )
-                  codeList.push( column );
-
-              // if there are any code types, offer to reset them
-              if( 0 < codeList.length ) {
-                promiseList.push(
-                  CnModalConfirmFactory.instance( {
-                    title: 'Reset Codes',
-                    message: 'Do you also wish to remove all codes associated with this deployment?'
-                  } ).show().then( function( response ) { resetCodes = response; } )
-                );
-              }
-            }
-
-            return $q.all( promiseList ).then( function() {
-              var data = {};
-              data[property] = self.record[property];
-              if( resetCodes ) data.reset_codes = true;
-              return self.onPatch( data ).then( function() {
-                if( 'pass' == property ) return self.onView();
-              } );
-            } );
-          }
-        };
       };
       return { instance: function( parentModel, root ) { return new object( parentModel, root ); } };
     }

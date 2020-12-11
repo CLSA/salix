@@ -1,5 +1,15 @@
 <cn-record-view model="model"></cn-record-view>
-<div class="vertical-spacer">
+<cn-list-selector model="model"></cn-list-selector>
+<div ng-show="child.subject.snake == model.viewModel.tab"
+     ng-repeat="child in model.viewModel.getChildList()"
+     ng-if="'analysis' != child.subject.snake"
+     ng-switch="child.subject.snake"
+     class="vertical-spacer">
+  <cn-record-list ng-switch-when="apex_deployment"
+                  remove-columns="uid scan_type_side apex_host"
+                  model="model.viewModel.apexDeploymentModel"></cn-record-list>
+</div>
+<div ng-show="'analysis' == model.viewModel.tab" class="vertical-spacer">
   <div class="record-view rounded">
     <div class="container-fluid bg-primary rounded-top"
              data-toggle="collapse"
@@ -150,9 +160,4 @@
       </div>
     </div>
   </div>
-</div>
-<div class="vertical-spacer">
-  <cn-record-list ng-if="model.viewModel.apexDeploymentModel"
-                  remove-columns="uid scan_type_side apex_host"
-                  model="model.viewModel.apexDeploymentModel"></cn-record-list>
 </div>
