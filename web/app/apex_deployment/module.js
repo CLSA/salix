@@ -490,7 +490,7 @@ define( function() {
                 path: 'apex_host',
                 data: {
                   select: { column: [ 'id', 'name' ] },
-                  modifier: { order: { name: false } }
+                  modifier: { order: { name: false }, limit: 1000 }
                 }
               } ).query().then( function success( response ) {
                 self.metadata.columnList.apex_host_id.enumList = [];
@@ -506,7 +506,7 @@ define( function() {
                 path: 'code_type',
                 data: {
                   select: { column: [ 'id', 'code', 'description', 'scan_type_id_list' ] },
-                  modifier: { order: 'code' }
+                  modifier: { order: 'code', limit: 1000 }
                 }
               } ).query().then( function( response ) {
                 // convert the id list into an array if integers

@@ -115,7 +115,7 @@ define( function() {
               path: 'apex_host',
               data: {
                 select: { column: [ 'id', 'name' ] },
-                modifier: { order: 'name', limit: 100 }
+                modifier: { order: 'name', limit: 1000 }
               }
             } ).query().then( function success( response ) {
               self.metadata.columnList.priority_apex_host_id.enumList = [];

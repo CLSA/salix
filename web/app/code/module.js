@@ -131,7 +131,7 @@ define( function() {
               path: 'code_type',
               data: {
                 select: { column: [ 'id', 'code' ] },
-                modifier: { order: 'code' }
+                modifier: { order: 'code', limit: 1000 }
               }
             } ).query().then( function success( response ) { 
               self.metadata.columnList.code_type_id.enumList = []; 

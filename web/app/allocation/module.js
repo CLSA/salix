@@ -143,7 +143,7 @@ define( function() {
                 path: 'apex_host',
                 data: {
                   select: { column: [ 'id', 'name' ] },
-                  modifier: { order: { name: false } }
+                  modifier: { order: { name: false }, limit: 1000 }
                 }
               } ).query().then( function success( response ) {
                 self.metadata.columnList.apex_host_id.enumList = [];
@@ -159,7 +159,7 @@ define( function() {
                 path: 'scan_type',
                 data: {
                   select: { column: [ 'id', 'type', 'side' ] },
-                  modifier: { order: [ 'type', 'side' ] }
+                  modifier: { order: [ 'type', 'side' ], limit: 1000 }
                 }
               } ).query().then( function( response ) {
                 self.metadata.columnList.scan_type_id.enumList = [];
