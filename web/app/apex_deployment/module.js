@@ -254,8 +254,6 @@ define( function() {
       var object = function( parentModel, root ) {
         var self = this;
         CnBaseViewFactory.construct( this, parentModel, root, 'analysis' );
-        console.log( this );
-
         angular.extend( this, {
           isComplete: false,
           fileExists: false,
