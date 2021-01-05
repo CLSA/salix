@@ -98,7 +98,7 @@ define( function() {
   cenozo.providers.factory( 'CnApexHostViewFactory', [
     'CnBaseViewFactory',
     function( CnBaseViewFactory ) {
-      var object = function( parentModel, root ) { CnBaseViewFactory.construct( this, parentModel, root, 'allocation' ); };
+      var object = function( parentModel, root ) { CnBaseViewFactory.construct( this, parentModel, root, 'apex_deployment' ); };
       return { instance: function( parentModel, root ) { return new object( parentModel, root ); } };
     }
   ] );
