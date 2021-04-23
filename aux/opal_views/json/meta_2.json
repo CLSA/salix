@@ -378,5 +378,6 @@
     "clsa-dcs-f1.StandingHeight",
     "clsa-dcs-f1.Weight"
   ],
-  "name": "meta_2"
+  "name": "meta_2",
+  "where": "$('clsa-dcs-f1.Participants:DCSatHOME').not().whenNull(true).and($('clsa-dcs-f1.Participants:DCS_PHONE').not().whenNull(true))"
 }
