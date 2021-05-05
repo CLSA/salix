@@ -124,53 +124,51 @@ define( function() {
   cenozo.providers.factory( 'CnAllocationModelFactory', [
     'CnBaseModelFactory',
     'CnAllocationAddFactory', 'CnAllocationListFactory', 'CnAllocationViewFactory',
-    'CnHttpFactory', '$q',
+    'CnHttpFactory',
     function( CnBaseModelFactory,
               CnAllocationAddFactory, CnAllocationListFactory, CnAllocationViewFactory,
-              CnHttpFactory, $q ) {
+              CnHttpFactory ) {
       var object = function( root ) {
-        var self = this;
         CnBaseModelFactory.construct( this, module );
         this.addModel = CnAllocationAddFactory.instance( this );
         this.listModel = CnAllocationListFactory.instance( this );
         this.viewModel = CnAllocationViewFactory.instance( this, root );
 
         // extend getMetadata
-        this.getMetadata = function() {
-          return this.$$getMetadata().then( function() {
-            return $q.all( [
-              CnHttpFactory.instance( {
-                path: 'apex_host',
-                data: {
-                  select: { column: [ 'id', 'name' ] },
-                  modifier: { order: { name: false }, limit: 1000 }
-                }
-              } ).query().then( function success( response ) {
-                self.metadata.columnList.apex_host_id.enumList = [];
-                response.data.forEach( function( item ) {
-                  self.metadata.columnList.apex_host_id.enumList.push( {
-                    value: item.id,
-                    name: item.name
-                  } );
-                } );
-              } ),
+        this.getMetadata = async function() {
+          var self = this;
+          await this.$$getMetadata();
 
-              CnHttpFactory.instance( {
-                path: 'scan_type',
-                data: {
-                  select: { column: [ 'id', 'type', 'side' ] },
-                  modifier: { order: [ 'type', 'side' ], limit: 1000 }
-                }
-              } ).query().then( function( response ) {
-                self.metadata.columnList.scan_type_id.enumList = [];
-                response.data.forEach( function( item ) {
-                  self.metadata.columnList.scan_type_id.enumList.push( {
-                    value: item.id,
-                    name: 'none' == item.side ? item.type : item.side + ' ' + item.type
-                  } );
-                } );
-              } )
-            ] );
+          var response = await CnHttpFactory.instance( {
+            path: 'apex_host',
+            data: {
+              select: { column: [ 'id', 'name' ] },
+              modifier: { order: { name: false }, limit: 1000 }
+            }
+          } ).query();
+
+          this.metadata.columnList.apex_host_id.enumList = [];
+          response.data.forEach( function( item ) {
+            self.metadata.columnList.apex_host_id.enumList.push( {
+              value: item.id,
+              name: item.name
+            } );
+          } );
+
+          var response = await CnHttpFactory.instance( {
+            path: 'scan_type',
+            data: {
+              select: { column: [ 'id', 'type', 'side' ] },
+              modifier: { order: [ 'type', 'side' ], limit: 1000 }
+            }
+          } ).query();
+
+          this.metadata.columnList.scan_type_id.enumList = [];
+          response.data.forEach( function( item ) {
+            self.metadata.columnList.scan_type_id.enumList.push( {
+              value: item.id,
+              name: 'none' == item.side ? item.type : item.side + ' ' + item.type
+            } );
           } );
         };
       };

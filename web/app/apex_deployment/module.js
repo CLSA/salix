@@ -174,7 +174,7 @@ define( function() {
     title: 'Download Report',
     isIncluded: function( $state, model ) { return model.canDownloadReports(); },
     isDisabled: function( $state, model ) { return !model.viewModel.fileExists; },
-    operation: function( $state, model ) { return model.viewModel.downloadReport(); }
+    operation: async function( $state, model ) { await model.viewModel.downloadReport(); }
   } );
 
   /* ######################################################################################################## */
@@ -247,12 +247,9 @@ define( function() {
 
   /* ######################################################################################################## */
   cenozo.providers.factory( 'CnApexDeploymentViewFactory', [
-    'CnBaseViewFactory', 'CnHttpFactory', 'CnSession', 'CnModalMessageFactory', 'CnModalConfirmFactory',
-    '$q', '$state',
-    function( CnBaseViewFactory, CnHttpFactory, CnSession, CnModalMessageFactory, CnModalConfirmFactory,
-              $q, $state ) {
+    'CnBaseViewFactory', 'CnHttpFactory', 'CnSession', 'CnModalMessageFactory', 'CnModalConfirmFactory', '$state',
+    function( CnBaseViewFactory, CnHttpFactory, CnSession, CnModalMessageFactory, CnModalConfirmFactory, $state ) {
       var object = function( parentModel, root ) {
-        var self = this;
         CnBaseViewFactory.construct( this, parentModel, root, 'analysis' );
         angular.extend( this, {
           isComplete: false,
@@ -271,25 +268,25 @@ define( function() {
 
           // extend the child title to properly label the analysis dialog
           getChildTitle: function( child ) {
-            return 'analysis' == child.subject.snake ? 'Analysis' : self.$$getChildTitle( child );
+            return 'analysis' == child.subject.snake ? 'Analysis' : this.$$getChildTitle( child );
           },
 
-          downloadReport: function () {
-            return CnHttpFactory.instance( {
-              path: 'apex_deployment/' + self.record.getIdentifier(),
+          downloadReport: async function() {
+            await CnHttpFactory.instance( {
+              path: 'apex_deployment/' + this.record.getIdentifier(),
               format: 'jpeg'
             } ).file();
           },
 
           // transitions to the next available deployment for analysis
-          transitionOnNextViewState: function( any ) {
+          transitionOnNextViewState: async function( any ) {
             if( angular.isUndefined( any ) ) any = false;
 
             var where = [ { column: 'status', operator: '=', value: 'pending' } ];
             if( !any ) where.push( { column: 'scan_type.type', operator: '=', value: this.record.scan_type_type } );
 
-            return CnHttpFactory.instance( {
-              path: 'apex_host/' + self.record.apex_host_id + '/apex_deployment',
+            var response = await CnHttpFactory.instance( {
+              path: 'apex_host/' + this.record.apex_host_id + '/apex_deployment',
               // get the highest priority record
               data: {
                 select: { column: [ 'id', { table: 'first_apex_exam', column: 'barcode' } ] },
@@ -310,146 +307,142 @@ define( function() {
                   limit: 1
                 }
               }
-            } ).get().then( function( response ) {
-              if( 0 == response.data.length ) {
-                // restart at the beginning if we didn't get any records back
-                return CnHttpFactory.instance( {
-                  path: 'apex_host/' + self.record.apex_host_id + '/apex_deployment',
-                  data: {
-                    select: { column: [ 'id', { table: 'first_apex_exam', column: 'barcode' } ] },
-                    modifier: {
-                      // don't add the extra where statements from above to start from the beginning of the list
-                      where: where,
-                      order: [
-                        { 'apex_scan.priority': true },
-                        { 'apex_exam.rank': false },
-                        { 'first_apex_exam.barcode': false },
-                        { 'apex_exam.barcode': false }
-                      ],
-                      limit: 1
-                    }
+            } ).get();
+
+            if( 0 == response.data.length ) {
+              // restart at the beginning if we didn't get any records back
+              var response = await CnHttpFactory.instance( {
+                path: 'apex_host/' + this.record.apex_host_id + '/apex_deployment',
+                data: {
+                  select: { column: [ 'id', { table: 'first_apex_exam', column: 'barcode' } ] },
+                  modifier: {
+                    // don't add the extra where statements from above to start from the beginning of the list
+                    where: where,
+                    order: [
+                      { 'apex_scan.priority': true },
+                      { 'apex_exam.rank': false },
+                      { 'first_apex_exam.barcode': false },
+                      { 'apex_exam.barcode': false }
+                    ],
+                    limit: 1
                   }
-                } ).get().then( function( response ) {
-                  if( 0 < response.data.length )
-                    return $state.go( 'apex_deployment.view', { identifier: response.data[0].id } );
-                } );
-              } else {
-                return $state.go( 'apex_deployment.view', { identifier: response.data[0].id } );
-              }
-            } );
+                }
+              } ).get();
+
+              if( 0 < response.data.length ) await $state.go( 'apex_deployment.view', { identifier: response.data[0].id } );
+            } else {
+              await $state.go( 'apex_deployment.view', { identifier: response.data[0].id } );
+            }
           },
 
-          onView: function( force ) {
-            self.isComplete = false;
-            self.fileExists = false;
-            return this.$$onView( force ).then( function() {
-              // do not allow exported deployments to be edited
-              self.parentModel.getEditEnabled = null == self.record.status || 'exported' == self.record.status
-                                              ? function() { return false; }
-                                              : function() { return self.parentModel.$$getEditEnabled(); };
+          onView: async function( force ) {
+            var self = this;
+            this.isComplete = false;
+            this.fileExists = false;
+            await this.$$onView( force );
 
-              return self.parentModel.metadata.getPromise().then( function() {
-                // get a limited list of code types which apply to this deployment's scan type
-                self.codeTypeList = self.parentModel.metadata.codeTypeList.filter(
-                  codeType => codeType.scan_type_id_list.includes( self.record.scan_type_id )
-                );
+            // do not allow exported deployments to be edited
+            this.parentModel.getEditEnabled = null == this.record.status || 'exported' == this.record.status
+                                            ? function() { return false; }
+                                            : function() { return self.parentModel.$$getEditEnabled(); };
 
-                self.isComplete = true;
-                self.codeTypeList.forEach( function( codeType ) { self.record['codeType'+codeType.id] = false; } );
-                return $q.all( [
-                  // set all code values to false then get the scan's codes
-                  CnHttpFactory.instance( {
-                    path: 'apex_deployment/' + self.record.getIdentifier() + '/code',
-                    data: { select: { column: [ 'code_type_id' ] } }
-                  } ).query().then( function( response ) {
-                    response.data.forEach( function( code ) {
-                      self.record['codeType'+code.code_type_id] = true;
-                    } );
-                  } ),
+            await this.parentModel.metadata.getPromise();
 
-                  // determine whether the report is available
-                  CnHttpFactory.instance( {
-                    path: 'apex_deployment/' + self.record.getIdentifier() + '?report=1'
-                  } ).get().then( function( response ) {
-                    self.fileExists = response.data;
-                  } )
-                ] );
-              } );
-            } );
+            // get a limited list of code types which apply to this deployment's scan type
+            this.codeTypeList = this.parentModel.metadata.codeTypeList.filter(
+              codeType => codeType.scan_type_id_list.includes( this.record.scan_type_id )
+            );
+
+            this.isComplete = true;
+            this.codeTypeList.forEach( function( codeType ) { self.record['codeType'+codeType.id] = false; } );
+
+            // set all code values to false then get the scan's codes
+            var response = await CnHttpFactory.instance( {
+              path: 'apex_deployment/' + this.record.getIdentifier() + '/code',
+              data: { select: { column: [ 'code_type_id' ] } }
+            } ).query();
+
+            response.data.forEach( function( code ) { self.record['codeType'+code.code_type_id] = true; } );
+
+            // determine whether the report is available
+            var response = await CnHttpFactory.instance( {
+              path: 'apex_deployment/' + this.record.getIdentifier() + '?report=1'
+            } ).get();
+
+            this.fileExists = response.data;
           },
 
-          patch: function( property ) {
+          patch: async function( property ) {
+            var self = this;
             if( property.match( /^codeType/ ) ) {
-              var newValue = self.record[property];
+              var newValue = this.record[property];
               var codeTypeId = property.replace( /^codeType/, '' );
               if( newValue ) {
-                return CnHttpFactory.instance( {
+                await CnHttpFactory.instance( {
                   path: 'code',
                   data: {
-                    apex_deployment_id: self.record.getIdentifier(),
+                    apex_deployment_id: this.record.getIdentifier(),
                     code_type_id: codeTypeId,
                     user_id: CnSession.user.id
                   },
-                  onError: function( response ) {
+                  onError: function( error ) {
                     // ignore 409 (code already exists)
-                    if( 409 != response.status ) {
+                    if( 409 != error.status ) {
                       self.record[property] = !self.record[property];
-                      CnModalMessageFactory.httpError( response );
+                      CnModalMessageFactory.httpError( error );
                     }
                   }
                 } ).post()
               } else {
-                return CnHttpFactory.instance( {
-                  path: 'code/apex_deployment_id=' + self.record.getIdentifier() + ';code_type_id=' + codeTypeId,
-                  onError: function( response ) {
+                await CnHttpFactory.instance( {
+                  path: 'code/apex_deployment_id=' + this.record.getIdentifier() + ';code_type_id=' + codeTypeId,
+                  onError: function( error ) {
                     // ignore 404 (code has already been deleted)
-                    if( 404 != response.status ) {
+                    if( 404 != error.status ) {
                       self.record[property] = !self.record[property];
-                      CnModalMessageFactory.httpError( response );
+                      CnModalMessageFactory.httpError( error );
                     }
                   }
                 } ).delete();
               }
             } else {
-              var promiseList = [];
               var codeList = [];
               var resetCodes = false;
 
               // check if pass is being set to null (which at this point will be an empty string)
-              if( 'pass' == property && '' === self.record.pass ) {
+              if( 'pass' == property && '' === this.record.pass ) {
                 // gather all selected code types
-                for( var column in self.record )
-                  if( column.match( /^codeType/ ) && self.record[column] )
+                for( var column in this.record )
+                  if( column.match( /^codeType/ ) && this.record[column] )
                     codeList.push( column );
 
                 // if there are any code types, offer to reset them
                 if( 0 < codeList.length ) {
-                  promiseList.push(
-                    CnModalConfirmFactory.instance( {
-                      title: 'Reset Codes',
-                      message: 'Do you also wish to remove all codes associated with this deployment?'
-                    } ).show().then( function( response ) { resetCodes = response; } )
-                  );
+                  resetCodes = await CnModalConfirmFactory.instance( {
+                    title: 'Reset Codes',
+                    message: 'Do you also wish to remove all codes associated with this deployment?'
+                  } ).show();
                 }
               }
 
-              return $q.all( promiseList ).then( function() {
-                var data = {};
-                data[property] = self.record[property];
-                if( resetCodes ) data.reset_codes = true;
-                return self.onPatch( data ).then( function() {
-                  if( 'pass' == property ) return self.onView();
-                } );
-              } );
+              var data = {};
+              data[property] = this.record[property];
+              if( resetCodes ) data.reset_codes = true;
+              await this.onPatch( data );
+              if( 'pass' == property ) await this.onView();
             }
           }
         } );
 
-        // customize the scan list heading
-        this.deferred.promise.then( function() {
+        var self = this;
+        async function init() {
+          // customize the scan list heading
+          await this.deferred.promise;
           if( angular.isDefined( self.apexDeploymentModel ) )
             self.apexDeploymentModel.listModel.heading = 'Sibling Apex Deployment List';
-        } );
+        }
+
+        init();
       };
       return { instance: function( parentModel, root ) { return new object( parentModel, root ); } };
     }
@@ -459,12 +452,11 @@ define( function() {
   cenozo.providers.factory( 'CnApexDeploymentModelFactory', [
     'CnBaseModelFactory',
     'CnApexDeploymentAddFactory', 'CnApexDeploymentListFactory', 'CnApexDeploymentViewFactory',
-    'CnSession', 'CnHttpFactory', '$q',
+    'CnSession', 'CnHttpFactory',
     function( CnBaseModelFactory,
               CnApexDeploymentAddFactory, CnApexDeploymentListFactory, CnApexDeploymentViewFactory,
-              CnSession, CnHttpFactory, $q ) {
+              CnSession, CnHttpFactory ) {
       var object = function( root ) {
-        var self = this;
         CnBaseModelFactory.construct( this, module );
         this.addModel = CnApexDeploymentAddFactory.instance( this );
         this.listModel = CnApexDeploymentListFactory.instance( this );
@@ -476,45 +468,44 @@ define( function() {
         this.getServiceData = function( type, columnRestrictLists ) {
           var data = this.$$getServiceData( type, columnRestrictLists );
           if( 'apex_deployment' == this.getSubjectFromState() && 'view' == this.getActionFromState() )
-            data.sibling_apex_deployment_id = self.getQueryParameter( 'identifier' );
+            data.sibling_apex_deployment_id = this.getQueryParameter( 'identifier' );
           return data;
         };
 
         // extend getMetadata
-        this.getMetadata = function() {
-          return this.$$getMetadata().then( function() {
-            return $q.all( [
-              CnHttpFactory.instance( {
-                path: 'apex_host',
-                data: {
-                  select: { column: [ 'id', 'name' ] },
-                  modifier: { order: { name: false }, limit: 1000 }
-                }
-              } ).query().then( function success( response ) {
-                self.metadata.columnList.apex_host_id.enumList = [];
-                response.data.forEach( function( item ) {
-                  self.metadata.columnList.apex_host_id.enumList.push( {
-                    value: item.id,
-                    name: item.name
-                  } );
-                } );
-              } ),
+        this.getMetadata = async function() {
+          var self = this;
+          await this.$$getMetadata();
 
-              CnHttpFactory.instance( {
-                path: 'code_type',
-                data: {
-                  select: { column: [ 'id', 'code', 'description', 'scan_type_id_list' ] },
-                  modifier: { order: 'code', limit: 1000 }
-                }
-              } ).query().then( function( response ) {
-                // convert the id list into an array if integers
-                response.data.forEach(
-                  item => item.scan_type_id_list = item.scan_type_id_list.split( ',' ).map( id => parseInt(id) )
-                );
-                self.metadata.codeTypeList = response.data;
-              } )
-            ] );
+          var response = await CnHttpFactory.instance( {
+            path: 'apex_host',
+            data: {
+              select: { column: [ 'id', 'name' ] },
+              modifier: { order: { name: false }, limit: 1000 }
+            }
+          } ).query();
+
+          this.metadata.columnList.apex_host_id.enumList = [];
+          response.data.forEach( function( item ) {
+            self.metadata.columnList.apex_host_id.enumList.push( {
+              value: item.id,
+              name: item.name
+            } );
           } );
+
+          var response = await CnHttpFactory.instance( {
+            path: 'code_type',
+            data: {
+              select: { column: [ 'id', 'code', 'description', 'scan_type_id_list' ] },
+              modifier: { order: 'code', limit: 1000 }
+            }
+          } ).query();
+
+          // convert the id list into an array if integers
+          response.data.forEach(
+            item => item.scan_type_id_list = item.scan_type_id_list.split( ',' ).map( id => parseInt(id) )
+          );
+          this.metadata.codeTypeList = response.data;
         };
       };
 

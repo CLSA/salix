@@ -103,28 +103,28 @@ define( function() {
     'CnBaseModelFactory', 'CnSettingListFactory', 'CnSettingViewFactory', 'CnHttpFactory',
     function( CnBaseModelFactory, CnSettingListFactory, CnSettingViewFactory, CnHttpFactory ) {
       var object = function( root ) {
-        var self = this;
         CnBaseModelFactory.construct( this, module );
         this.listModel = CnSettingListFactory.instance( this );
         this.viewModel = CnSettingViewFactory.instance( this, root );
 
         // extend getMetadata
-        this.getMetadata = function() {
-          return this.$$getMetadata().then( function() {
-           return CnHttpFactory.instance( {
-              path: 'apex_host',
-              data: {
-                select: { column: [ 'id', 'name' ] },
-                modifier: { order: 'name', limit: 1000 }
-              }
-            } ).query().then( function success( response ) {
-              self.metadata.columnList.priority_apex_host_id.enumList = [];
-              response.data.forEach( function( item ) {
-                self.metadata.columnList.priority_apex_host_id.enumList.push( {
-                  value: item.id,
-                  name: item.name
-                } );
-              } );
+        this.getMetadata = async function() {
+          var self = this;
+          await this.$$getMetadata();
+
+          var response = await CnHttpFactory.instance( {
+            path: 'apex_host',
+            data: {
+              select: { column: [ 'id', 'name' ] },
+              modifier: { order: 'name', limit: 1000 }
+            }
+          } ).query();
+
+          this.metadata.columnList.priority_apex_host_id.enumList = [];
+          response.data.forEach( function( item ) {
+            self.metadata.columnList.priority_apex_host_id.enumList.push( {
+              value: item.id,
+              name: item.name
             } );
           } );
         };

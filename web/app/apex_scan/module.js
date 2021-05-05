@@ -161,12 +161,9 @@ define( function() {
 
   /* ######################################################################################################## */
   cenozo.providers.factory( 'CnApexScanModelFactory', [
-    'CnBaseModelFactory',
-    'CnApexScanListFactory', 'CnApexScanViewFactory',
-    function( CnBaseModelFactory,
-              CnApexScanListFactory, CnApexScanViewFactory ) {
+    'CnBaseModelFactory', 'CnApexScanListFactory', 'CnApexScanViewFactory',
+    function( CnBaseModelFactory, CnApexScanListFactory, CnApexScanViewFactory ) {
       var object = function( root ) {
-        var self = this;
         CnBaseModelFactory.construct( this, module );
         this.listModel = CnApexScanListFactory.instance( this );
         this.viewModel = CnApexScanViewFactory.instance( this, root );

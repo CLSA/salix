@@ -118,29 +118,29 @@ define( function() {
     'CnBaseModelFactory', 'CnCodeAddFactory', 'CnCodeListFactory', 'CnCodeViewFactory', 'CnHttpFactory',
     function( CnBaseModelFactory, CnCodeAddFactory, CnCodeListFactory, CnCodeViewFactory, CnHttpFactory ) {
       var object = function( root ) {
-        var self = this;
         CnBaseModelFactory.construct( this, module );
         this.addModel = CnCodeAddFactory.instance( this );
         this.listModel = CnCodeListFactory.instance( this );
         this.viewModel = CnCodeViewFactory.instance( this, root );
 
         // extend getMetadata
-        this.getMetadata = function() {
-          return this.$$getMetadata().then( function() {
-            return CnHttpFactory.instance( {
-              path: 'code_type',
-              data: {
-                select: { column: [ 'id', 'code' ] },
-                modifier: { order: 'code', limit: 1000 }
-              }
-            } ).query().then( function success( response ) { 
-              self.metadata.columnList.code_type_id.enumList = []; 
-              response.data.forEach( function( item ) { 
-                self.metadata.columnList.code_type_id.enumList.push( {
-                  value: item.id,
-                  name: item.code
-                } );
-              } );
+        this.getMetadata = async function() {
+          var self = this;
+          await this.$$getMetadata();
+
+          var response = await CnHttpFactory.instance( {
+            path: 'code_type',
+            data: {
+              select: { column: [ 'id', 'code' ] },
+              modifier: { order: 'code', limit: 1000 }
+            }
+          } ).query();
+
+          this.metadata.columnList.code_type_id.enumList = []; 
+          response.data.forEach( function( item ) { 
+            self.metadata.columnList.code_type_id.enumList.push( {
+              value: item.id,
+              name: item.code
             } );
           } );
         };
