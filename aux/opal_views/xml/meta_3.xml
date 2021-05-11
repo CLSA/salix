@@ -34,7 +34,7 @@
   <select class="org.obiba.magma.views.support.NoneClause"/>
   <where class="org.obiba.magma.js.views.JavascriptClause">
     <scriptName>customScript</scriptName>
-    <script>$lastupdate().after(newValue(&apos;2018-12-25&apos;, &apos;date&apos;))</script>
+    <script>$(&apos;clsa-dcs-f2.Participants:DCSatHOME&apos;).not().whenNull(true).and($(&apos;clsa-dcs-f2.Participants:DCS_PHONE&apos;).not().whenNull(true),$lastupdate().after(newValue(&apos;2018-04-24&apos;,&apos;date&apos;)))</script>
   </where>
   <variables class="org.obiba.magma.js.views.VariablesClause">
     <variables class="linked-hash-set">
@@ -187,5 +187,5 @@ res</attribute>
     </variables>
   </variables>
   <created valueType="datetime">2018-05-08T11:14:54.429-04</created>
-  <updated valueType="datetime">2019-01-16T09:45:21.011-05</updated>
+  <updated valueType="datetime">2021-04-21T09:53:29.156-04</updated>
 </org.obiba.magma.views.View>

@@ -358,5 +358,5 @@
     "clsa-dcs-f2.Weight"
   ],
   "name": "meta_3",
-  "where": "$lastupdate().after(newValue('NEWDATE', 'date'))"
+  "where": "$('clsa-dcs-f2.Participants:DCSatHOME').not().whenNull(true).and($('clsa-dcs-f2.Participants:DCS_PHONE').not().whenNull(true),$lastupdate().after(newValue('NEWDATE','date')))"
 }
