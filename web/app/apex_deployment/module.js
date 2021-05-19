@@ -437,7 +437,7 @@ define( function() {
         var self = this;
         async function init() {
           // customize the scan list heading
-          await this.deferred.promise;
+          await self.deferred.promise;
           if( angular.isDefined( self.apexDeploymentModel ) )
             self.apexDeploymentModel.listModel.heading = 'Sibling Apex Deployment List';
         }
