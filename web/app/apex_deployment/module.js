@@ -51,6 +51,10 @@ define( function() {
         title: 'Priority',
         type: 'boolean'
       },
+      user: {
+        column: 'user.name',
+        title: 'User'
+      },
       pass: {
         title: 'Pass',
         type: 'boolean'
