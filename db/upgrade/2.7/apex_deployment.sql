@@ -40,7 +40,7 @@ CREATE PROCEDURE patch_apex_deployment()
       SET @sql = CONCAT(
         "CREATE TEMPORARY TABLE apex_deployment_update ",
         "SELECT apex_deployment.id, IFNULL( code.user_id, user.id ) AS user_id ",
-        "FROM patrick_cenozo.user, apex_deployment ",
+        "FROM ", @cenozo, ".user, apex_deployment ",
         "LEFT JOIN code ON apex_deployment.id = code.apex_deployment_id ",
         "WHERE user.name = 'gordonch' ",
         "AND apex_deployment.pass IS NOT NULL ",
