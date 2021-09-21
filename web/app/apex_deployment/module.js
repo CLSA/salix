@@ -96,6 +96,16 @@ define( function() {
       type: 'string',
       isConstant: true
     },
+    user_id: {
+      column: 'apex_deployment.user_id',
+      title: 'User',
+      type: 'lookup-typeahead',
+      typeahead: {
+        table: 'user',
+        select: 'CONCAT( user.first_name, " ", user.last_name, " (", user.name, ")" )',
+        where: [ 'user.first_name', 'user.last_name', 'user.name' ]
+      }
+    },
     pass: { type: 'boolean', isExcluded: true }, // used by CnApexDeploymentViewFactory::patch
     note: { type: 'hidden' },
     scan_type_id: { column: 'apex_scan.scan_type_id', type: 'hidden' }, // used to restrict code types

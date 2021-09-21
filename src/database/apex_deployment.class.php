@@ -24,11 +24,13 @@ class apex_deployment extends \cenozo\database\record
     {
       if( '' === $this->pass ) // when changing to null pass will be an empty string
       {
+        $this->user_id = NULL;
         $this->status = 'pending';
         $this->analysis_datetime = NULL;
       }
       else
       {
+        if( is_null( $this->user_id ) ) $this->user_id = lib::create( 'business\session' )->get_user()->id;
         if( 'pending' == $this->status ) $this->status = 'completed';
         if( is_null( $this->analysis_datetime ) ) $this->analysis_datetime = util::get_datetime_object();
       }

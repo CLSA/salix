@@ -2,6 +2,8 @@
 
 SET AUTOCOMMIT=0;
 
+SOURCE apex_deployment.sql
+
 SOURCE update_version_number.sql
 
 COMMIT;
