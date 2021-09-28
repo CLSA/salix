@@ -491,35 +491,37 @@ define( function() {
           var self = this;
           await this.$$getMetadata();
 
-          var response = await CnHttpFactory.instance( {
-            path: 'apex_host',
-            data: {
-              select: { column: [ 'id', 'name' ] },
-              modifier: { order: { name: false }, limit: 1000 }
-            }
-          } ).query();
+          var [apexHostResponse, codeTypeResponse] = await Promise.all( [
+            CnHttpFactory.instance( {
+              path: 'apex_host',
+              data: {
+                select: { column: [ 'id', 'name' ] },
+                modifier: { order: { name: false }, limit: 1000 }
+              }
+            } ).query(),
+
+            CnHttpFactory.instance( {
+              path: 'code_type',
+              data: {
+                select: { column: [ 'id', 'code', 'description', 'scan_type_id_list' ] },
+                modifier: { order: 'code', limit: 1000 }
+              }
+            } ).query()
+          ] );
 
           this.metadata.columnList.apex_host_id.enumList = [];
-          response.data.forEach( function( item ) {
+          apexHostResponse.data.forEach( function( item ) {
             self.metadata.columnList.apex_host_id.enumList.push( {
               value: item.id,
               name: item.name
             } );
           } );
 
-          var response = await CnHttpFactory.instance( {
-            path: 'code_type',
-            data: {
-              select: { column: [ 'id', 'code', 'description', 'scan_type_id_list' ] },
-              modifier: { order: 'code', limit: 1000 }
-            }
-          } ).query();
-
           // convert the id list into an array if integers
-          response.data.forEach(
+          codeTypeResponse.data.forEach(
             item => item.scan_type_id_list = item.scan_type_id_list.split( ',' ).map( id => parseInt(id) )
           );
-          this.metadata.codeTypeList = response.data;
+          this.metadata.codeTypeList = codeTypeResponse.data;
         };
       };
 
