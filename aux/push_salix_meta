@@ -159,9 +159,9 @@ foreach( $host_list as $host_item )
     'OR DATALENGTH(POSTAL)>0 '.
     'OR DATALENGTH(COUNTRY)>0) '.
     'AND SERIAL_NUMBER IN (%s) '.
-    'AND IDENTIFIER1 NOT IN (%s)',
+    "AND IDENTIFIER1 NOT IN ('%s')",
     implode(',',$ANONYMIZE_DEVICES),
-    implode(',',$PHANTOM_IDS)
+    implode("','",$PHANTOM_IDS)
     );
 
   $res = $db_dexa->get_one( $sql );
@@ -278,8 +278,9 @@ foreach( $host_list as $host_item )
         'AND side="%s" '.
         'AND uid="%s" '.
         'AND rank=1', DB_PREFIX, $host_item['id'], $type, $side, $uid);
+
       $res = $db_salix->get_row( $sql );
-      if( false !== $res && array_key_exists( 'patient_key', $res ) )
+      if( false !== $res && !is_null( $res ) && array_key_exists( 'patient_key', $res ) )
       {
         $patient_key = $res['patient_key'];
       }
