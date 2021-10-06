@@ -173,7 +173,9 @@ foreach($collector_list as $type)
   $collector = new scan_collector($db_salix, DB_PREFIX, $type);
 
   if('wbody' == $type)
-    $collector->set_rank_restrictions(array(1));
+    $collector->set_rank_restrictions(array(1,2));
+  if('spine' == $type)
+    $collector->set_rank_restrictions(array(2));
 
   write_log(sprintf('--------------------TYPE = %s --------',$type));
 

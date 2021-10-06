@@ -59,6 +59,9 @@ class scan_collector
     return array_key_exists($uid, $this->deployed_scans) ? $this->deployed_scans[$uid] : null;
   }
 
+  // partition the scans of the current type into deployed 
+  // and candidate (awaiting deployment to a host) categories per uid
+  //
   public function collect_scans()
   {
     $this->build_collection_query();
@@ -112,6 +115,10 @@ class scan_collector
     return true;
   }
 
+  // construct sql query to find deployed and candidate scans
+  // accounting for contraindicated exams where a forearm scan
+  // supplants one of the other scan types
+  //
   protected function build_collection_query()
   {
     if('forearm' == $this->scan_type)
@@ -153,7 +160,7 @@ class scan_collector
         'WHERE t2.id IS NULL '.
         'AND type="forearm" '.
         (0 < count($this->rank_restrictions) ?
-         sprintf('AND rank IN (%s) ',implode($this->rank_restrictions)) : '').
+         sprintf('AND rank IN (%s) ',implode(',',$this->rank_restrictions)) : '').
         'AND availability=1 '.
         'ORDER BY uid, rank, side', $this->db_prefix);
     }
@@ -176,7 +183,7 @@ class scan_collector
         'LEFT JOIN apex_deployment d ON d.apex_scan_id=s.id  '.
         'WHERE type="%s" '.
         (0 < count($this->rank_restrictions) ?
-         sprintf('AND rank IN (%s) ',implode($this->rank_restrictions)) : '').
+         sprintf('AND rank IN (%s) ',implode(',',$this->rank_restrictions)) : '').
         'AND availability=1 '.
         'AND (invalid IS NULL OR invalid=0) '.
         'ORDER BY uid, rank', $this->db_prefix, $this->scan_type);
