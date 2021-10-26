@@ -398,15 +398,14 @@ cenozoApp.defineModule( { name: 'apex_deployment', models: ['add', 'list', 'view
           }
         } );
 
-        var self = this;
-        async function init() {
+        async function init( object ) {
           // customize the scan list heading
-          await self.deferred.promise;
-          if( angular.isDefined( self.apexDeploymentModel ) )
-            self.apexDeploymentModel.listModel.heading = 'Sibling Apex Deployment List';
+          await object.deferred.promise;
+          if( angular.isDefined( object.apexDeploymentModel ) )
+            object.apexDeploymentModel.listModel.heading = 'Sibling Apex Deployment List';
         }
 
-        init();
+        init( this );
       };
       return { instance: function( parentModel, root ) { return new object( parentModel, root ); } };
     }
