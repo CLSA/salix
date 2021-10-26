@@ -1,7 +1,5 @@
-define( function() {
-  'use strict';
+cenozoApp.defineModule( { name: 'apex_deployment', models: ['add', 'list', 'view'], create: module => {
 
-  try { var module = cenozoApp.module( 'apex_deployment', true ); } catch( err ) { console.warn( err ); return; }
   angular.extend( module, {
     identifier: {
       parent: {
@@ -192,36 +190,6 @@ define( function() {
   } );
 
   /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnApexDeploymentAdd', [
-    'CnApexDeploymentModelFactory',
-    function( CnApexDeploymentModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'add.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexDeploymentModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnApexDeploymentList', [
-    'CnApexDeploymentModelFactory',
-    function( CnApexDeploymentModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'list.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexDeploymentModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
   cenozo.providers.directive( 'cnApexDeploymentView', [
     'CnApexDeploymentModelFactory',
     function( CnApexDeploymentModelFactory ) {
@@ -238,24 +206,6 @@ define( function() {
           ];
         }
       };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexDeploymentAddFactory', [
-    'CnBaseAddFactory',
-    function( CnBaseAddFactory ) {
-      var object = function( parentModel ) { CnBaseAddFactory.construct( this, parentModel ); };
-      return { instance: function( parentModel ) { return new object( parentModel ); } };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexDeploymentListFactory', [
-    'CnBaseListFactory',
-    function( CnBaseListFactory ) {
-      var object = function( parentModel ) { CnBaseListFactory.construct( this, parentModel ); };
-      return { instance: function( parentModel ) { return new object( parentModel ); } };
     }
   ] );
 
@@ -532,4 +482,4 @@ define( function() {
     }
   ] );
 
-} );
+} } );

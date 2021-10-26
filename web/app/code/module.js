@@ -1,7 +1,5 @@
-define( function() {
-  'use strict';
+cenozoApp.defineModule( { name: 'code', models: ['add', 'list', 'view'], create: module => {
 
-  try { var module = cenozoApp.module( 'code', true ); } catch( err ) { console.warn( err ); return; }
   angular.extend( module, {
     identifier: {},
     name: {
@@ -40,78 +38,6 @@ define( function() {
       }
     }
   } );
-
-  /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnCodeAdd', [
-    'CnCodeModelFactory',
-    function( CnCodeModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'add.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnCodeModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnCodeList', [
-    'CnCodeModelFactory',
-    function( CnCodeModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'list.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnCodeModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnCodeView', [
-    'CnCodeModelFactory',
-    function( CnCodeModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'view.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnCodeModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnCodeAddFactory', [
-    'CnBaseAddFactory',
-    function( CnBaseAddFactory ) {
-      var object = function( parentModel ) { CnBaseAddFactory.construct( this, parentModel ); };
-      return { instance: function( parentModel ) { return new object( parentModel ); } };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnCodeListFactory', [
-    'CnBaseListFactory',
-    function( CnBaseListFactory ) {
-      var object = function( parentModel ) { CnBaseListFactory.construct( this, parentModel ); };
-      return { instance: function( parentModel ) { return new object( parentModel ); } };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnCodeViewFactory', [
-    'CnBaseViewFactory',
-    function( CnBaseViewFactory ) {
-      var object = function( parentModel, root ) { CnBaseViewFactory.construct( this, parentModel, root ); };
-      return { instance: function( parentModel, root ) { return new object( parentModel, root ); } };
-    }
-  ] );
 
   /* ######################################################################################################## */
   cenozo.providers.factory( 'CnCodeModelFactory', [
@@ -153,4 +79,4 @@ define( function() {
     }
   ] );
 
-} );
+} } );
