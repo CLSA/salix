@@ -300,16 +300,9 @@ cenozoApp.defineModule( { name: 'apex_deployment', models: ['add', 'list', 'view
           },
 
           onView: async function( force ) {
-            var self = this;
             this.isComplete = false;
             this.fileExists = false;
             await this.$$onView( force );
-
-            // do not allow exported deployments to be edited
-            this.parentModel.getEditEnabled = null == this.record.status || 'exported' == this.record.status
-                                            ? function() { return false; }
-                                            : function() { return self.parentModel.$$getEditEnabled(); };
-
             await this.parentModel.metadata.getPromise();
 
             // get a limited list of code types which apply to this deployment's scan type
@@ -318,7 +311,7 @@ cenozoApp.defineModule( { name: 'apex_deployment', models: ['add', 'list', 'view
             );
 
             this.isComplete = true;
-            this.codeTypeList.forEach( function( codeType ) { self.record['codeType'+codeType.id] = false; } );
+            this.codeTypeList.forEach( codeType => { this.record['codeType'+codeType.id] = false; } );
 
             // set all code values to false then get the scan's codes
             var response = await CnHttpFactory.instance( {
@@ -326,7 +319,7 @@ cenozoApp.defineModule( { name: 'apex_deployment', models: ['add', 'list', 'view
               data: { select: { column: [ 'code_type_id' ] } }
             } ).query();
 
-            response.data.forEach( function( code ) { self.record['codeType'+code.code_type_id] = true; } );
+            response.data.forEach( code => { this.record['codeType'+code.code_type_id] = true; } );
 
             // determine whether the report is available
             var response = await CnHttpFactory.instance( {
@@ -437,7 +430,6 @@ cenozoApp.defineModule( { name: 'apex_deployment', models: ['add', 'list', 'view
 
         // extend getMetadata
         this.getMetadata = async function() {
-          var self = this;
           await this.$$getMetadata();
 
           var [apexHostResponse, codeTypeResponse] = await Promise.all( [
@@ -458,13 +450,13 @@ cenozoApp.defineModule( { name: 'apex_deployment', models: ['add', 'list', 'view
             } ).query()
           ] );
 
-          this.metadata.columnList.apex_host_id.enumList = [];
-          apexHostResponse.data.forEach( function( item ) {
-            self.metadata.columnList.apex_host_id.enumList.push( {
+          this.metadata.columnList.apex_host_id.enumList = apexHostResponse.data.reduce( ( list, item ) => {
+            list.push( {
               value: item.id,
               name: item.name
             } );
-          } );
+            return list;
+          }, [] );
 
           // convert the id list into an array if integers
           codeTypeResponse.data.forEach(
