@@ -22,6 +22,7 @@ class module extends \cenozo\service\module
     parent::validate();
 
     $service_class_name = lib::get_class_name( 'service\service' );
+    $db_role = lib::create( 'business\session' )->get_role();
     $method = $this->get_method();
 
     if( 300 > $this->get_status()->get_code() )
@@ -35,10 +36,24 @@ class module extends \cenozo\service\module
         {
           if( !is_null( $status ) ) $this->get_status()->set_code( 403 );
         }
-        // do not allow editing if the deployment is exported or null
-        else
+        // do not allow editing if the deployment is exported or null (except for the pass property by admins only)
+        else if( 'PATCH' == $method )
         {
-          if( is_null( $status ) || 'exported' == $status ) $this->get_status()->set_code( 403 );
+          if( is_null( $status ) || 'exported' == $status )
+          {
+            $not_allowed = false;
+            if( 3 > $db_role->tier ) $not_allowed = true;
+            else foreach( array_keys( $this->get_file_as_array() ) as $column )
+            {
+              if( 'pass' != $column )
+              {
+                $not_allowed = true;
+                break;
+              }
+            }
+
+            if( $not_allowed ) $this->get_status()->set_code( 403 );
+          }
         }
       }
     }

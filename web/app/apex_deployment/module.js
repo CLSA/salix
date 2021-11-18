@@ -1,7 +1,5 @@
-define( function() {
-  'use strict';
+cenozoApp.defineModule( { name: 'apex_deployment', models: ['add', 'list', 'view'], create: module => {
 
-  try { var module = cenozoApp.module( 'apex_deployment', true ); } catch( err ) { console.warn( err ); return; }
   angular.extend( module, {
     identifier: {
       parent: {
@@ -192,36 +190,6 @@ define( function() {
   } );
 
   /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnApexDeploymentAdd', [
-    'CnApexDeploymentModelFactory',
-    function( CnApexDeploymentModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'add.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexDeploymentModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnApexDeploymentList', [
-    'CnApexDeploymentModelFactory',
-    function( CnApexDeploymentModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'list.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexDeploymentModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
   cenozo.providers.directive( 'cnApexDeploymentView', [
     'CnApexDeploymentModelFactory',
     function( CnApexDeploymentModelFactory ) {
@@ -238,24 +206,6 @@ define( function() {
           ];
         }
       };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexDeploymentAddFactory', [
-    'CnBaseAddFactory',
-    function( CnBaseAddFactory ) {
-      var object = function( parentModel ) { CnBaseAddFactory.construct( this, parentModel ); };
-      return { instance: function( parentModel ) { return new object( parentModel ); } };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexDeploymentListFactory', [
-    'CnBaseListFactory',
-    function( CnBaseListFactory ) {
-      var object = function( parentModel ) { CnBaseListFactory.construct( this, parentModel ); };
-      return { instance: function( parentModel ) { return new object( parentModel ); } };
     }
   ] );
 
@@ -350,16 +300,9 @@ define( function() {
           },
 
           onView: async function( force ) {
-            var self = this;
             this.isComplete = false;
             this.fileExists = false;
             await this.$$onView( force );
-
-            // do not allow exported deployments to be edited
-            this.parentModel.getEditEnabled = null == this.record.status || 'exported' == this.record.status
-                                            ? function() { return false; }
-                                            : function() { return self.parentModel.$$getEditEnabled(); };
-
             await this.parentModel.metadata.getPromise();
 
             // get a limited list of code types which apply to this deployment's scan type
@@ -368,7 +311,7 @@ define( function() {
             );
 
             this.isComplete = true;
-            this.codeTypeList.forEach( function( codeType ) { self.record['codeType'+codeType.id] = false; } );
+            this.codeTypeList.forEach( codeType => { this.record['codeType'+codeType.id] = false; } );
 
             // set all code values to false then get the scan's codes
             var response = await CnHttpFactory.instance( {
@@ -376,7 +319,7 @@ define( function() {
               data: { select: { column: [ 'code_type_id' ] } }
             } ).query();
 
-            response.data.forEach( function( code ) { self.record['codeType'+code.code_type_id] = true; } );
+            response.data.forEach( code => { this.record['codeType'+code.code_type_id] = true; } );
 
             // determine whether the report is available
             var response = await CnHttpFactory.instance( {
@@ -448,15 +391,14 @@ define( function() {
           }
         } );
 
-        var self = this;
-        async function init() {
+        async function init( object ) {
           // customize the scan list heading
-          await self.deferred.promise;
-          if( angular.isDefined( self.apexDeploymentModel ) )
-            self.apexDeploymentModel.listModel.heading = 'Sibling Apex Deployment List';
+          await object.deferred.promise;
+          if( angular.isDefined( object.apexDeploymentModel ) )
+            object.apexDeploymentModel.listModel.heading = 'Sibling Apex Deployment List';
         }
 
-        init();
+        init( this );
       };
       return { instance: function( parentModel, root ) { return new object( parentModel, root ); } };
     }
@@ -488,38 +430,39 @@ define( function() {
 
         // extend getMetadata
         this.getMetadata = async function() {
-          var self = this;
           await this.$$getMetadata();
 
-          var response = await CnHttpFactory.instance( {
-            path: 'apex_host',
-            data: {
-              select: { column: [ 'id', 'name' ] },
-              modifier: { order: { name: false }, limit: 1000 }
-            }
-          } ).query();
+          var [apexHostResponse, codeTypeResponse] = await Promise.all( [
+            CnHttpFactory.instance( {
+              path: 'apex_host',
+              data: {
+                select: { column: [ 'id', 'name' ] },
+                modifier: { order: { name: false }, limit: 1000 }
+              }
+            } ).query(),
 
-          this.metadata.columnList.apex_host_id.enumList = [];
-          response.data.forEach( function( item ) {
-            self.metadata.columnList.apex_host_id.enumList.push( {
+            CnHttpFactory.instance( {
+              path: 'code_type',
+              data: {
+                select: { column: [ 'id', 'code', 'description', 'scan_type_id_list' ] },
+                modifier: { order: 'code', limit: 1000 }
+              }
+            } ).query()
+          ] );
+
+          this.metadata.columnList.apex_host_id.enumList = apexHostResponse.data.reduce( ( list, item ) => {
+            list.push( {
               value: item.id,
               name: item.name
             } );
-          } );
-
-          var response = await CnHttpFactory.instance( {
-            path: 'code_type',
-            data: {
-              select: { column: [ 'id', 'code', 'description', 'scan_type_id_list' ] },
-              modifier: { order: 'code', limit: 1000 }
-            }
-          } ).query();
+            return list;
+          }, [] );
 
           // convert the id list into an array if integers
-          response.data.forEach(
+          codeTypeResponse.data.forEach(
             item => item.scan_type_id_list = item.scan_type_id_list.split( ',' ).map( id => parseInt(id) )
           );
-          this.metadata.codeTypeList = response.data;
+          this.metadata.codeTypeList = codeTypeResponse.data;
         };
       };
 
@@ -530,4 +473,4 @@ define( function() {
     }
   ] );
 
-} );
+} } );

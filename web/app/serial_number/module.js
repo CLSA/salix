@@ -1,7 +1,5 @@
-define( function() {
-  'use strict';
+cenozoApp.defineModule( { name: 'serial_number', models: 'list', create: module => {
 
-  try { var module = cenozoApp.module( 'serial_number', true ); } catch( err ) { console.warn( err ); return; }
   angular.extend( module, {
     identifier: {},
     name: {
@@ -25,30 +23,6 @@ define( function() {
   } );
 
   /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnSerialNumberList', [
-    'CnSerialNumberModelFactory',
-    function( CnSerialNumberModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'list.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnSerialNumberModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnSerialNumberListFactory', [
-    'CnBaseListFactory',
-    function( CnBaseListFactory ) {
-      var object = function( parentModel ) { CnBaseListFactory.construct( this, parentModel ); };
-      return { instance: function( parentModel ) { return new object( parentModel ); } };
-    }
-  ] );
-
-  /* ######################################################################################################## */
   cenozo.providers.factory( 'CnSerialNumberModelFactory', [
     'CnBaseModelFactory', 'CnSerialNumberListFactory',
     function( CnBaseModelFactory, CnSerialNumberListFactory ) {
@@ -66,4 +40,4 @@ define( function() {
     }
   ] );
 
-} );
+} } );

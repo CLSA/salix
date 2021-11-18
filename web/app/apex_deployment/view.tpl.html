@@ -24,12 +24,14 @@
              tooltip-placement="left"></i>
         </div>
         Analysis
-        <span ng-if="!model.getEditEnabled()">(read only)</span>
+        <span ng-if="null == model.viewModel.record.status ||
+                     'exported' == model.viewModel.record.status ||
+                     !model.getEditEnabled()">(read only)</span>
         <span ng-if="model.viewModel.isLoading">(Loading&hellip;)</span>
       </h4>
     </div>
     <form name="form" class="form-horizontal" novalidate>
-      <fieldset ng-disabled="model.viewModel.isLoading || !model.getEditEnabled()">
+      <fieldset ng-disabled="model.viewModel.isLoading">
         <div class="form-group collapse" ng-class="{'in':!initCollapsed}" id="apexDeploymentAnalysis">
           <cn-loading ng-if="!model.viewModel.isComplete"></cn-loading>
           <div class="container-fluid form-body" ng-if="model.viewModel.isComplete">
@@ -46,6 +48,9 @@
                       <input type="checkbox"
                              ng-attr-id="codeType{{ codeType.id }}"
                              name="codeType{{ codeType.id }}"
+                             ng-disabled="null == model.viewModel.record.status ||
+                                          'exported' == model.viewModel.record.status ||
+                                          !model.getEditEnabled()"
                              ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
                              ng-model="model.viewModel.record['codeType'+codeType.id]">
                       </input> {{ codeType.code }}
@@ -62,6 +67,9 @@
                       <input type="checkbox"
                              ng-attr-id="codeType{{ codeType.id }}"
                              name="codeType{{ codeType.id }}"
+                             ng-disabled="null == model.viewModel.record.status ||
+                                          'exported' == model.viewModel.record.status ||
+                                          !model.getEditEnabled()"
                              ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
                              ng-model="model.viewModel.record['codeType'+codeType.id]">
                       </input> {{ codeType.code }}
@@ -78,6 +86,9 @@
                       <input type="checkbox"
                              ng-attr-id="codeType{{ codeType.id }}"
                              name="codeType{{ codeType.id }}"
+                             ng-disabled="null == model.viewModel.record.status ||
+                                          'exported' == model.viewModel.record.status ||
+                                          !model.getEditEnabled()"
                              ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
                              ng-model="model.viewModel.record['codeType'+codeType.id]">
                       </input> {{ codeType.code }}
@@ -94,6 +105,9 @@
                       <input type="checkbox"
                              ng-attr-id="codeType{{ codeType.id }}"
                              name="codeType{{ codeType.id }}"
+                             ng-disabled="null == model.viewModel.record.status ||
+                                          'exported' == model.viewModel.record.status ||
+                                          !model.getEditEnabled()"
                              ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
                              ng-model="model.viewModel.record['codeType'+codeType.id]">
                       </input> {{ codeType.code }}
@@ -110,6 +124,9 @@
                       <input type="checkbox"
                              ng-attr-id="codeType{{ codeType.id }}"
                              name="codeType{{ codeType.id }}"
+                             ng-disabled="null == model.viewModel.record.status ||
+                                          'exported' == model.viewModel.record.status ||
+                                          !model.getEditEnabled()"
                              ng-change="model.viewModel.patch( 'codeType'+codeType.id )"
                              ng-model="model.viewModel.record['codeType'+codeType.id]">
                       </input> {{ codeType.code }}
@@ -124,6 +141,7 @@
                 <select name="pass"
                         ng-change="model.viewModel.patch( 'pass' )"
                         ng-model="model.viewModel.record.pass"
+                        ng-disabled="!model.isRole( 'administrator' )"
                         ng-options="item.value as item.name for item in booleanEnumList"
                         class="form-control">
                 </select>
@@ -136,6 +154,9 @@
                           name="note"
                           cn-change="model.viewModel.patch( 'note' )"
                           ng-model="model.viewModel.record.note"
+                          ng-disabled="null == model.viewModel.record.status ||
+                                       'exported' == model.viewModel.record.status ||
+                                       !model.getEditEnabled()"
                           class="form-control"></textarea>
               </div>
             </div>

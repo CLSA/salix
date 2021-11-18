@@ -1,7 +1,5 @@
-define( function() {
-  'use strict';
+cenozoApp.defineModule( { name: 'setting', models: ['list', 'view'], create: module => {
 
-  try { var module = cenozoApp.module( 'setting', true ); } catch( err ) { console.warn( err ); return; }
   angular.extend( module, {
     identifier: {
       parent: {
@@ -44,45 +42,6 @@ define( function() {
       help: 'Determines which Apex Host priority scans are deployed to'
     }
   } );
-
-  /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnSettingList', [
-    'CnSettingModelFactory',
-    function( CnSettingModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'list.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnSettingModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnSettingView', [
-    'CnSettingModelFactory',
-    function( CnSettingModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'view.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnSettingModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnSettingListFactory', [
-    'CnBaseListFactory',
-    function( CnBaseListFactory ) {
-      var object = function( parentModel ) { CnBaseListFactory.construct( this, parentModel ); };
-      return { instance: function( parentModel ) { return new object( parentModel ); } };
-    }
-  ] );
 
   /* ######################################################################################################## */
   cenozo.providers.factory( 'CnSettingViewFactory', [
@@ -137,4 +96,4 @@ define( function() {
     }
   ] );
 
-} );
+} } );

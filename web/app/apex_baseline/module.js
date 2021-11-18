@@ -1,7 +1,5 @@
-define( function() {
-  'use strict';
+cenozoApp.defineModule( { name: 'apex_baseline', models: ['list', 'view'], create: module => {
 
-  try { var module = cenozoApp.module( 'apex_baseline', true ); } catch( err ) { console.warn( err ); return; }
   angular.extend( module, {
     identifier: 'participant.uid',
     name: {
@@ -51,72 +49,4 @@ define( function() {
     }
   } );
 
-  /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnApexBaselineList', [
-    'CnApexBaselineModelFactory',
-    function( CnApexBaselineModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'list.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexBaselineModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnApexBaselineView', [
-    'CnApexBaselineModelFactory',
-    function( CnApexBaselineModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'view.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexBaselineModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexBaselineListFactory', [
-    'CnBaseListFactory',
-    function( CnBaseListFactory ) {
-      var object = function( parentModel ) { CnBaseListFactory.construct( this, parentModel ); };
-      return { instance: function( parentModel ) { return new object( parentModel ); } };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexBaselineViewFactory', [
-    'CnBaseViewFactory',
-    function( CnBaseViewFactory ) {
-      var object = function( parentModel, root ) { CnBaseViewFactory.construct( this, parentModel, root ); };
-      return { instance: function( parentModel, root ) { return new object( parentModel, root ); } };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexBaselineModelFactory', [
-    'CnBaseModelFactory',
-    'CnApexBaselineListFactory', 'CnApexBaselineViewFactory',
-    function( CnBaseModelFactory,
-              CnApexBaselineListFactory, CnApexBaselineViewFactory ) {
-      var object = function( root ) {
-        var self = this;
-        CnBaseModelFactory.construct( this, module );
-        this.listModel = CnApexBaselineListFactory.instance( this );
-        this.viewModel = CnApexBaselineViewFactory.instance( this, root );
-      };
-
-      return {
-        root: new object( true ),
-        instance: function() { return new object( false ); }
-      };
-    }
-  ] );
-
-} );
+} } );

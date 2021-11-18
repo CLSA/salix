@@ -1,7 +1,5 @@
-define( function() {
-  'use strict';
+cenozoApp.defineModule( { name: 'apex_exam', models: ['list', 'view'], create: module => {
 
-  try { var module = cenozoApp.module( 'apex_exam', true ); } catch( err ) { console.warn( err ); return; }
   angular.extend( module, {
     identifier: {
       parent: {
@@ -87,72 +85,4 @@ define( function() {
     }
   } );
 
-  /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnApexExamList', [
-    'CnApexExamModelFactory',
-    function( CnApexExamModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'list.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexExamModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.directive( 'cnApexExamView', [
-    'CnApexExamModelFactory',
-    function( CnApexExamModelFactory ) {
-      return {
-        templateUrl: module.getFileUrl( 'view.tpl.html' ),
-        restrict: 'E',
-        scope: { model: '=?' },
-        controller: function( $scope ) {
-          if( angular.isUndefined( $scope.model ) ) $scope.model = CnApexExamModelFactory.root;
-        }
-      };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexExamListFactory', [
-    'CnBaseListFactory',
-    function( CnBaseListFactory ) {
-      var object = function( parentModel ) { CnBaseListFactory.construct( this, parentModel ); };
-      return { instance: function( parentModel ) { return new object( parentModel ); } };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexExamViewFactory', [
-    'CnBaseViewFactory',
-    function( CnBaseViewFactory ) {
-      var object = function( parentModel, root ) { CnBaseViewFactory.construct( this, parentModel, root ); };
-      return { instance: function( parentModel, root ) { return new object( parentModel, root ); } };
-    }
-  ] );
-
-  /* ######################################################################################################## */
-  cenozo.providers.factory( 'CnApexExamModelFactory', [
-    'CnBaseModelFactory',
-    'CnApexExamListFactory', 'CnApexExamViewFactory',
-    function( CnBaseModelFactory,
-              CnApexExamListFactory, CnApexExamViewFactory ) {
-      var object = function( root ) {
-        var self = this;
-        CnBaseModelFactory.construct( this, module );
-        this.listModel = CnApexExamListFactory.instance( this );
-        this.viewModel = CnApexExamViewFactory.instance( this, root );
-      };
-
-      return {
-        root: new object( true ),
-        instance: function() { return new object( false ); }
-      };
-    }
-  ] );
-
-} );
+} } );
