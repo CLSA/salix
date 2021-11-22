@@ -141,7 +141,7 @@
                 <select name="pass"
                         ng-change="model.viewModel.patch( 'pass' )"
                         ng-model="model.viewModel.record.pass"
-                        ng-disabled="!model.isRole( 'administrator' )"
+                        ng-disabled="!model.getEditEnabled() && !model.isRole( 'administrator' )"
                         ng-options="item.value as item.name for item in booleanEnumList"
                         class="form-control">
                 </select>
