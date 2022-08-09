@@ -25,7 +25,7 @@ class module extends \cenozo\service\module
     $db_role = lib::create( 'business\session' )->get_role();
     $method = $this->get_method();
 
-    if( 300 > $this->get_status()->get_code() )
+    if( $this->service->may_continue() )
     {
       if( $service_class_name::is_write_method( $method ) )
       {

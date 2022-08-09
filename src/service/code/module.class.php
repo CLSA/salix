@@ -24,7 +24,7 @@ class module extends \cenozo\service\module
     $service_class_name = lib::get_class_name( 'service\service' );
     $method = $this->get_method();
 
-    if( 300 > $this->get_status()->get_code() )
+    if( $this->service->may_continue() )
     {
       // do not allow editing if the deployment is exported or null
       if( $service_class_name::is_write_method( $method ) )

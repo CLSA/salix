@@ -23,7 +23,7 @@ class patch extends \cenozo\service\patch
     $service_class_name = lib::get_class_name( 'service\service' );
     $method = $this->get_method();
 
-    if( 300 > $this->get_status()->get_code() )
+    if( $this->may_continue() )
     {
       if( 'PATCH' == $method )
       {
