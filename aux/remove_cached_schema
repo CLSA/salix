@@ -13,6 +13,9 @@ require_once 'settings.local.ini.php';
 require_once $SETTINGS['path']['CENOZO'].'/src/initial.class.php';
 $initial = new \cenozo\initial( true );
 
+// make sure the image file exists
+if( !is_dir( IMAGE_PATH ) ) mkdir( IMAGE_PATH, 0777, true );
+
 // validate arguments
 if( 1 != $argc )
 {

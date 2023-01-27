@@ -32,6 +32,9 @@ define( 'IMAGE_PATH', $settings['path']['TEMPORARY_FILES'] );
 define( 'USER', $settings['utility']['username'] );
 define( 'APEX_SSH_KEY', $settings['apex']['apex_ssh_key'] );
 
+// make sure the image file exists
+if( !is_dir( IMAGE_PATH ) ) mkdir( IMAGE_PATH, 0777, true );
+
 // a lite mysqli wrapper
 require_once( $settings['path']['PHP_UTIL'].'/database.class.php' );
 // a lite odbc wrapper
