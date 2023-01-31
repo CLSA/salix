@@ -376,8 +376,7 @@ cenozoApp.defineModule({
 
               // get a limited list of code types which apply to this deployment's scan type
               this.codeTypeList = this.parentModel.metadata.codeTypeList.filter(
-                (codeType) =>
-                  codeType.scan_type_id_list.includes(this.record.scan_type_id)
+                (codeType) => codeType.scan_type_id_list.includes(this.record.scan_type_id)
               );
 
               this.isComplete = true;
@@ -565,10 +564,10 @@ cenozoApp.defineModule({
 
             // convert the id list into an array if integers
             codeTypeResponse.data.forEach(
-              (item) =>
-                (item.scan_type_id_list = item.scan_type_id_list
-                  .split(",")
-                  .map((id) => parseInt(id)))
+              (item) => (
+                item.scan_type_id_list = null == item.scan_type_id_list ?
+                  [] : item.scan_type_id_list.split(",").map((id) => parseInt(id))
+              )
             );
             this.metadata.codeTypeList = codeTypeResponse.data;
           };
