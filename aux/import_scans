@@ -76,12 +76,18 @@ function dgate_command( $address, $arg )
 }
 
 /*-------------MAIN PROGRAM-----------*/
-
-// optional arguments: limit on number of scans
-// type of scan to apply weights to. Default is hip.
+// see daily_cron for example use of args
 //
-$deployment_total = 200;
-$deployment_type = 'hip';
+// optional arguments: limit on number of scans (eg. 100),
+// type of scan to apply weights to. Default is hip.
+// Each APEX host at baseline has a percentage of scans attribute
+// to spread the workload to specific hosts.  For example, with wbody scans
+// all hosts were assigned 1/3 of the total baseline scans.  Since followup
+// scans must thereafter be paired with their baseline sibling, the weighting
+// after baseline is ignore.
+//
+$deployment_total = 200; // default number of scans per run of this script
+$deployment_type = 'hip'; // default type
 if( 2 <= $argc )
 {
   $deployment_total = $argv[1];
@@ -91,6 +97,8 @@ if( 2 <= $argc )
   }
 }
 
+// the database object that accepts mysql statements
+//
 $db_salix = null;
 try
 {
@@ -103,6 +111,8 @@ catch( Exception $e )
   return 0;
 }
 
+// the quota / weight for each host
+//
 $sql = 'SELECT *, 0 AS quota FROM apex_host';
 $res = $db_salix->get_all( $sql );
 $host_list = array();
@@ -113,7 +123,7 @@ foreach( $res as $item )
   $host_list[$name] = $item;
 }
 
-// verify that for the deployment type that has more than one
+// verify that for the dexa scan type that has more than one
 // side and for each host that the weights are equal
 //
 $sql =
@@ -142,7 +152,7 @@ foreach($res as $item)
     if($host_list[$name][$type]['left'] !=
        $host_list[$name][$type]['right'])
     {
-      write_log('ERROR: asymetric weights');
+      write_log('ERROR: asymmetric weights');
       return 0;
     }
   }
@@ -159,11 +169,17 @@ $sql =
   'group by type order by type';
 
 $res = $db_salix->get_all($sql);
+
+// assert results
+//
 if(false === $res || !is_array($res))
 {
   return 0;
 }
 
+// determine how may of the total requested scans to import
+// for each host based on the hosts quota
+//
 foreach($res as $item)
 {
   $type = $item['type'];
@@ -186,6 +202,10 @@ foreach( $host_list as $name => $item )
   $host_list[$name]['quota'] = intval( round( $percent * $deployment_total ) );
 }
 
+// Get deployments for scans that have not been scp'd to each
+// target APEX host.  Priority scans flagged in
+// Salix UI will be analyzed first.
+//
 $scan_list = array();
 foreach( $host_list as $name => $item )
 {
@@ -226,6 +246,9 @@ foreach( $host_list as $name => $item )
   if( false === $data_list || !is_array( $data_list ) ||
     0 == count( $data_list ) ) continue;
 
+  // aggregate the deployment data into a per scan data structure, tracking
+  // flagged priority records
+  //
   $current_uid = NULL;
   $priority_keys = array();
   $current_list = array();
@@ -250,7 +273,7 @@ foreach( $host_list as $name => $item )
     if( 1 == $item->priority ) $priority_keys[] = $item->uid;
   }
 
-  // prioritize scans
+  // prioritize scans to the front of the queue
   //
   if( 0 < count( $priority_keys ) )
   {
@@ -261,6 +284,8 @@ foreach( $host_list as $name => $item )
     }
   }
 
+  // honor quota restrictions while maintaining groupings of sibling scans
+  //
   if( 0 < $quota )
   {
     if( $quota < $num_scans )
@@ -283,12 +308,12 @@ foreach( $host_list as $name => $item )
     $scan_list[$name] = $current_list;
 }
 
-// connect to opal source to download scans using curl
+// connect to opal source to download scans (binary blobs) using curl
 //
 $opal_curl = new opalcurl( OPAL_SERVER, OPAL_PORT, OPAL_USERNAME, OPAL_PASSWORD );
 $opal_curl->set_datasource( 'salix' );
 
-// verify that on each host, both conquest dicom server and APEX are running
+// verify that on each host, both the incoming Conquest dicom server and APEX are running
 //
 $verify_host_list = array_keys( $scan_list );
 foreach( $verify_host_list as $name )
@@ -308,6 +333,9 @@ foreach( $verify_host_list as $name )
 
   $host_address = $host_list[$name]['host'];
 
+  // send a ping command to Conquest dgate to verify the incoming Conquest dicom server
+  // is running and can receive dicom files scp'd from the Salix server
+  //
   $res = dgate_command( $host_address, '--echo:CONQUESTSRV1' );
   if( NULL === $res || ( false === strpos( $res, 'UP' ) ) )
   {
@@ -315,6 +343,9 @@ foreach( $verify_host_list as $name )
     return 0;
   }
 
+  // send a ping command to verify Apex sofware is running and can receive
+  // dicom send commands from the incoming Conquest dicom server
+  //
   $res = ssh_command( $host_address, ' tasklist /FI \"IMAGENAME eq qdr.exe\" /FO LIST' );
   if( NULL === $res || ( false === strpos( $res, 'qdr.exe' ) ) )
   {
@@ -332,6 +363,8 @@ $process_list = array(
   'num_verify' => array()
   );
 
+// for each Apex host process the list of identifiers / barcodes
+//
 foreach( $scan_list as $name => $identifier_list )
 {
   $db_dexa_server = strtoupper( $name );
@@ -339,6 +372,8 @@ foreach( $scan_list as $name => $identifier_list )
   $db_dexa_password = $host_list[$name]['sql_pass'];
   $host_address = $host_list[$name]['host'];
 
+  // establish a connection to the current host's Apex MS SQL server
+  //
   $db_dexa = null;
   try
   {
@@ -352,36 +387,50 @@ foreach( $scan_list as $name => $identifier_list )
 
   $num_transfer = 0;
   $num_candidate = 0;
+
+  // for each set of scans of the same type and side belonging to a partcipant UID
+  // process each scan.  The item / scan list is determined previously to honor quota restrictions.
+  //
   foreach( $identifier_list as $uid => $item_list )
   {
     foreach( $item_list as $item )
     {
+      // get the scan file and its name if successfully copied via curl from opal to the Salix storage folder
+      //
       $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
       $num_candidate++;
       if( NULL !== $filename )
       {
-        // run gdcmconv -E -w the_file.dcm the_file.dcm
+        // run gdcmconv -E -w the_file.dcm the_file.dcm to fix end of file characters and other anomalies
         //
         exec( sprintf( 'gdcmconv -E -w %s %s', $filename, $filename ) );
 
-        // scp the_file.dcm to the host E:\InComing dir
-        //
+        // scp the_file.dcm to the Apex host E:\InComing directory
+	// determine the name of the subdirectory based on baseline barcode and scan type
+	//
         $subpath = '';
         if( 'none' == $item->side )
           $subpath = sprintf( '%s/%s', $item->type, $item->barcode );
         else
           $subpath = sprintf( '%s/%s/%s', $item->type, $item->side, $item->barcode );
 
+	// create the target directory on the Apex host
+	//
         $res = ssh_command( $host_address, 'mkdir /cygdrive/e/InComing/' . $subpath );
 
         $base = basename( $filename );
 
         $res = scp_command( $host_address, $filename, $subpath . '/' . $base );
 
+	// store a backup of the original dicom file on the Apex host for debug and other purposes
+	// in root E:/ORIGINAL
+	//
         $item->import_datetime = date( 'Y-m-d H:i:s' );
         $item->copy_from = '/cygdrive/e/InComing/' . $subpath . '/' . $base;
         $item->copy_to = '/cygdrive/e/ORIGINAL/' . $subpath . '/' . $base;
 
+	// dispose of the file on this Salix host.  Failed transfers are re-attempted on the next daily cron
+	//
         unlink( $filename );
         $num_transfer++;
       }
@@ -392,7 +441,7 @@ foreach( $scan_list as $name => $identifier_list )
   //
   sleep(30);
 
-  // remotely run the conquest dicom server to rebuild its db
+  // remotely run the Conquest dicom server command to rebuild its database
   //
   $res = dgate_command( $host_address, '--initializetables' );
   if( '' != $res )
@@ -400,7 +449,7 @@ foreach( $scan_list as $name => $identifier_list )
     write_log( sprintf( 'ERROR: %s failed to initialize conquest dicom server tables: %s', $name, $res ) );
   }
 
-  // regenerate the conquest dicom server db from files in E:\InComing
+  // regenerate the Conquest dicom server database by scraping files in E:\InComing
   //
   $res = dgate_command( $host_address, '--regendevice:MAG0' );
   if( '' != $res )
@@ -408,7 +457,7 @@ foreach( $scan_list as $name => $identifier_list )
     write_log( sprintf( 'ERROR: %s failed to regenerate conquest dicom server image db: %s', $name, $res ) );
   }
 
-  // dicom C-Move files to Apex
+  // dicom C-Move files from Conquest incoming to Apex
   //
   $res = dgate_command( $host_address, sprintf( '--movepatient:CONQUESTSRV1,DEXA_%s,*', $name ) );
   if( 0 != $res )
@@ -418,7 +467,7 @@ foreach( $scan_list as $name => $identifier_list )
 
   sleep(30);
 
-  // query Apex MS SQL Server db to verify transfer
+  // query Apex MS SQL database to verify dicom C-move
   //
   $sql_str =
       'SELECT p.PATIENT_KEY patient_key, '.
@@ -431,7 +480,7 @@ foreach( $scan_list as $name => $identifier_list )
       'WHERE s.SCAN_TYPE=%d '.
       "AND p.IDENTIFIER1='%s'";
 
-  // reloop through this host's set of scan items
+  // reloop through this host's set of scan items and run the SQL query
   //
   $num_verify = 0;
   foreach( $identifier_list as $uid => $item_list )
@@ -491,12 +540,16 @@ foreach( $scan_list as $name => $identifier_list )
       }
     }
   }
+  // track what has been done
+  //
   $process_list['name'][] = $name;
   $process_list['num_transfer'][] = $num_transfer;
   $process_list['num_candidate'][] = $num_candidate;
   $process_list['num_verify'][] = $num_verify;
 }
 
+// log what has been done
+//
 write_log( sprintf( 'hosts [%s] candidates [%s] transfers [%s] verified [%s]',
     implode( '/', $process_list['name'] ),
     implode( '/', $process_list['num_candidate'] ),
