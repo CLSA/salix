@@ -3,14 +3,18 @@
 /**
  * push_salix_meta.php
  *
- * A script which will push meta data from salix to an APEX host database.
- * Images imported from Opal into APEX cause the embedded proprietary patient
- * biography to be created in the APEX PATIENT and ScanAnalysis db tables.
- * Images may contain erroneous biographical and identifying information
- * whereas salix db tables contain "cleaned" data.  This script updates
- * the APEX db tables with cleaned data and de-identifies all biographical
- * information.
- * A check is also performed on precision of age, bmi, height and weight data
+ * This script pushes participant and scan meta data from salix to an APEX host MS SQL database.
+ * Dicom images imported from Opal and then pushed by Conquest dicom server using C-move 
+ * into APEX causes the embedded proprietary patient biography to be created in the APEX 
+ * PATIENT and ScanAnalysis db tables.  The patient biography is stored in a private Dicom entry
+ * and cannot be updated before the import into Apex.  Corrections and updates to patient data,
+ * including gender, ethinicty, DOB, height and weight can only be effected by MS SQL statements.
+ * Corrections may be required due to operator entry errors at the time of sanning at one of
+ * the DCS sites.  Images may also contain identifying information, such as the participant's name,
+ * whereas salix db tables contain "cleaned" data based on Cypress and other verified data sources.
+ * 
+ * This script updates the APEX db tables with cleaned data and de-identifies all biographical
+ * information.  A check is also performed on numerical precision of age, bmi, height and weight data
  * and updated in APEX accordingly.
  *
  * @author Dean Inglis <inglisd@mcmaster.ca>
@@ -45,12 +49,17 @@ function write_log( $message )
   );
 }
 
+// patient biographic data in APEX db table columns grouped for script logic
+//
+//
 $QUOTED_FIELDS = array(
   'SEX',
   'BIRTHDATE',
   'ETHNICITY'
 );
 
+// strictly numeric related APEX db table columns that may require updates to precision
+//
 $PRECISION_FIELDS = array(
   'ADJUSTED_AGE' => 2,
   'BMI' => 1,
@@ -58,13 +67,19 @@ $PRECISION_FIELDS = array(
   'WEIGHT' => 1
 );
 
-// phantom ID fields having an APEX patient name descriptor
+// Scan phantom ID fields having an APEX patient name descriptor.  Scans 
+// of phantoms should be ignored by this script.
+//
 $PHANTOM_IDS = array(
   16066,
   1037
 );
 
-// serial numbers of devices with scans requiring anonymization
+// serial numbers of the Hologic Dexa system with scans requiring anonymization.
+// Each machine has a unique serial number embedded in the dicom
+// tag of files produced by the Apex software running on the DCS hosted machines.
+// This ID tag can be used for validating scans back to participant interviews etc.
+//
 $ANONYMIZE_DEVICES = array(
   85921,
   85968,
@@ -81,6 +96,7 @@ $ANONYMIZE_DEVICES = array(
 
 // the status of deployments requiring anonymization and basic
 // morphometry repair (eg., height, weight etc.)
+//
 $STATUS='pending';
 
 /*-------------MAIN PROGRAM-----------*/
@@ -103,6 +119,9 @@ catch( Exception $e )
   return 0;
 }
 
+
+// Get the list of Apex hosts
+//
 $sql = 'SELECT * FROM apex_host';
 $host_list = $db_salix->get_all( $sql );
 if( false === $host_list || !is_array( $host_list ) ||
@@ -112,6 +131,8 @@ if( false === $host_list || !is_array( $host_list ) ||
   return 0;
 }
 
+// Counters to track and report key processing elements for debug purposes
+//
 $process_list = array(
   'name' => array(),
   'total' => array(),
@@ -120,6 +141,10 @@ $process_list = array(
   'num_analysis' => array(),
   'num_analysis_item' => array()
   );
+
+
+// Loop over the of-line Apex analysis hosts 
+//
 foreach( $host_list as $host_item )
 {
   if( NULL != $dexa_host_option && $dexa_host_option != $host_item['name'] )
@@ -140,8 +165,8 @@ foreach( $host_list as $host_item )
     continue;
   }
 
-  // Anonymize all patient biography data populated from the dicom image import
-  //
+  // MS SQL query to anonymize all patient biography data that was populated by dicom image import
+  // 
   $sql = sprintf(
     'SELECT COUNT(*) '.
     'FROM PatScan.dbo.PATIENT p '.
@@ -164,6 +189,9 @@ foreach( $host_list as $host_item )
     implode("','",$PHANTOM_IDS)
     );
 
+  // If there are records requiring anonymization, construct the MS SQL
+  // to set those fields to null
+  //
   $res = $db_dexa->get_one( $sql );
   if( false !== $res && 0 < $res )
   {
@@ -196,7 +224,7 @@ foreach( $host_list as $host_item )
     $db_dexa->execute( $sql );
   }
 
-  // retrieve correct meta data from salix
+  // Retrieve correct meta data from Salix db
   //
   $sql = sprintf(
     'SELECT '.
@@ -237,7 +265,7 @@ foreach( $host_list as $host_item )
     continue;
   }
 
-  // Loop over the salix records, searching the APEX host db for
+  // Loop over the Salix records, searching the APEX host db for
   // corresponding records
   //
   $total = count( $deployment_list );
@@ -286,6 +314,8 @@ foreach( $host_list as $host_item )
       }
     }
 
+    // Fix numeric data accordingly
+    //
     $deployment_item['ADJUSTED_AGE'] = $diff->y + $diff->m / 12.0 + $diff->d / 365.25;
 
     $deployment_item['BMI'] = 0 < $deployment_item['HEIGHT'] ?
@@ -294,7 +324,8 @@ foreach( $host_list as $host_item )
     $dexa_patient = null;
     if( 1 == $rank )
     {
-      // get the info from PATIENT table
+    // get the current info from Apex PATIENT table
+    //
       $sql = sprintf(
         "SELECT FORMAT(BIRTHDATE, 'yyyy-MM-dd') BIRTHDATE, SEX, ETHNICITY, WEIGHT, HEIGHT, BMI ".
         'FROM PatScan.dbo.PATIENT '.
@@ -303,7 +334,8 @@ foreach( $host_list as $host_item )
       if( false === $dexa_patient || !is_array( $dexa_patient ) )
         $dexa_patient = null;
     }
-    // always get the info from the ScanAnalysis table
+    // get the current info from the Apex ScanAnalysis table
+    //
     $sql = sprintf(
       'SELECT WEIGHT, HEIGHT, BMI, ADJUSTED_AGE '.
       'FROM PatScan.dbo.ScanAnalysis '.
@@ -318,6 +350,9 @@ foreach( $host_list as $host_item )
     if( false === $dexa_analysis || !is_array( $dexa_analysis ) )
       $dexa_analysis = null;
 
+    // Evaluate differences to determine which corrections are necessary
+    // Note that some data, such as DOB, gender and ethnicity are updated at baseline only
+    //
     if( 1 == $rank && null !== $dexa_patient )
     {
       $diff = array();
@@ -341,6 +376,8 @@ foreach( $host_list as $host_item )
           round( $dexa_patient[$key], $precision ) );
       }
 
+      // Update the values as necessary
+      //
       if( 0 < count( $diff ) )
       {
         $sql = 'UPDATE PatScan.dbo.PATIENT SET ';
@@ -404,6 +441,8 @@ foreach( $host_list as $host_item )
     }
   } // end scan data correction
 
+  // Track what activity was done
+  //
   $process_item['name'][] = $host_item['name'];
   $process_item['total'][] = $total;
   $process_item['num_patient'][] = $num_patient;
@@ -412,6 +451,8 @@ foreach( $host_list as $host_item )
   $process_item['num_analysis_item'][] = $num_analysis_item;
 }
 
+// Report the updates
+//
 write_log( sprintf(
   'hosts [%s] total updates [%s] '.
   'patients [%s] patient items [%s] '.
