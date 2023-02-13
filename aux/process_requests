@@ -3,8 +3,16 @@
 /**
  * process_requests.php
  *
- * A script that builds redacted jpg reports from dexa hip and wbody scans.
- * Scans marked as 'priority' are scp'd off the host if a deployment
+ * This script builds redacted jpg reports from dexa hip and wbody scans exported in dicom
+ * formate from the off-line Apex hosts.
+ * Other scan types that produce embedded jpg reports within dicom files, such as forearm
+ * and lumbar spine, scan also be integrated for inclusion in this script.
+ * Redacting is required for those participant requested scans that pass quality control
+ * of the re-analyis processing.  CLSA redacts identifying participant information and adds
+ * a disclaimer to emphasize to recipients that the scan image and its report are intended
+ * for research purposed and not for actual clinical evaluations.
+ *
+ * Scans marked as 'priority' are scp'd off the off-line Apex host if a deployment
  * exists for the scan that has status 'exported', export_filename non-null, pass state 1.
  * The patient ID and dob fields in the report image are redacted and a custom
  * disclaimer box is overlaid near the bottom of the report (using imagemagick API).
@@ -54,6 +62,8 @@ function scp_command( $address, $source, $destination )
     ' clsa@%s:%s %s', $address, $source, $destination ) ) );
 }
 
+// Convenience class to store a 2D rectangle
+//
 class rectangle {
   function __construct( $x0, $y0, $x1, $y1 )
   {
@@ -69,6 +79,9 @@ class rectangle {
   public $y1;
 }
 
+// A dexa scan report class to aggregate details and operations needed to redact 
+// Apex exported dicom files.
+//
 class dexa_scan_report {
   function __construct( $uid, $type, $rank, $filename, $apex_deployment_id, $language )
   {
@@ -86,24 +99,32 @@ class dexa_scan_report {
 
   public function process( $host_address, $temp_path, $save_path )
   {
-    // do not re-process
+    // do not re-process if the report image already exists
+    //
     $out_file = sprintf( '%s/%d.jpg', $save_path, $this->apex_deployment_id );
     if( file_exists( $out_file ) && 0 < filesize( $out_file ) ) return false;
 
-    // get the dicom file off the host
+    // scp the dicom file off the Apex host
+    //
     $temp_file = sprintf( '%s/%s', $temp_path, basename( $this->filename ) );
 
     scp_command( $host_address, $this->filename, $temp_file );
     sleep(5);
-    if( !file_exists( $temp_file ) ) return false;
+    if( !file_exists( $temp_file ) )
+	    return false;
     if( 100 > filesize( $temp_file ) )
     {
       unlink( $temp_file );
       return false;
     }
 
+    // Use ImageMagick 'convert' utility to redact scan specific rectangular regions
+    // of the jpg report image
+    //
     $cmd = sprintf( 'convert %s ', $temp_file );
-    // redact the image Patient ID and DOB fields
+
+    // Redact the image Patient ID and DOB fields
+    //
     if( array_key_exists( $this->type, static::$region_list ) )
     {
       $cmd .= '-flip -fill "rgb(222,222,222)" ';
@@ -114,7 +135,9 @@ class dexa_scan_report {
           '-draw "rectangle %d,%d,%d,%d" ',
           $rectangle->x0, $rectangle->y0, $rectangle->x1, $rectangle->y1 );
       }
-      // generate a unique disclaimer label
+
+      // Generate a unique disclaimer label with a white background and red frame
+      //
       $cmd .= '-flip ';
       if( array_key_exists( $this->type, static::$label_list ) )
       {
@@ -129,18 +152,25 @@ class dexa_scan_report {
           $rectangle->x0-2,$rectangle->y0-2,
           $rectangle->x1,$rectangle->y1 );
 
+	// Get the disclaimer in the participant's preferred language
+	//
         $caption = sprintf( static::$disclaimer_list[$this->language], $this->uid );
         $cmd .= sprintf(
           '\( -background white -fill red -font Helvetica-Bold '.
           '-pointsize 25 -size %dx%d -interline-spacing 7 -gravity NorthWest caption:"%s" \) ',
           $rectangle->x1-$rectangle->x0+1,
           $rectangle->y1-$rectangle->y0+1,
-          $caption );
+	  $caption );
+
+	// Add the disclaimer in the scan specific location
+	//
         $cmd .= sprintf( '-compose Over -geometry +%d+%d -composite ',
           $rectangle->x0, $rectangle->y0 );
       }
     }
 
+    // Execute the ImageMagick command
+    //
     $cmd .= sprintf( '%s', $out_file );
     $res = shell_exec( $cmd );
     unlink( $temp_file );
@@ -151,6 +181,8 @@ class dexa_scan_report {
   public static $label_list = null;
   public static $disclaimer_list = null;
 
+  // The disclaimers in english or french depending on the participants preferred language
+  //
   public static function disclaimer_list()
   {
     if( null === self::$disclaimer_list )
@@ -166,6 +198,9 @@ class dexa_scan_report {
     }
   }
 
+  // Label locations depend on scan type.
+  // Lumber spine and other scans types can be added here.
+  //
   public static function label_list()
   {
     if( null === self::$label_list )
@@ -177,6 +212,9 @@ class dexa_scan_report {
     }
   }
 
+  // Redaction locations depend on scan type.
+  // Lumber spine and other scans types can be added here.
+  //
   public static function region_list()
   {
     if( null === self::$region_list )
@@ -215,6 +253,9 @@ catch( Exception $e )
   return 0;
 }
 
+// This script can be used to re-reprocess a single scan based on the 
+// corresponding Salix apex_deployment record.
+//
 $deployment_id = null;
 if( 2 == $argc )
 {
@@ -228,7 +269,9 @@ if( 2 == $argc )
     return 0;
 }
 
-// single deployment refresh
+// Single deployment refresh.  Currently only hip and wbody scans are
+// provided to participants on request.  Update accordingly for other scan types.
+//
 if( null !== $deployment_id )
 {
   $sql = sprintf(
@@ -260,6 +303,8 @@ if( null !== $deployment_id )
   if( false === $res || !is_array( $res ) )
     return 0;
 
+  // Create the class instance
+  //
   $scan_item = new dexa_scan_report(
     $res['uid'],
     $res['type'],
@@ -275,7 +320,9 @@ if( null !== $deployment_id )
   return false === $res ? 0 : 1;
 }
 
-// new deployment creation
+// New deployment creation.
+// Get the list of off-line Apex hosts
+//
 $sql = 'SELECT * FROM apex_host';
 $host_list = $db_salix->get_all( $sql );
 $process_list = array();
@@ -284,7 +331,10 @@ foreach( $host_list as $host_item )
   $num_processed = 0;
   $apex_host_id = $host_item['id'];
   $host_address = $host_item['host'];
-  // get all the exported priority scans
+
+  // Get all the priority scans that have passed quality control and
+  // have been exported as dicom files from the off-line Apex host
+  //
   $sql = sprintf(
     'SELECT d.id AS apex_deployment_id, '.
     'type, '.
@@ -314,6 +364,8 @@ foreach( $host_list as $host_item )
   if( false === $file_list || !is_array( $file_list ) ||
     0 == count( $file_list ) ) continue;
 
+  // Create the instances of the dexa_scan_report class
+  //
   $report_list = array();
   foreach( $file_list as $file_item )
   {
@@ -327,6 +379,8 @@ foreach( $host_list as $host_item )
       $file_item['code'] );
   }
 
+  // Loop over the instances, each one self-processing
+  //
   foreach( $report_list as $type=>$item_list)
   {
     foreach( $item_list as $item)
@@ -341,6 +395,8 @@ foreach( $host_list as $host_item )
   }
 }
 
+// Log the basic stats of the script run
+//
 if( 0 < count( array_keys( $process_list ) ) )
 {
   write_log( sprintf( 'hosts [%s] priority scan requests [%s]',
