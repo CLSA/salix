@@ -30,7 +30,7 @@ define( 'DB_PASSWORD', $settings['db']['password'] );
 define( 'IMAGE_PATH', $settings['path']['TEMPORARY_FILES'] );
 define( 'USER', $settings['utility']['username'] );
 
-// make sure the image file exists
+// ensure the image storage path exists
 if( !is_dir( IMAGE_PATH ) ) mkdir( IMAGE_PATH, 0777, true );
 
 // a lite mysqli wrapper
@@ -52,6 +52,8 @@ function write_log( $message )
 
 /*----------------MAIN PROGRAM----------------*/
 
+// Specify the maximum rank
+//
 if( $argc < 2 )
 {
   write_log('ERROR: invalid args ' . implode( ',', $argv ) );
@@ -59,6 +61,8 @@ if( $argc < 2 )
 }
 $max_rank = $argv[1];
 
+// Limit the bandwidth of data transfer
+//
 $deployment_limit = 100;
 if( 3 == $argc )
 {
@@ -77,10 +81,13 @@ catch( Exception $e )
   return 0;
 }
 
+// Instantiate a curl connection to Opal
+//
 $opal_curl = new opalcurl( OPAL_SERVER, OPAL_PORT, OPAL_USERNAME, OPAL_PASSWORD );
 $opal_curl->set_datasource( 'salix' );
 
-// order of preference for tie breakers
+// Order of preference for tie breakers when considering how many deployments
+// to process among Apex hosts
 //
 $ordered_host_list = array('dancer' => 1,'bluet' => 2,'skimmer' => 3);
 $sql = 'SELECT name, id FROM apex_host';
@@ -97,8 +104,9 @@ foreach($res as $item)
 }
 $ordered_host_list = array_values($ordered_host_list);
 
-// verify that for each type that has more than one
-// side and for each host that the weights are equal
+// Verify that for each scan type that has more than one
+// side (ie., left and right) and for each host that the allocation of deployments / weighting
+// are equal
 //
 $sql =
  'SELECT type, side, weight, h.name AS host, h.id AS apex_host_id '.
@@ -149,6 +157,9 @@ if(false === $res || !is_array($res))
   return 0;
 }
 
+// Determine weights per host per scan type accounting
+// for scan types that are bilateral (ie., left or right)
+// 
 $collector_list = array();
 foreach($res as $item)
 {
@@ -166,6 +177,7 @@ foreach($res as $item)
     }
   }
 }
+
 $residual_scan_list = array();
 $deploy_scan_list = array();
 $invalid_scan_list = array();
@@ -173,8 +185,22 @@ $invalid_scan_list = array();
 $collector_list = array_unique($collector_list);
 foreach($collector_list as $type)
 {
+  // See scan_collector.class.php for implementation details
+  // A collector for a given scan type determines the number of
+  // scans available for creating deployment records
+  //
   $collector = new scan_collector($db_salix, DB_PREFIX, $type);
 
+  // Restrict the range of or specific ranks to collect available
+  // scans for deployment.  Usually, the rank restriction should reflect
+  // the agreed upon study waves that have been approved for re-analysis.
+  //
+  // TODO:
+  //
+  // NOTE THAT ONLY THE SPECFIED RANKS HERE WILL BE COLLECTED FOR DEPLOYMENT.
+  // THESE RANK RESTRICTIONS SHOULD BE MOVED TO AN ADMIN CONTROLLED SETTING
+  // THROUGH THE WEB UI
+  //
   if('wbody' == $type)
     $collector->set_rank_restrictions(array(1,2));
   if('spine' == $type)
@@ -188,6 +214,11 @@ foreach($collector_list as $type)
     return 0;
   }
 
+  // The collector determines which deployments can be created based on
+  // scan type, allowed ranks, availability, maintaining sibling pairings on
+  // hosts when previously deployed baseline scans exist, and balancing the
+  // allocation weighting among Apex hosts
+  //
   $deployment_list = $collector->get_deployments( $ordered_host_list );
 
   $stats = $collector->get_count_stats();
@@ -201,6 +232,8 @@ foreach($collector_list as $type)
 
   $residual_list = 0 < $total_residual_candidate ? $deployment_list['any'] : array();
 
+  // Loop over hosts
+  //
   foreach($host_list as $host_id=>$type_list)
   {
     if(!array_key_exists($type,$type_list)) continue;
@@ -235,6 +268,9 @@ foreach($collector_list as $type)
     $num_p = 0;
     if(0 < $num_targeted)
     {
+      // A 'chain' refers to a set of scans of the same type (and side) belonging to a participant
+      // Chains of sibling scans cannot be 'broken' or spread apart among different Apex hosts
+      //
       $chain_key_list = array();
       $num_used = 0;
       foreach($list as $chain_key=>$scan_chain)
@@ -276,6 +312,10 @@ foreach($collector_list as $type)
 
     }//end if there are targets for this host
 
+    // It may not be possible for quotas to be met precisely due to 
+    // the possible unavailablity of scans to form complete chains.
+    // Quotas can be re-adjusted based on 'residuals'
+    //
     if(0 < $num_residual && 0 < $quota && 0 < count($residual_list))
     {
       if($num_residual < $quota) $quota = $num_residual;
@@ -334,6 +374,10 @@ foreach($collector_list as $type)
   }// end loop on host ids
 }// end loop on collector types
 
+
+// The list of invalid scans can now be processed to update
+// the invalid state in the apex_scan table
+//
 if( 0 < count( $invalid_scan_list ) )
 {
   $invalid_scan_list = array_unique($invalid_scan_list);
@@ -350,6 +394,9 @@ if( 0 < count( $invalid_scan_list ) )
   }
 }
 
+// Track successful record updates in the apex_deployment table
+// as a final sanity check
+//
 $valid_scan_list = array();
 foreach($deploy_scan_list as $host_id => $item_list)
 {
