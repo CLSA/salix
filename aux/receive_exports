@@ -3,9 +3,9 @@
 /**
  * receive_exports.php
  *
- * A script that scans e:/OutGoing/* on APEX hosts
- * to recover export filenames and then update the apex_deployment
- * status, export_datetime and export_filename columns
+ * This script scans the e:/OutGoing/* directory on the off-line APEX hosts
+ * to recover exported dicom file names and to update the Salix apex_deployment
+ * table: status, export_datetime and export_filename columns
  *
  *
  * @author Dean Inglis <inglisd@mcmaster.ca>
@@ -39,7 +39,8 @@ function write_log( $message )
   );
 }
 
-// ssh args: apex host address, command arg
+// ssh args: Apex host address, command arg
+//
 function ssh_command( $address, $arg )
 {
   return trim( shell_exec( sprintf(
@@ -48,6 +49,8 @@ function ssh_command( $address, $arg )
 
 /*-------------MAIN PROGRAM-----------*/
 
+// Connect to Salix db
+//
 $db_salix = null;
 try
 {
@@ -60,7 +63,7 @@ catch( Exception $e )
   return 0;
 }
 
-// the number of exports per host
+// Restrict the number of exports to process per host during the daily cron
 //
 $export_limit = 100;
 if( 2 == $argc )
@@ -68,19 +71,50 @@ if( 2 == $argc )
   $export_limit = $argv[1];
 }
 
+// Get the Apex host data from the apex_host table
+//
 $sql = 'SELECT * FROM apex_host';
 $host_list = $db_salix->get_all( $sql );
+
 $process_list = array(
   'name' => array(),
   'num_export' => array(),
   );
 
+// Loop over Apex hosts
+//
 foreach( $host_list as $host_item )
 {
   $num_export = 0;
   $apex_host_id = $host_item['id'];
   $host_address = $host_item['host'];
 
+  // Construct sql query to determine the expected file names
+  // on the target host.  File paths on the host are organized by scan type and
+  // side if applicable.  Files are exported manually from Apex to the host
+  // Conquest dicom outgoing server and stored by type and then primary patient
+  // identifier.
+  // A left hip scan for participant with baseline barcode 12345678:
+  // E:\OutGoing\hip\left\12345678\12345678_YYYYMMDD_HIP_L.dcm
+  //
+  // where YYYYMMDD is the date of the actual scan.  Followup scans are exported
+  // to the same folder with the same participant baseline barcode but the date
+  // element of the file name will be that of the actual followup scan date.
+  //
+  // A whole body scan for the same participant:
+  // E:\OutGoing\wbody\12345678\12345678_YYYYMMDD_BCA.dcm
+  // E:\OutGoing\wbody\12345678\12345678_YYYYMMDD_BMD.dcm
+  //
+  // The export consistes of 2 dicom files: a body composition analysis (BCA) report file
+  // and the standard bone density image (BMD).  Note that all of the information required
+  // to restore the whole body exam within Apex is contained in the BMD dicom file.
+  // The BCA dicom file is primarily for recovering the jpeg report image for body composition.
+  //
+  // NOTE: the query accounts for hip and whole body scan exports only since
+  // these scan types are the only ones approved for release to participants
+  // and data applicants upon request.  Adjust the WHERE constraint on scan type accordingly
+  // if other exported files are to be recovered using this process.
+  //
   $sql = sprintf(
     'SELECT DISTINCT '.
     'IF( side="none", '.
@@ -116,10 +150,15 @@ foreach( $host_list as $host_item )
     continue;
   }
 
+  // Loop over the list of file paths
+  //
   $path_keys = array();
   $file_keys = array();
   foreach($path_list as $path)
   {
+    // For the current path, construct a linux ls command to run on the host
+    // under cygwin and recover all the available file names
+    //
     $current_path = $path['path'];
     $cmd = sprintf('ls -R %s | awk ', $current_path );
     $cmd .= '\'/:$/&&f{s=$0;f=0} /:$/&&!f{sub(/:$/,"");s=$0;f=1;next} NF&&f{ print s"/"$0 }\'';
@@ -142,6 +181,9 @@ foreach( $host_list as $host_item )
 
   if(0 == count($path_keys) || 0 == count($file_keys)) continue;
 
+  // Construct sql query to build a list of file names corresponding
+  // to the expected scans that have been re-analyzed and exported from Apex on the host
+  //
   $sql = sprintf(
     'SELECT '.
     'IF( side="none", '.
@@ -195,6 +237,8 @@ foreach( $host_list as $host_item )
     continue;
   }
 
+  // Loop over the expected dicom files
+  //
   $export_data = array();
   foreach( $scan_list as $item )
   {
@@ -252,6 +296,14 @@ foreach( $host_list as $host_item )
     if( $num_export >= $export_limit ) break;
   } // end current uid list
 
+  // Update the apex_deployment table with information pertaining to the exported files.
+  //
+  // NOTE: once scans have been exported, they can be recovered by scp or other means
+  // of retrieval for satisfying priority scan requests.  See process_requests script for example.
+  // Exported scans can be deleted on off-line Apex hosts as needed and re-exported at a later date
+  // from Apex without necessarily updating the apex_deployment table.  The files are named
+  // consistently by configuration settings within the outgoing host Conquest dicom server.
+  //
   foreach( $export_data as $item )
   {
     $sql = sprintf(

@@ -3,7 +3,7 @@
 /**
  * receive_opal_meta.php
  *
- * A script which will download salix meta data for the apex_exam and
+ * This script downloads participant meta data for the apex_exam and
  * apex_scan db tables from Opal.
  * The Opal meta_* views must have an Entities Filter script set, for example:
  * $lastupdate().after(newValue('2017-11-05', 'date'))
@@ -28,6 +28,9 @@ define( 'DB_PREFIX', $settings['db']['database_prefix'] );
 define( 'DB_USERNAME', $settings['db']['username'] );
 define( 'DB_PASSWORD', $settings['db']['password'] );
 
+// see the readme in /aux/opal_views for further documentation
+// on the use of json templates for Salix related Opal views
+//
 define( 'JSON_VIEW_PATH', $settings['path']['APPLICATION'].'/aux/opal_views/json' );
 
 define( 'USER', $settings['utility']['username'] );
@@ -49,6 +52,10 @@ function write_log( $message )
 
 /*-------------MAIN PROGRAM-----------*/
 
+// Collect meta data from Opal for study waves that have been completed
+// or that are in progress.  A 3 week window from the current date is imposed to allow for
+// delayed interview exports from DCSs.
+//
 $last_completed_rank = 2;  // consider making a setting in the application ini file
 $rank = $last_completed_rank;
 $date = null;
@@ -67,8 +74,12 @@ else
   return 0;
 }
 
+// Define the view by requested rank
+//
 $meta_view = 'meta_' . $rank;
 
+// Connect to Opal via curl
+//
 $opal_curl = new opalcurl(
   OPAL_SERVER, OPAL_PORT, OPAL_USERNAME, OPAL_PASSWORD, 'salix', $meta_view, JSON_VIEW_PATH );
 
@@ -76,8 +87,9 @@ if( $last_completed_rank < $rank )
 {
   if( null === $date )
   {
-    // use date from 3 weeks ago to allow
+    // Use date from 3 weeks ago to allow
     // for delayed interview exports to Opal
+    //
     $date_obj = new DateTime();
     $date_obj->sub( new DateInterval( 'P3W' ) );
     $date = $date_obj->format( 'Y-m-d' );
@@ -85,16 +97,25 @@ if( $last_completed_rank < $rank )
   $opal_curl->set_date( $date );
 }
 
+// Get the UID list from the meta data view
+//
 $identifier_list = $opal_curl->get_identifiers();
+
+// Get the meta data in the view
+//
 $list = $opal_curl->get_complete_list();
 $total = count( $list );
 
+// Sanity check that the number of UIDs aligns with the rows of meta data
+//
 if( $total != count( $identifier_list ) )
 {
   write_log( 'identifier list incomplete' );
   return 0;
 }
 
+// Connect to Salix db
+//
 $db_salix = null;
 try
 {
@@ -107,6 +128,8 @@ catch( Exception $e )
   return 0;
 }
 
+// Prepare a template insert sql statement to create new apex_exam records
+//
 $columns = array(
   'apex_baseline_id',
   'serial_number_id',
@@ -121,7 +144,8 @@ $quotable = array( 'barcode', 'technician' );
 
 $sql_col = 'INSERT INTO apex_exam (' . implode( ',', $columns );
 
-// convenience lookup for scan_type information
+// Convenience lookup for scan_type information
+//
 $sql =
   'SELECT id AS scan_type_id, type, side '.
   'FROM scan_type';
@@ -135,8 +159,8 @@ foreach( $res as $value )
            'side' => $value['side'] );
 }
 
-// every Apex system has a unique serial number and runs at a specific site...
-// create a convenience lookup between site names and the serial number and site ids
+// Every Apex system installed at a DCS has a unique serial number.
+// Create a convenience lookup between site names and the serial number and Cenozo site table ids
 //
 $sql = sprintf(
   'SELECT name AS site, n.id AS serial_number_id, s.id AS site_id '.
@@ -152,27 +176,34 @@ foreach( $res as $values )
     'site_id' => $values['site_id'] );
 }
 
+// Loop over the per UID meta data
+//
 foreach( $list as $uid => $row )
 {
   if( '' == $row['barcode'] || '' == $row['site'] ) continue;
 
+  // Get the participant baseline data (eg., DOB, gender etc.)
+  //
   $sql_p = sprintf(
     'SELECT DISTINCT b.id '.
     'FROM apex_baseline b '.
     'JOIN %scenozo.participant p ON p.id=b.participant_id '.
     'WHERE uid="%s"', DB_PREFIX, $uid );
+
   $res = $db_salix->get_one( $sql_p );
   if( false === $res || '' == $res ) continue;
   $apex_baseline_id = $res;
 
-  // site names stored in opal are filtered via magmascript to match
-  // DCS site names defined in cenozo
+  // Site names stored in Opal are filtered via magmascript to match
+  // DCS site names defined in Cenozo
   //
   if( !array_key_exists( $row['site'], $site_lookup ) ) continue;
 
   $item = $site_lookup[$row['site']];
   $serial_number_id = $item['serial_number_id'];
 
+  // Meta data related to the DXA exam captured during the interview
+  //
   $data = array(
     $apex_baseline_id,
     $serial_number_id,
@@ -196,10 +227,15 @@ foreach( $list as $uid => $row )
     'age = VALUES( age ), '.
     'technician = VALUES( technician )';
 
+  // Build and execute the sql statement to insert a new or update a pre-existing record
+  // in the apex_exam table
+  //
   $sql = $sql_col . $sql_val . $sql_dup;
   if( false === $db_salix->execute( $sql ) )
     write_log( sprintf( 'WARNING: failed to update apex_exam for %s / %s', $uid, $row['barcode']  ) );
 
+  // Get the apex_exam record id
+  //
   $sql = sprintf(
     'SELECT id FROM apex_exam '.
     'WHERE apex_baseline_id=%d '.
@@ -222,6 +258,9 @@ foreach( $list as $uid => $row )
   }
   if( false === $apex_exam_id || '' == $apex_exam_id ) continue;
 
+  // Create records in the apex_scan table for the types of scans
+  // performed during the exam
+  //
   foreach( $types as $scan_type_id => $type_data )
   {
     $sql =
