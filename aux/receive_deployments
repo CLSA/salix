@@ -27,11 +27,7 @@ define( 'DB_PREFIX', $settings['db']['database_prefix'] );
 define( 'DB_USERNAME', $settings['db']['username'] );
 define( 'DB_PASSWORD', $settings['db']['password'] );
 
-define( 'IMAGE_PATH', $settings['path']['TEMPORARY_FILES'] );
 define( 'USER', $settings['utility']['username'] );
-
-// ensure the image storage path exists
-if( !is_dir( IMAGE_PATH ) ) mkdir( IMAGE_PATH, 0777, true );
 
 // a lite mysqli wrapper
 require_once( $settings['path']['PHP_UTIL'].'/database.class.php' );
@@ -279,7 +275,7 @@ foreach($collector_list as $type)
         {
           // validate undeployed scans
           //
-          $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
+          $filename = $item->get_scan_file( $opal_curl, TEMP_PATH );
           if( NULL !== $filename )
           {
             if( false === $item->validate( $filename ) )
@@ -328,7 +324,7 @@ foreach($collector_list as $type)
         {
           // validate undeployed scans
           //
-          $filename = $item->get_scan_file( $opal_curl, IMAGE_PATH );
+          $filename = $item->get_scan_file( $opal_curl, TEMP_PATH );
           if( NULL !== $filename )
           {
             if( false === $item->validate( $filename ) )
