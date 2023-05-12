@@ -33,13 +33,9 @@ define( 'DB_PREFIX', $settings['db']['database_prefix'] );
 define( 'DB_USERNAME', $settings['db']['username'] );
 define( 'DB_PASSWORD', $settings['db']['password'] );
 
-define( 'IMAGE_PATH', $settings['path']['TEMPORARY_FILES'] );
 define( 'USER', $settings['utility']['username'] );
 define( 'APEX_SSH_KEY', $settings['apex']['apex_ssh_key'] );
 define( 'DXA_REPORT_PATH', $settings['path']['DEPLOYMENT_REPORT'] );
-
-// make sure the image file exists
-if( !is_dir( IMAGE_PATH ) ) mkdir( IMAGE_PATH, 0777, true );
 
 // a lite mysqli wrapper
 require_once( $settings['path']['PHP_UTIL'].'/database.class.php' );
@@ -312,7 +308,7 @@ if( null !== $deployment_id )
     $res['export_filename'],
     $deployment_id,
     $res['code'] );
-  $res = $scan_item->process( $res['host'], IMAGE_PATH, DXA_REPORT_PATH );
+  $res = $scan_item->process( $res['host'], TEMP_PATH, DXA_REPORT_PATH );
 
   write_log( sprintf( '%s refresh %s report image %d',
     ( false === $res ? 'WARNING: failed' : 'successful' ), $scan_item->type, $deployment_id ) );
@@ -385,7 +381,7 @@ foreach( $host_list as $host_item )
   {
     foreach( $item_list as $item)
     {
-      $res = $item->process( $host_item['host'], IMAGE_PATH, DXA_REPORT_PATH );
+      $res = $item->process( $host_item['host'], TEMP_PATH, DXA_REPORT_PATH );
       if( false !== $res ) $num_processed++;
     }
   }
