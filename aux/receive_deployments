@@ -198,7 +198,7 @@ foreach($collector_list as $type)
   // THROUGH THE WEB UI
   //
   if('wbody' == $type)
-    $collector->set_rank_restrictions(array(1,2));
+    $collector->set_rank_restrictions(array(1,2,3));
   if('spine' == $type)
     $collector->set_rank_restrictions(array(2));
 
