@@ -50,19 +50,30 @@ function write_log( $message )
   );
 }
 
+// turn on for detailed debug loggging
+//
+$do_verbose_logging = false;
+
 // scp args: apex host address, source file, destination file
 function scp_command( $address, $source, $destination )
 {
-  return trim( shell_exec( sprintf(
-    'scp -i ' . APEX_SSH_KEY .
-    ' %s clsa@%s:/cygdrive/e/InComing/%s', $source, $address, $destination ) ) );
+  $cmd = sprintf(
+    'scp -i %s %s clsa@%s:/cygdrive/e/InComing/%s',
+    APEX_SSH_KEY,
+    $source,
+    $address,
+    $destination
+  );
+  if ($do_verbose_logging) write_log('current scp command: ' . $cmd);
+  return trim( shell_exec( $cmd ) );
 }
 
 // ssh args: apex host address, command arg
 function ssh_command( $address, $arg )
 {
-  return trim( shell_exec( sprintf(
-    'ssh -i ' . APEX_SSH_KEY . ' clsa@%s %s', $address, $arg ) ) );
+  $cmd = sprintf('ssh -i ' . APEX_SSH_KEY . ' clsa@%s %s', $address, $arg ) ;
+  if ($do_verbose_logging) write_log('current ssh command: ' . $cmd);
+  return trim( shell_exec( $cmd ) );
 }
 
 // dgate (conquest dicom server service) args: apex host address, command arg
@@ -87,10 +98,7 @@ $deployment_type = 'hip'; // default type
 if( 2 <= $argc )
 {
   $deployment_total = $argv[1];
-  if( 3 == $argc )
-  {
-    $deployment_type = $argv[2];
-  }
+  if( 3 == $argc ) $deployment_type = $argv[2];
 }
 
 // the database object that accepts mysql statements
@@ -98,14 +106,18 @@ if( 2 <= $argc )
 $db_salix = null;
 try
 {
-  $db_salix = new database(
-    DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+  $db_salix = new database( DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
 }
 catch( Exception $e )
 {
   write_log( $e->getMessage() );
   return 0;
 }
+
+// BYPASS QUOTA CALCULATIONS IF TRUE
+// THIS WILL FORCE IMPORT OF ALL PENDING DEPLOYMENTS ON EACH HOST
+//
+$no_quota = false;
 
 // the quota / weight for each host
 //
@@ -282,7 +294,7 @@ foreach( $host_list as $name => $item )
 
   // honor quota restrictions while maintaining groupings of sibling scans
   //
-  if( 0 < $quota )
+  if( 0 < $quota && false === $no_quota)
   {
     if( $quota < $num_scans )
     {
@@ -335,7 +347,12 @@ foreach( $verify_host_list as $name )
   $res = dgate_command( $host_address, '--echo:CONQUESTSRV1' );
   if( NULL === $res || ( false === strpos( $res, 'UP' ) ) )
   {
-    write_log( sprintf( 'ERROR: host dicom server (%s) is not running!', $name ) );
+    write_log( sprintf(
+      'ERROR: host dicom server (%s) is not running ("%s") !',
+      $name,
+      ( NULL=== $res ? 'null response' : $res )
+    ) );
+
     return 0;
   }
 
@@ -349,6 +366,9 @@ foreach( $verify_host_list as $name )
     return 0;
   }
 }
+
+if ($do_verbose_logging)
+  write_log('all hosts passed communication checks with Apex and DGate');
 
 // loop over hosts
 //
@@ -381,6 +401,15 @@ foreach( $scan_list as $name => $identifier_list )
     return 0;
   }
 
+  if ($do_verbose_logging)
+  {
+    write_log( sprintf(
+      'starting to transfer %d participants files using host %s',
+      count( array_keys( $identifier_list ) ),
+      $db_dexa_server
+    ) );
+  }
+
   $num_transfer = 0;
   $num_candidate = 0;
 
@@ -393,42 +422,53 @@ foreach( $scan_list as $name => $identifier_list )
     {
       // get the scan file and its name if successfully copied via curl from opal to the Salix storage folder
       //
-      $filename = $item->get_scan_file( $opal_curl, TEMP_PATH );
+      $opal_err = '';
+      $filename = $item->get_scan_file( $opal_curl, TEMP_PATH, $opal_err );
       $num_candidate++;
       if( NULL !== $filename )
       {
+        if ($do_verbose_logging)
+          write_log('working on current participant ' . $uid . ' file ' . $filename );
+
         // run gdcmconv -E -w the_file.dcm the_file.dcm to fix end of file characters and other anomalies
         //
-        exec( sprintf( 'gdcmconv -E -w %s %s', $filename, $filename ) );
+        $gcmd = sprintf( 'gdcmconv -E -w %s %s', $filename, $filename );
+        if ($do_verbose_logging) write_log('current gdcm command ' .  $gcmd );
+        exec( $gcmd );
 
         // scp the_file.dcm to the Apex host E:\InComing directory
-	// determine the name of the subdirectory based on baseline barcode and scan type
-	//
-        $subpath = '';
-        if( 'none' == $item->side )
-          $subpath = sprintf( '%s/%s', $item->type, $item->barcode );
-        else
-          $subpath = sprintf( '%s/%s/%s', $item->type, $item->side, $item->barcode );
+        // determine the name of the subdirectory based on baseline barcode and scan type
+        //
+        $subpath = 'none' == $item->side
+                 ? sprintf( '%s/%s', $item->type, $item->barcode )
+                 : sprintf( '%s/%s/%s', $item->type, $item->side, $item->barcode );
 
-	// create the target directory on the Apex host
-	//
+        // create the target directory on the Apex host
+        //
         $res = ssh_command( $host_address, 'mkdir /cygdrive/e/InComing/' . $subpath );
-
         $base = basename( $filename );
-
         $res = scp_command( $host_address, $filename, $subpath . '/' . $base );
 
-	// store a backup of the original dicom file on the Apex host for debug and other purposes
-	// in root E:/ORIGINAL
-	//
+        // store a backup of the original dicom file on the Apex host for debug and other purposes
+        // in root E:/ORIGINAL
+        //
         $item->import_datetime = date( 'Y-m-d H:i:s' );
         $item->copy_from = '/cygdrive/e/InComing/' . $subpath . '/' . $base;
         $item->copy_to = '/cygdrive/e/ORIGINAL/' . $subpath . '/' . $base;
 
-	// dispose of the file on this Salix host.  Failed transfers are re-attempted on the next daily cron
-	//
+        // dispose of the file on this Salix host.  Failed transfers are re-attempted on the next daily cron
+        //
         unlink( $filename );
         $num_transfer++;
+      }
+      else
+      {
+        write_log('ERROR working on current participant ' . $uid . ' filename is NULL');
+        if ($do_verbose_logging)
+        {
+          write_log('ERROR from get_scan_file, item object: ' . print_r($item,true));
+          write_log('ERROR from get_scan_file: ' . $opal_err);
+        }
       }
     }
   }
@@ -466,15 +506,15 @@ foreach( $scan_list as $name => $identifier_list )
   // query Apex MS SQL database to verify dicom C-move
   //
   $sql_str =
-      'SELECT p.PATIENT_KEY patient_key, '.
-      's.SCANID scanid, '.
-      'CONVERT(varchar,s.SCAN_DATE) scan_datetime, '.
-      's.SERIAL_NUMBER serial_number '.
-      'FROM PatScan.dbo.PATIENT p '.
-      'INNER JOIN PatScan.dbo.ScanAnalysis s '.
-      'ON s.PATIENT_KEY=p.PATIENT_KEY '.
-      'WHERE s.SCAN_TYPE=%d '.
-      "AND p.IDENTIFIER1='%s'";
+    'SELECT p.PATIENT_KEY patient_key, '.
+    's.SCANID scanid, '.
+    'CONVERT(varchar,s.SCAN_DATE) scan_datetime, '.
+    's.SERIAL_NUMBER serial_number '.
+    'FROM PatScan.dbo.PATIENT p '.
+    'INNER JOIN PatScan.dbo.ScanAnalysis s '.
+    'ON s.PATIENT_KEY=p.PATIENT_KEY '.
+    'WHERE s.SCAN_TYPE=%d '.
+    "AND p.IDENTIFIER1='%s'";
 
   // reloop through this host's set of scan items and run the SQL query
   //
@@ -506,7 +546,12 @@ foreach( $scan_list as $name => $identifier_list )
           'scan_datetime="%s", '.
           'scanid="%s", '.
           'patient_key="%s" '.
-          'WHERE id=%d ', $scan_datetime, $scanid, $patient_key, $item->apex_scan_id );
+          'WHERE id=%d ',
+          $scan_datetime,
+          $scanid,
+          $patient_key,
+          $item->apex_scan_id
+        );
 
         $db_salix->execute( $sql );
 
@@ -515,7 +560,10 @@ foreach( $scan_list as $name => $identifier_list )
           'merged=0, status="pending", comp_scanid=NULL, analysis_datetime=NULL, import_datetime="%s" '.
           'WHERE apex_host_id=%d '.
           'AND apex_scan_id=%d',
-          $item->import_datetime, $item->apex_host_id, $item->apex_scan_id );
+          $item->import_datetime,
+          $item->apex_host_id,
+          $item->apex_scan_id
+        );
 
         $db_salix->execute( $sql );
 
@@ -546,11 +594,13 @@ foreach( $scan_list as $name => $identifier_list )
 
 // log what has been done
 //
-write_log( sprintf( 'hosts [%s] candidates [%s] transfers [%s] verified [%s]',
-    implode( '/', $process_list['name'] ),
-    implode( '/', $process_list['num_candidate'] ),
-    implode( '/', $process_list['num_transfer'] ),
-    implode( '/', $process_list['num_verify'] ) ) );
+write_log( sprintf(
+  'hosts [%s] candidates [%s] transfers [%s] verified [%s]',
+  implode( '/', $process_list['name'] ),
+  implode( '/', $process_list['num_candidate'] ),
+  implode( '/', $process_list['num_transfer'] ),
+  implode( '/', $process_list['num_verify'] )
+) );
 
 write_log( 'import_scans done!');
 

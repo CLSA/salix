@@ -36,7 +36,7 @@ class dexa_scan
       $this->type, $this->side, $this->barcode, $this->rank );
   }
 
-  public function get_scan_file( $opal_source, $path )
+  public function get_scan_file( $opal_source, $path, &$err )
   {
     $opal_var = $this->type;
     $opal_var .= 'none' == $this->side ? '' : '_' . $this->side;
@@ -48,17 +48,32 @@ class dexa_scan
     $res = $opal_source->get_participant( $this->uid );
     if( is_object( $res ) && property_exists( $res, 'values' ) )
     {
-      $res = array_filter( $res->values,
+      $res = array_filter(
+        $res->values,
         function ( $obj ) use( $opal_var )
         {
-          return ( property_exists( $obj, 'link' ) &&
-                   property_exists( $obj, 'length' ) &&
-                   0 < $obj->length &&
-                   false !== strpos( $obj->link, $opal_var ) );
-        } );
+          return (
+            property_exists( $obj, 'link' ) &&
+            property_exists( $obj, 'length' ) &&
+            0 < $obj->length &&
+            false !== strpos( $obj->link, $opal_var )
+          );
+        }
+      );
     }
     if( NULL === $res || false === $res )
     {
+      $err = sprintf(
+        'ERROR failed to retrieve opal image resource (%s, %s, %s) '.
+        'for participant "%s" with args %s %s and opal obj %s',
+        $this->type,
+        $this->side,
+        $this->rank,
+        $this->uid,
+        $path,
+        $opal_var,
+        print_r($opal_source,true)
+      );
       return NULL;
     }
 
@@ -144,14 +159,16 @@ class dexa_scan
     'STUDY_TIME' =>
     "gdcmdump -d %s | grep -E '\(0008,0030\)' | awk '{print $4}'",
     'PATIENTID' =>
-    "gdcmdump -d %s | grep -E '\(0010,0020\)' | awk '{print $4}'" );
+    "gdcmdump -d %s | grep -E '\(0010,0020\)' | awk '{print $4}'"
+  );
 
   private static $validation_types = array(
     'hip' => array( 'SERIAL_NUMBER', 'LATERALITY', 'PATIENTID' ),
     'forearm' => array( 'SERIAL_NUMBER', 'LATERALITY', 'PATIENTID' ),
     'lateral' => array( 'SERIAL_NUMBER', 'PATIENTID' ),
     'spine' => array( 'SERIAL_NUMBER', 'PATIENTID' ),
-    'wbody' => array( 'SERIAL_NUMBER', 'PATIENTID' ) );
+    'wbody' => array( 'SERIAL_NUMBER', 'PATIENTID' )
+  );
 
   public $uid;
   public $type;

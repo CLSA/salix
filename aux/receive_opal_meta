@@ -81,7 +81,14 @@ $meta_view = 'meta_' . $rank;
 // Connect to Opal via curl
 //
 $opal_curl = new opalcurl(
-  OPAL_SERVER, OPAL_PORT, OPAL_USERNAME, OPAL_PASSWORD, 'salix', $meta_view, JSON_VIEW_PATH );
+  OPAL_SERVER,
+  OPAL_PORT,
+  OPAL_USERNAME,
+  OPAL_PASSWORD,
+  'salix',
+  $meta_view,
+  JSON_VIEW_PATH
+);
 
 if( $last_completed_rank < $rank )
 {
@@ -91,10 +98,17 @@ if( $last_completed_rank < $rank )
     // for delayed interview exports to Opal
     //
     $date_obj = new DateTime();
-    $date_obj->sub( new DateInterval( 'P3W' ) );
+    $date_obj->sub( new DateInterval( 'P6Y' ) );
     $date = $date_obj->format( 'Y-m-d' );
   }
-  $opal_curl->set_date( $date );
+  // set flag to true if updating the opal view entity filtering is needed
+  // this will activate the above date window to limit interview meta data
+  // to those after the specified date.  Currently set to 6 years 'P6Y' to capture
+  // all wave 3 interviews.
+  //
+  $do_entity_filter = false;
+
+  if ($do_entity_filter) $opal_curl->set_date( $date );
 }
 
 // Get the UID list from the meta data view
@@ -119,8 +133,7 @@ if( $total != count( $identifier_list ) )
 $db_salix = null;
 try
 {
-  $db_salix = new database(
-    DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+  $db_salix = new database( DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
 }
 catch( Exception $e )
 {
@@ -138,7 +151,8 @@ $columns = array(
   'height',
   'weight',
   'age',
-  'technician' );
+  'technician'
+);
 
 $quotable = array( 'barcode', 'technician' );
 
@@ -146,17 +160,13 @@ $sql_col = 'INSERT INTO apex_exam (' . implode( ',', $columns );
 
 // Convenience lookup for scan_type information
 //
-$sql =
-  'SELECT id AS scan_type_id, type, side '.
-  'FROM scan_type';
+$sql = 'SELECT id AS scan_type_id, type, side FROM scan_type';
 
 $res = $db_salix->get_all( $sql );
 $types = array();
 foreach( $res as $value )
 {
-  $types[$value['scan_type_id']] =
-    array( 'type' => $value['type'],
-           'side' => $value['side'] );
+  $types[$value['scan_type_id']] = array( 'type' => $value['type'], 'side' => $value['side'] );
 }
 
 // Every Apex system installed at a DCS has a unique serial number.
@@ -165,7 +175,9 @@ foreach( $res as $value )
 $sql = sprintf(
   'SELECT name AS site, n.id AS serial_number_id, s.id AS site_id '.
   'FROM serial_number n '.
-  'JOIN %scenozo.site s ON s.id=n.site_id', DB_PREFIX );
+  'JOIN %scenozo.site s ON s.id=n.site_id',
+  DB_PREFIX
+);
 
 $res = $db_salix->get_all( $sql );
 $site_lookup = array();
@@ -173,7 +185,8 @@ foreach( $res as $values )
 {
   $site_lookup[$values['site']] = array(
     'serial_number_id' => $values['serial_number_id'],
-    'site_id' => $values['site_id'] );
+    'site_id' => $values['site_id']
+  );
 }
 
 // Loop over the per UID meta data
@@ -188,7 +201,10 @@ foreach( $list as $uid => $row )
     'SELECT DISTINCT b.id '.
     'FROM apex_baseline b '.
     'JOIN %scenozo.participant p ON p.id=b.participant_id '.
-    'WHERE uid="%s"', DB_PREFIX, $uid );
+    'WHERE uid="%s"',
+    DB_PREFIX,
+    $uid
+  );
 
   $res = $db_salix->get_one( $sql_p );
   if( false === $res || '' == $res ) continue;
@@ -212,7 +228,8 @@ foreach( $list as $uid => $row )
     '' == $row['height'] ? 'NULL' : $row['height'],
     '' == $row['weight'] ? 'NULL' : $row['weight'],
     '' == $row['age'] ? 'NULL' : $row['age'],
-    '' == $row['technician'] ? 'NULL' : '"' . $row['technician'] . '"' );
+    '' == $row['technician'] ? 'NULL' : '"' . $row['technician'] . '"'
+  );
 
   $sql_val =
     ') VALUES (' . implode( ',', $data ) . ') ';
@@ -232,7 +249,9 @@ foreach( $list as $uid => $row )
   //
   $sql = $sql_col . $sql_val . $sql_dup;
   if( false === $db_salix->execute( $sql ) )
+  {
     write_log( sprintf( 'WARNING: failed to update apex_exam for %s / %s', $uid, $row['barcode']  ) );
+  }
 
   // Get the apex_exam record id
   //
@@ -241,7 +260,12 @@ foreach( $list as $uid => $row )
     'WHERE apex_baseline_id=%d '.
     'AND serial_number_id=%d '.
     'AND rank=%d '.
-    'AND barcode="%s"', $apex_baseline_id, $serial_number_id, $rank, $row['barcode'] );
+    'AND barcode="%s"',
+    $apex_baseline_id,
+    $serial_number_id,
+    $rank,
+    $row['barcode']
+  );
   $apex_exam_id = $db_salix->get_one( $sql );
   if( false === $apex_exam_id || '' == $apex_exam_id )
   {
@@ -252,7 +276,11 @@ foreach( $list as $uid => $row )
       'AND serial_number_id=%d '.
       'AND rank=%d '.
       'AND barcode=%s',
-      $apex_baseline_id, $serial_number_id, $dup_val['rank'], $dup_val['barcode'] );
+      $apex_baseline_id,
+      $serial_number_id,
+      $dup_val['rank'],
+      $dup_val['barcode']
+    );
 
     $apex_exam_id = $db_salix->get_one( $sql );
   }
@@ -263,25 +291,27 @@ foreach( $list as $uid => $row )
   //
   foreach( $types as $scan_type_id => $type_data )
   {
-    $sql =
-      'INSERT INTO apex_scan ('.
-      'apex_exam_id, scan_type_id, availability';
+    $sql = 'INSERT INTO apex_scan (apex_exam_id, scan_type_id, availability';
 
     $type = $type_data['type'];
     $side = $type_data['side'];
     $type_qualified = 'none' == $side ? $type : $type . '_' . $side;
     $key = $type_qualified . '_availability';
     $availability = '';
-    if( array_key_exists( $key, $row ) )
-      $availability = $row[$key];
+    if( array_key_exists( $key, $row ) ) $availability = $row[$key];
     $availability = '' == $availability ? 0 : $availability;
 
     $key = $type_qualified . '_length';
     if('forearm' == $type && array_key_exists( $key, $row ) && is_numeric($row[$key]))
     {
       $forearm_length = $row[$key];
-      $sql .= sprintf( ',forearm_length) VALUES (%d, %d, %d, %s) ',
-          $apex_exam_id, $scan_type_id, $availability, $forearm_length );
+      $sql .= sprintf(
+        ',forearm_length) VALUES (%d, %d, %d, %s) ',
+        $apex_exam_id,
+        $scan_type_id,
+        $availability,
+        $forearm_length
+      );
       $sql .=
         'ON DUPLICATE KEY UPDATE ' .
         'availability = VALUES( availability ), '.
