@@ -54,15 +54,23 @@ function write_log( $message )
 function scp_command( $address, $source, $destination )
 {
   return trim( shell_exec( sprintf(
-    'scp -i ' . APEX_SSH_KEY .
-    ' %s clsa@%s:/cygdrive/e/InComing/%s', $source, $address, $destination ) ) );
+    'scp -i %s %s clsa@%s:/cygdrive/e/InComing/%s',
+    APEX_SSH_KEY,
+    $source,
+    $address,
+    $destination
+  ) ) );
 }
 
 // ssh args: apex host address, command arg
 function ssh_command( $address, $arg )
 {
   return trim( shell_exec( sprintf(
-    'ssh -i ' . APEX_SSH_KEY . ' clsa@%s %s', $address, $arg ) ) );
+    'ssh -i %s clsa@%s %s',
+    APEX_SSH_KEY,
+    $address,
+    $arg
+  ) ) );
 }
 
 // dgate (conquest dicom server service) args: apex host address, command arg
@@ -84,8 +92,7 @@ if( 7 != $argc )
 $db_salix = null;
 try
 {
-  $db_salix = new database(
-    DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
+  $db_salix = new database( DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_PREFIX . 'salix' );
 }
 catch( Exception $e )
 {
@@ -100,6 +107,7 @@ $option_rank = $argv[4];
 $option_type = $argv[5];
 $option_side = $argv[6];
 
+write_log( 'echo import_single_scan args : ' . implode(',', $argv) );
 $sql = 'SELECT * FROM apex_host';
 $res = $db_salix->get_all( $sql );
 $host_list = array();
@@ -171,8 +179,13 @@ $sql = sprintf(
   'AND side="%s" '.
   'AND (h.id=%d OR h.id IS NULL)',
   DB_PREFIX,
-  $option_uid, $option_barcode, $option_rank,
-  $option_type, $option_side, $apex_host_id );
+  $option_uid,
+  $option_barcode,
+  $option_rank,
+  $option_type,
+  $option_side,
+  $apex_host_id
+);
 
 $data = $db_salix->get_row( $sql );
 
@@ -184,16 +197,26 @@ if( false === $data || !is_array( $data ) )
 }
 
 $item = new dexa_scan(
-  $option_uid, $option_type, $option_side,
-  $option_rank, $option_barcode, $data['serial_number'],
-  $data['apex_scan_id'], $data['scan_type_id'], $data['priority'], $apex_host_id );
+  $option_uid,
+  $option_type,
+  $option_side,
+  $option_rank,
+  $option_barcode,
+  $data['serial_number'],
+  $data['apex_scan_id'],
+  $data['scan_type_id'],
+  $data['priority'],
+  $apex_host_id
+);
 
 // connect to opal source to download scans using curl
 //
 $opal_curl = new opalcurl( OPAL_SERVER, OPAL_PORT, OPAL_USERNAME, OPAL_PASSWORD );
 $opal_curl->set_datasource( 'salix' );
 
-$filename = $item->get_scan_file( $opal_curl, TEMP_PATH );
+$err = '';
+$filename = $item->get_scan_file( $opal_curl, TEMP_PATH, $err );
+$apex_deployment_id = NULL;
 if( NULL !== $filename && false === $item->validate( $filename ) )
 {
   // create a deploment if required
@@ -206,13 +229,19 @@ if( NULL !== $filename && false === $item->validate( $filename ) )
     $sql = sprintf(
       'INSERT INTO apex_deployment '.
       '(apex_scan_id, apex_host_id) '.
-      'VALUES (%d, %d)', $apex_scan_id, $apex_host_id );
+      'VALUES (%d, %d)',
+      $apex_scan_id,
+      $apex_host_id
+    );
     $db_salix->execute( $sql );
     $sql = sprintf(
       'SELECT id '.
       'FROM apex_deployment '.
       'WHERE apex_host_id=%d '.
-      'AND apex_scan_id=%d', $apex_host_id, $apex_scan_id );
+      'AND apex_scan_id=%d',
+      $apex_host_id,
+      $apex_scan_id
+    );
     $apex_deployment_id = $db_salix->get_one( $sql );
     if( false === $apex_deployment_id )
     {
@@ -223,7 +252,7 @@ if( NULL !== $filename && false === $item->validate( $filename ) )
 }
 else
 {
-  write_log( 'ERROR: failed to retrieve a valid file' );
+  write_log( 'ERROR: failed to retrieve a valid file ' . $err );
   return 0;
 }
 
@@ -231,16 +260,12 @@ else
 exec( sprintf( 'gdcmconv -E -w %s %s', $filename, $filename ) );
 
 // scp the_file.dcm to the host E:\InComing dir
-$subpath = '';
-if( 'none' == $item->side )
-$subpath = sprintf( '%s/%s', $item->type, $item->barcode );
-else
-$subpath = sprintf( '%s/%s/%s', $item->type, $item->side, $item->barcode );
+$subpath = 'none' == $item->side
+         ? sprintf( '%s/%s', $item->type, $item->barcode )
+         : sprintf( '%s/%s/%s', $item->type, $item->side, $item->barcode );
 
 $res = ssh_command( $host_address, sprintf( 'mkdir /cygdrive/e/InComing/%s 2>/dev/null', $subpath ) );
-
 $base = basename( $filename );
-
 $res = scp_command( $host_address, $filename, $subpath . '/' . $base );
 
 $item->import_datetime = date( 'Y-m-d H:i:s' );
@@ -310,26 +335,35 @@ else
     'scan_datetime="%s", '.
     'scanid="%s", '.
     'patient_key="%s" '.
-    'WHERE id=%d ', $scan_datetime, $scanid, $patient_key, $item->apex_scan_id );
+    'WHERE id=%d ',
+    $scan_datetime,
+    $scanid,
+    $patient_key,
+    $item->apex_scan_id
+  );
 
   $db_salix->execute( $sql );
 
-  if( $new_deployment )
-  {
-    $sql = sprintf(
-      'UPDATE apex_deployment SET '.
-      'merged=0, status="pending", '.
-      'comp_scanid=NULL, analysis_datetime=NULL, import_datetime="%s" '.
-      'WHERE id=%d ',
-      $item->import_datetime, $item->apex_deployment_id );
+  // update the deployment status:
+  // even if replacing an existing scan, pushing it to
+  // the target Apex host will overwrite the analysis
+  // effectively setting the deploymnet state back to pending
+  //
+  $sql = sprintf(
+    'UPDATE apex_deployment SET '.
+    'merged=0, status="pending", '.
+    'comp_scanid=NULL, analysis_datetime=NULL, import_datetime="%s" '.
+    'WHERE id=%d ',
+    $item->import_datetime,
+    $apex_deployment_id
+  );
 
-    $db_salix->execute( $sql );
-  }
+  $db_salix->execute( $sql );
 
   // copy the file on the host from InComing to ORIGINAL
   // create the barcode subdirectory
   $dir = '/cygdrive/e/ORIGINAL/' . $item->type . '/';
-  $dir .= ('none' == $side) ? $item->barcode : ( $item->side . '/' . $item->barcode);
+  $dir .= ('none' == $item->side) ? $item->barcode : ( $item->side . '/' . $item->barcode);
   $res = ssh_command( $host_address, 'mkdir -p ' . $dir );
   $res = ssh_command( $host_address, sprintf( 'cp %s %s', $item->copy_from, $item->copy_to ) );
 
