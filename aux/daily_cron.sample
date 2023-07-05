@@ -99,7 +99,3 @@ exec( sprintf( '%s %d', $settings['path']['APPLICATION'].'/aux/receive_exports',
 // merge patient biographies such that APEX identifiers use baseline visit barcodes
 //
 exec( sprintf( '%s', $settings['path']['APPLICATION'].'/aux/merge_biographies' ) );
-
-// retrieve exported priority scans for redaction and release to participants
-//
-exec( sprintf( '%s', $settings['path']['APPLICATION'].'/aux/process_requests' ) );

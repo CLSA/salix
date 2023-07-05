@@ -188,19 +188,6 @@ cenozoApp.defineModule({
       },
     });
 
-    module.addExtraOperation("view", {
-      title: "Download Report",
-      isIncluded: function ($state, model) {
-        return model.canDownloadReports();
-      },
-      isDisabled: function ($state, model) {
-        return !model.viewModel.fileExists;
-      },
-      operation: async function ($state, model) {
-        await model.viewModel.downloadReport();
-      },
-    });
-
     /* ############################################################################################## */
     cenozo.providers.directive("cnApexDeploymentView", [
       "CnApexDeploymentModelFactory",
@@ -242,7 +229,6 @@ cenozoApp.defineModule({
           CnBaseViewFactory.construct(this, parentModel, root, "analysis");
           angular.extend(this, {
             isComplete: false,
-            fileExists: false,
 
             // create a custom child list that includes the analysis dialog
             customChildList: null,
@@ -260,13 +246,6 @@ cenozoApp.defineModule({
               return "analysis" == child.subject.snake
                 ? "Analysis"
                 : this.$$getChildTitle(child);
-            },
-
-            downloadReport: async function () {
-              await CnHttpFactory.instance({
-                path: "apex_deployment/" + this.record.getIdentifier(),
-                format: "jpeg",
-              }).file();
             },
 
             // transitions to the next available deployment for analysis
@@ -370,7 +349,6 @@ cenozoApp.defineModule({
 
             onView: async function (force) {
               this.isComplete = false;
-              this.fileExists = false;
               await this.$$onView(force);
               await this.parentModel.metadata.getPromise();
 
@@ -394,16 +372,6 @@ cenozoApp.defineModule({
               response.data.forEach((code) => {
                 this.record["codeType" + code.code_type_id] = true;
               });
-
-              // determine whether the report is available
-              var response = await CnHttpFactory.instance({
-                path:
-                  "apex_deployment/" +
-                  this.record.getIdentifier() +
-                  "?report=1",
-              }).get();
-
-              this.fileExists = response.data;
             },
 
             patch: async function (property) {
@@ -512,10 +480,6 @@ cenozoApp.defineModule({
           this.addModel = CnApexDeploymentAddFactory.instance(this);
           this.listModel = CnApexDeploymentListFactory.instance(this);
           this.viewModel = CnApexDeploymentViewFactory.instance(this, root);
-
-          this.canDownloadReports = function () {
-            return 3 <= CnSession.role.tier;
-          };
 
           // extend getServiceData
           this.getServiceData = function (type, columnRestrictLists) {

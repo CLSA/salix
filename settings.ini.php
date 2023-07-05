@@ -13,7 +13,7 @@ global $SETTINGS;
 $SETTINGS['general']['application_name'] = 'salix';
 $SETTINGS['general']['instance_name'] = $SETTINGS['general']['application_name'];
 $SETTINGS['general']['version'] = '2.9';
-$SETTINGS['general']['build'] = 'f572724';
+$SETTINGS['general']['build'] = 'fda3a5e';
 
 // the location of salix internal path
 $SETTINGS['path']['APPLICATION'] = str_replace( '/settings.ini.php', '', __FILE__ );
@@ -23,9 +23,6 @@ $SETTINGS['path']['PHP_UTIL'] = $SETTINGS['path']['APPLICATION'].'/../php_util';
 
 // the location of opal views in json format
 $SETTINGS['path']['OPAL_VIEWS'] = $SETTINGS['path']['APPLICATION'].'/aux/opal_views/json';
-
-// the location of deployment reports (defaults to salix/doc/deployment_report)
-$SETTINGS['path']['DEPLOYMENT_REPORT'] = str_replace( 'settings.ini.php', 'doc/deployment_report', __FILE__ );
 
 // the location of the SSH key file used to communicate with APEX hosts (defaults to salix/doc/key)
 $SETTINGS['apex']['apex_ssh_key'] = str_replace( 'settings.ini.php', 'doc/key', __FILE__ );
