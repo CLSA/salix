@@ -343,7 +343,7 @@ foreach ($collector_list as $type)
         {
           // validate undeployed scans
           //
-          $filename = $item->get_scan_file( $opal_curl, TEMP_PATH );
+          $filename = $item->get_scan_file( $opal_curl, TEMP_PATH, $err );
           if ( NULL !== $filename )
           {
             if ( false === $item->validate( $filename ) )

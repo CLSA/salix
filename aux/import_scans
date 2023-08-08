@@ -57,6 +57,7 @@ $do_verbose_logging = false;
 // scp args: apex host address, source file, destination file
 function scp_command( $address, $source, $destination )
 {
+  global $do_verbose_logging;
   $cmd = sprintf(
     'scp -i %s %s clsa@%s:/cygdrive/e/InComing/%s',
     APEX_SSH_KEY,
@@ -71,6 +72,7 @@ function scp_command( $address, $source, $destination )
 // ssh args: apex host address, command arg
 function ssh_command( $address, $arg )
 {
+  global $do_verbose_logging;
   $cmd = sprintf('ssh -i ' . APEX_SSH_KEY . ' clsa@%s %s', $address, $arg ) ;
   if ($do_verbose_logging) write_log('current ssh command: ' . $cmd);
   return trim( shell_exec( $cmd ) );
