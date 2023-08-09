@@ -1,5 +1,6 @@
 cenozoApp.defineModule({
   name: "apex_deployment",
+  dependencies: "apex_host",
   models: ["add", "list", "view"],
   create: (module) => {
     angular.extend(module, {
