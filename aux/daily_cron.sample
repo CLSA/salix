@@ -99,24 +99,3 @@ exec( sprintf( '%s %d', $settings['path']['APPLICATION'].'/aux/receive_exports',
 // merge patient biographies such that APEX identifiers use baseline visit barcodes
 //
 exec( sprintf( '%s', $settings['path']['APPLICATION'].'/aux/merge_biographies' ) );
-
-/**
- * Update log entries
- */
-$curl = curl_init();
-curl_setopt( $curl, CURLOPT_URL, URL.'log_entry?update=1' );
-curl_setopt( $curl, CURLOPT_SSL_VERIFYHOST, false );
-curl_setopt( $curl, CURLOPT_RETURNTRANSFER, true );
-curl_setopt( $curl, CURLOPT_HTTPHEADER, array( AUTH ) );
-
-$result = curl_exec( $curl );
-if( curl_errno( $curl ) )
-{
-  write_log( sprintf(
-    "Returned error code %s when trying to update log entry table\nMessage: %s",
-    curl_errno( $curl ),
-    curl_error( $curl )
-  ) );
-}
-
-curl_close( $curl );
