@@ -16,17 +16,11 @@ class patch extends \cenozo\service\patch
   /**
    * Override parent method
    */
-  public function get_file_as_array()
+  protected function prepare()
   {
-    // remove reset_codes from the patch array
-    $patch_array = parent::get_file_as_array();
-    if( array_key_exists( 'reset_codes', $patch_array ) )
-    {
-      $this->reset_codes = $patch_array['reset_codes'];
-      unset( $patch_array['reset_codes'] );
-    }
+    $this->extract_parameter_list[] = 'reset_codes';
 
-    return $patch_array;
+    parent::prepare();
   }
 
   /**
@@ -38,14 +32,9 @@ class patch extends \cenozo\service\patch
 
     // reset the deployment's codes, if requested
     $db_apex_deployment = $this->get_leaf_record();
-    if( $this->reset_codes && '' === $db_apex_deployment->pass ) // when set to null pass will be an empty string
+    if( $this->get_argument( 'reset_codes', false ) && '' === $db_apex_deployment->pass )
+    {
       $this->get_leaf_record()->reset_codes();
+    }
   }
-
-  /**
-   * Used to define the reason for this participant's last trace
-   * @var object
-   * @access protected
-   */
-  protected $reset_codes = false;
 }
