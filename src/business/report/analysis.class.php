@@ -43,10 +43,6 @@ class analysis extends \cenozo\business\report\base_report
     $modifier = lib::create( 'database\modifier' );
 
     $select->from( 'apex_deployment' );
-    $select->add_column( 'participant.uid', 'UID', false );
-    if( $show_wave ) $select->add_column( 'apex_exam.rank', 'Wave', false );
-    $select->add_column( 'apex_exam.barcode', 'Barcode', false );
-    $select->add_column( 'apex_exam.technician', 'Technician', false );
     if( is_null( $scan_type_id ) )
     {
       $select->add_column(
@@ -59,6 +55,10 @@ class analysis extends \cenozo\business\report\base_report
         false
       );
     }
+    $select->add_column( 'participant.uid', 'UID', false );
+    if( $show_wave ) $select->add_column( 'apex_exam.rank', 'Wave', false );
+    $select->add_column( 'apex_exam.barcode', 'Barcode', false );
+    $select->add_column( 'apex_exam.technician', 'Technician', false );
     $select->add_column( 'apex_host.name', 'Host', false );
     $select->add_column( 'user.name', 'Typist', false );
     $select->add_column(
@@ -85,6 +85,8 @@ class analysis extends \cenozo\business\report\base_report
     $modifier->where( 'apex_deployment.analysis_datetime', '!=', NULL );
     if( !is_null( $scan_type_id ) ) $modifier->where( 'scan_type.id', '=', $scan_type_id );
     $modifier->group( 'apex_deployment.id' );
+    $modifier->order( 'scan_type.type' );
+    $modifier->order( 'scan_type.side' );
     $modifier->order( 'uid' );
     $modifier->order( 'apex_exam.rank' );
 
