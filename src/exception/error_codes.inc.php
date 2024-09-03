@@ -44,6 +44,8 @@ define( 'SYSTEM_SALIX_BASE_ERRNO',     780000 );
 /**
  * "runtime" error codes
  */
+define( 'RUNTIME__SALIX_UTIL__PARSE_DCM_REPORT__ERRNO',
+        RUNTIME_SALIX_BASE_ERRNO + 1 );
 
 /**
  * "system" error codes

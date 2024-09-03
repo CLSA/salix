@@ -21,6 +21,19 @@ class module extends \cenozo\service\module
   {
     parent::prepare_read( $select, $modifier );
 
+    if( $select->has_column( 'name' ) )
+    {
+      $select->add_column(
+        'CONCAT_WS( '.
+          '" ", '.
+          'scan_type.type, '.
+          'IF("none" = scan_type.side, NULL, CONCAT( "(", scan_type.side, ")" ) ) '.
+        ')',
+        'name',
+        false
+      );
+    }
+
     // add the total number of code_types
     if( $select->has_column( 'code_type_count' ) )
     {
