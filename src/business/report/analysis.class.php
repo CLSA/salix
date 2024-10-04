@@ -62,6 +62,11 @@ class analysis extends \cenozo\business\report\base_report
     $select->add_column( 'apex_host.name', 'Host', false );
     $select->add_column( 'user.name', 'Typist', false );
     $select->add_column(
+      $this->get_datetime_column( 'apex_scan.scan_datetime', 'date' ),
+      'Scan Date',
+      false
+    );
+    $select->add_column(
       $this->get_datetime_column( 'apex_deployment.analysis_datetime', 'date' ),
       'Analysis Date',
       false
