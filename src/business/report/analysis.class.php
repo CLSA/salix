@@ -59,8 +59,11 @@ class analysis extends \cenozo\business\report\base_report
     if( $show_wave ) $select->add_column( 'apex_exam.rank', 'Wave', false );
     $select->add_column( 'apex_exam.barcode', 'Barcode', false );
     $select->add_column( 'apex_exam.technician', 'Technician', false );
+    $select->add_column( 'apex_exam.serial_number_id', 'Serial Number', false );
     $select->add_column( 'apex_host.name', 'Host', false );
     $select->add_column( 'user.name', 'Typist', false );
+    $select->add_column( 'apex_scan.scanid', 'Scan ID', false );
+    $select->add_column( 'apex_scan.patient_key', 'Scan ID', false );
     $select->add_column(
       $this->get_datetime_column( 'apex_scan.scan_datetime', 'date' ),
       'Scan Date',
